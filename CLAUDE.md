@@ -75,21 +75,24 @@ The program will:
 - **CRITICAL**: Always call `Done` destructor before exit to unhook interrupt
 
 **PKMLOAD.PAS** - PKM image format loader
-- PKM format: Custom RLE-compressed 320x200 paletted image format
+- PKM format: RLE-compressed paletted image format from GrafX2 drawing program (http://grafx2.chez.com/)
 - `LoadPKM(filename, buffer, palette)`: Decompresses image to framebuffer
+- **Current limitation**: Only loads 320x200 pixel images (under construction - will support arbitrary sizes later)
 - Header structure:
   - Signature: "PKM" (3 bytes)
   - Version, pack markers (Pack_byte/Pack_word for RLE)
-  - Width/Height (must be 320x200)
+  - Width/Height (currently must be 320x200)
   - 768-byte palette (256 RGB triplets)
   - RLE-compressed pixel data (byte-run or word-run encoding)
 
 ### File Formats
 
 **PKM Images**:
+- Format from GrafX2 drawing program (http://grafx2.chez.com/)
 - TEST.PKM, HELLO.PKM (examples)
-- 320x200 indexed color with embedded palette
+- Indexed color (256 colors) with embedded palette
 - RLE compression using configurable pack markers
+- **Current**: Only 320x200 images supported ⚠️ **UNDER CONSTRUCTION** (arbitrary dimensions planned)
 
 **HSC Music**:
 - FANTASY.HSC (example)
