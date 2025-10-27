@@ -56,9 +56,13 @@ The program will:
 
 **VGA.PAS** - Low-level VGA Mode 13h graphics driver
 - `TFrameBuffer`: 64000-byte (320x200) pixel buffer type
+- `TPalette`: 256-color RGB palette (0-63 range for VGA DAC)
 - `InitVGA`/`CloseVGA`: Switch between text mode and Mode 13h
 - `CreateFrameBuffer`/`FreeFrameBuffer`: Memory-managed pixel buffer
 - `RenderFrameBuffer`: Assembly routine to blit buffer to VGA memory ($A000:0000)
+- `SetPalette`: Upload 256-color palette to VGA DAC
+- `LoadPalette`: Load 768-byte .PAL file
+- `WaitForVSync`: Sync to vertical blanking interval (prevents tearing)
 - All rendering uses double-buffering pattern for flicker-free updates
 
 **PLAYHSC.PAS** - HSC music player wrapper (1994, by GLAMOROUS RAY)
@@ -103,6 +107,44 @@ The program will:
 - External .OBJ linking for HSCOBJ.OBJ (HSC player core)
 - Direct hardware access (VGA BIOS INT 10h, VGA memory writes)
 - BINOBJ.EXE used to embed binary data as linkable objects
+
+## Game Loop Timing
+
+The engine uses a **hybrid timing approach** (see GAME.PAS):
+
+### PIT Timer (100 Hz)
+- Programmable Interval Timer reprogrammed from 18.2Hz to 100Hz
+- Custom interrupt handler increments `TimerTicks` counter
+- Chains to BIOS timer handler to maintain system clock
+- Provides precise timing for game logic updates
+
+### VSync (70 Hz)
+- `WaitForVSync` syncs rendering to vertical blanking interval
+- Prevents screen tearing
+- Caps frame rate at ~70 FPS (VGA Mode 13h refresh rate)
+
+### Game Loop Pattern
+```pascal
+while GameRunning do
+begin
+  { Update game logic at fixed rate (e.g., 60 Hz) }
+  if TimerTicks - LastUpdateTick >= TicksPerUpdate then
+  begin
+    UpdateGameLogic;
+    LastUpdateTick := TimerTicks;
+  end;
+
+  { Render and sync to VBlank }
+  RenderFrame;
+  WaitForVSync;
+end;
+```
+
+**Key points:**
+- Game logic runs at consistent rate (deterministic physics)
+- Rendering runs as fast as VSync allows (~70 FPS)
+- Decoupled logic/render speeds (standard DOS game practice)
+- Always restore timer frequency to 18Hz on exit
 
 ## Development Workflow
 
@@ -184,6 +226,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **VGATEST.PAS**: Main graphics/music test (VGA + HSC music + PKM image)
 - **SBTEST.PAS**: Sound Blaster detection and VOC playback test
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
+- **GAME.PAS**: Hybrid timing game loop demo (60Hz logic, 70Hz VSync rendering)
 
 ## Common Pitfalls
 
@@ -196,6 +239,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 7. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
 8. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
 9. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
+10. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
 
 ## Technical Constraints
 

@@ -23,6 +23,7 @@ procedure TestCenterPixel(FrameBuffer: PFrameBuffer);
 procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer);
 procedure SetPalette(const Palette: TPalette);
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
+procedure WaitForVSync;
 
 implementation
 
@@ -134,6 +135,20 @@ begin
 
   if BytesRead = 768 then
     LoadPalette := True;
+end;
+
+procedure WaitForVSync; assembler;
+{ Wait for vertical retrace to prevent screen tearing }
+asm
+  mov dx, 03DAh     { VGA Input Status Register 1 }
+@wait1:
+  in al, dx
+  test al, 08h      { Wait for bit 3 to clear (not in VBlank) }
+  jnz @wait1
+@wait2:
+  in al, dx
+  test al, 08h      { Wait for bit 3 to set (VBlank started) }
+  jz @wait2
 end;
 
 end.
