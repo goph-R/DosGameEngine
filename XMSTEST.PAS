@@ -18,8 +18,13 @@ begin
   WriteLn;
 
   { Initialize XMS driver }
-  Write('Initializing XMS driver... ');
+  Write('Checking for XMS driver... ');
   ok := XMS_Init;
+  WriteLn('Done (ok=', ok, ')');
+
+  Write('XMS Present check... ');
+  WriteLn(XMS_IsPresent);
+
   if (not ok) or (not XMS_IsPresent) then
   begin
     WriteLn('FAILED!');
@@ -29,13 +34,14 @@ begin
     WriteLn('To fix this:');
     WriteLn('  1. Add HIMEM.SYS to CONFIG.SYS:');
     WriteLn('     DEVICE=C:\DOS\HIMEM.SYS');
-    WriteLn('  2. For DOSBox, XMS is enabled by default');
+    WriteLn('  2. For DOSBox-X, XMS should be enabled by default');
+    WriteLn('  3. Check dosbox-x.conf: xms=true');
     WriteLn;
     WriteLn('Press any key to exit...');
     ReadKey;
     Halt(1);
   end;
-  WriteLn('OK');
+  WriteLn('XMS initialized OK!');
 
   { Get XMS version }
   ver := XMS_GetVersion;
@@ -63,11 +69,22 @@ begin
   WriteLn;
 
   { Upload to XMS }
-  Write('Uploading 16 KB to XMS block at offset 0... ');
+  WriteLn('Uploading 16 KB to XMS block at offset 0...');
+  WriteLn('  Source: Seg=', Seg(workbuf), ' Ofs=', Ofs(workbuf));
+  WriteLn('  Size: ', SizeOf(workbuf), ' bytes');
+  Write('  Status: ');
   if not XMS_MoveToXMS(handle, 0, Seg(workbuf), Ofs(workbuf), SizeOf(workbuf)) then
   begin
     WriteLn('FAILED!');
+    WriteLn;
+    WriteLn('XMS Move operation failed. Possible causes:');
+    WriteLn('  - Invalid XMS handle');
+    WriteLn('  - Not enough XMS memory');
+    WriteLn('  - XMS driver error');
+    WriteLn;
     XMS_Free(handle);
+    WriteLn('Press any key to exit...');
+    ReadKey;
     Halt(1);
   end;
   WriteLn('OK');

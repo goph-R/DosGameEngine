@@ -44,6 +44,16 @@ The program will:
 - DMA buffer management with 64KB boundary safety
 - **CRITICAL**: Always call `Done` to free DMA buffer and turn off speaker
 
+**XMS.PAS** - Extended Memory Specification (XMS) interface ⚠️ **UNDER DEVELOPMENT**
+- Provides access to extended memory (above 1MB) via HIMEM.SYS
+- `XMS_Init`: Detect and initialize XMS driver
+- `XMS_AllocKB`: Allocate blocks in extended memory
+- `XMS_Free`: Free allocated XMS blocks
+- `XMS_MoveToXMS` / `XMS_MoveFromXMS`: Transfer data to/from extended memory
+- **STATUS**: Currently has issues with far call mechanism to XMS driver entry point
+- **TODO**: Fix XMS_Call procedure to properly invoke far pointer on Turbo Pascal 7.0
+- **USE CASE**: Store large data (sprites, maps, samples) in XMS, swap on demand
+
 **VGA.PAS** - Low-level VGA Mode 13h graphics driver
 - `TFrameBuffer`: 64000-byte (320x200) pixel buffer type
 - `InitVGA`/`CloseVGA`: Switch between text mode and Mode 13h
@@ -169,6 +179,12 @@ Music.LoadMem(@MUSIC_DATA);
 ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 ```
 
+## Test Programs
+
+- **VGATEST.PAS**: Main graphics/music test (VGA + HSC music + PKM image)
+- **SBTEST.PAS**: Sound Blaster detection and VOC playback test
+- **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
+
 ## Common Pitfalls
 
 1. **Music interrupts**: Failing to call `HSC_obj.Done` will leave timer interrupt hooked, causing system hang on program exit
@@ -177,17 +193,28 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 4. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
 5. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically)
 6. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
-7. **Palette**: PKM palette is 0-255 range (not VGA's 0-63); conversion may be needed
+7. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
 8. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
+9. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
 
 ## Technical Constraints
 
 - **Platform**: DOS real mode (16-bit x86)
-- **Compiler**: Turbo Pascal 7.0
+- **Compiler**: Turbo Pascal 7.0 (use TPC.EXE or TURBO.EXE IDE)
+- **Testing environment**: DOSBox-X recommended
 - **Graphics**: VGA Mode 13h only (320x200, 256 colors)
 - **Audio**:
   - Adlib/OPL2 for music (HSC tracker format)
   - Sound Blaster for 8-bit digital audio (VOC files)
   - DMA channels 0-3 supported (default: channel 1)
+- **Memory**:
+  - Conventional: 640KB real-mode limit
+  - Extended: XMS support planned (HIMEM.SYS required) - currently broken
 - **Max file size**: 64KB code segments, heap limited by DOS memory
 - **No multithreading**: Single-threaded with interrupt-based music/DMA audio
+
+## Known Issues
+
+1. **XMS.PAS far call problem**: The `XMS_Call` procedure cannot properly invoke the far pointer returned by INT 2Fh/4310h. Multiple approaches tried (inline asm `call dword ptr`, RETF trick, procedure variable casting) all fail or freeze. Needs investigation of Turbo Pascal 7.0 far call semantics.
+
+2. **Palette brightness**: Some PKM images may appear darker than expected - verify if palette values are in 0-63 range (VGA) or 0-255 range (need conversion).

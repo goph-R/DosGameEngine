@@ -57,6 +57,8 @@ implementation
 var
   XMS_EntryPoint : pointer;  { call gate to XMS driver }
   XMS_Present    : boolean;
+  XMS_EntryOfs   : word;
+  XMS_EntrySeg   : word;
 
 {
   Low-level helper to call XMS driver.
@@ -65,9 +67,15 @@ var
     - AL often = status (1 = OK, 0 = fail)
     - Other regs depend on function.
 }
-procedure XMS_Call; assembler;
-asm
-  call dword ptr [XMS_EntryPoint]
+procedure XMS_Call;
+type
+  TXMSProc = procedure; far;
+var
+  XMSProc: TXMSProc;
+begin
+  { Convert pointer to far procedure and call it }
+  XMSProc := TXMSProc(XMS_EntryPoint);
+  XMSProc;
 end;
 
 function XMS_Init: TXMSBoolean;
@@ -99,6 +107,8 @@ begin
     int $2F
     mov word ptr XMS_EntryPoint+0, bx
     mov word ptr XMS_EntryPoint+2, es
+    mov XMS_EntryOfs, bx
+    mov XMS_EntrySeg, es
   end;
 
   XMS_Init := true;
@@ -165,20 +175,16 @@ end;
 function XMS_DoMove(var M: TXMSMoveRec): boolean; assembler;
 { AH=$0B Move Extended Memory Block
   DS:SI -> move structure
-  Returns: AX=1 if success, AX=0 if fail }
+  Returns: AL=1 if success, AL=0 if fail (AH contains error code if fail) }
 asm
   push ds
   lds  si, M
   mov  ah, $0B
   call XMS_Call
   pop  ds
-  cmp  ax, 1
-  je   @success
-  mov  al, 0
-  jmp  @done
-@success:
-  mov  al, 1
-@done:
+  { AL now contains: 1=success, 0=fail }
+  { Turbo Pascal boolean: True=1, False=0, so AL is already correct }
+  and  al, 1  { Ensure it's exactly 0 or 1 }
 end;
 
 function MakeLinearAddr(Segm, Ofs: word): longint;
