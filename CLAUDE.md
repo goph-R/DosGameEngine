@@ -189,6 +189,45 @@ begin
 end;
 ```
 
+### Running Setup Program
+```bash
+# Compile SETUP.PAS
+tpc SETUP.PAS
+
+# Run the setup program
+SETUP.EXE
+```
+
+**SETUP.PAS** provides a classic DOS-style configuration utility:
+- **Features**:
+  - ASCII box-drawing character UI (IBM Extended ASCII)
+  - Sound card selection: None, Adlib, Sound Blaster
+  - Sound Blaster configuration: Port (hex), IRQ, DMA
+  - Saves settings to SOUND.CFG binary file
+- **Controls**:
+  - W/S keys for navigation (cursor keys not supported on all systems)
+  - ENTER to select/confirm
+  - ESC to cancel/exit
+  - 0-9/A-F for hex input (Port field)
+  - BACKSPACE to delete characters
+- **Usage Pattern**:
+  ```pascal
+  { Load config at game startup }
+  LoadConfig;
+
+  { Initialize sound based on config }
+  case Config.CardType of
+    SND_ADLIB: InitAdlib;
+    SND_SOUNDBLASTER:
+      begin
+        SoundCard.Port := Config.SBPort;
+        SoundCard.IRQ := Config.SBIRQ;
+        SoundCard.DMA := Config.SBDMA;
+        SoundCard.Init;
+      end;
+  end;
+  ```
+
 ### Embedding Music in EXE
 ```bash
 # Convert HSC to linkable OBJ
@@ -227,6 +266,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **SBTEST.PAS**: Sound Blaster detection and VOC playback test
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
 - **GAME.PAS**: Hybrid timing game loop demo (60Hz logic, 70Hz VSync rendering)
+- **SETUP.PAS**: DOS-style setup program for sound card configuration
 
 ## Common Pitfalls
 
@@ -240,6 +280,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 8. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
 9. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
 10. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
+11. **Cursor keys**: Extended key codes (arrow keys) may not work reliably with BIOS INT 16h on all DOS systems. Use W/A/S/D or similar character keys for better compatibility.
 
 ## Technical Constraints
 
