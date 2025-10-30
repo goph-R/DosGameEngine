@@ -85,6 +85,21 @@ The program will:
   - 768-byte palette (256 RGB triplets)
   - RLE-compressed pixel data (byte-run or word-run encoding)
 
+**KEYBOARD.PAS** - Low-level keyboard handler using scan codes
+- Hooks INT 9h (keyboard interrupt) for direct hardware access (no BIOS delays)
+- `InitKeyboard`: Initialize keyboard handler - **MUST call before use**
+- `DoneKeyboard`: Restore original interrupt handler - **MUST call before exit**
+- `IsKeyDown(scancode)`: Returns true while key is physically held down (continuous input)
+- `IsKeyPressed(scancode)`: Returns true once when key is **released** (edge detection)
+- `ClearKeyPressed`: Clears all checked key press flags - call once at end of game loop
+- **Scan code constants**: `Key_A` through `Key_Z`, `Key_0` through `Key_9`, `Key_F1` through `Key_F12`, arrow keys (`Key_Up`, `Key_Down`, `Key_Left`, `Key_Right`), modifiers (`Key_LShift`, `Key_RShift`, `Key_LCtrl`, `Key_LAlt`), special keys (`Key_Escape`, `Key_Enter`, `Key_Space`, `Key_Backspace`, `Key_Tab`)
+- **Key detection behavior**:
+  - `IsKeyPressed` triggers on key **release** (not press) to ensure no quick taps are missed
+  - Uses `KeyChecked` array to track which keys were queried this frame
+  - Only checked keys get cleared by `ClearKeyPressed`, preserving unchecked events
+  - Can call `IsKeyPressed` multiple times per frame for same key safely
+- **CRITICAL**: Always call `DoneKeyboard` before exit to unhook interrupt handler, or system will hang
+
 ### File Formats
 
 **PKM Images**:
@@ -192,6 +207,36 @@ begin
 end;
 ```
 
+### Testing Keyboard
+```pascal
+uses Keyboard;
+
+begin
+  InitKeyboard;
+
+  while GameRunning do
+  begin
+    { Continuous input - movement }
+    if IsKeyDown(Key_W) then
+      Player.Y := Player.Y - 1;
+
+    { Single-press input - actions }
+    if IsKeyPressed(Key_Space) then
+      FireWeapon;
+
+    if IsKeyPressed(Key_Escape) then
+      GameRunning := False;
+
+    { Game logic and rendering... }
+
+    { MUST call at end of loop }
+    ClearKeyPressed;
+  end;
+
+  DoneKeyboard;  { MUST call before exit }
+end;
+```
+
 ### Running Setup Program
 ```bash
 # Compile SETUP.PAS
@@ -267,6 +312,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 
 - **VGATEST.PAS**: Main graphics/music test (VGA + HSC music + PKM image)
 - **SBTEST.PAS**: Sound Blaster detection and VOC playback test
+- **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
 - **GAME.PAS**: Hybrid timing game loop demo (60Hz logic, 70Hz VSync rendering)
 - **SETUP.PAS**: DOS-style setup program for sound card configuration
@@ -274,16 +320,17 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 ## Common Pitfalls
 
 1. **Music interrupts**: Failing to call `HSC_obj.Done` will leave timer interrupt hooked, causing system hang on program exit
-2. **Sound Blaster cleanup**: Always call `SoundCard.Done` to free DMA buffer and turn off speaker
-3. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
-4. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
-5. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically)
-6. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
-7. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
-8. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
-9. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
-10. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
-11. **Cursor keys**: Extended key codes (arrow keys) may not work reliably with BIOS INT 16h on all DOS systems. Use W/A/S/D or similar character keys for better compatibility.
+2. **Keyboard interrupts**: Failing to call `DoneKeyboard` will leave INT 9h hooked, causing system hang on program exit
+3. **Sound Blaster cleanup**: Always call `SoundCard.Done` to free DMA buffer and turn off speaker
+4. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
+5. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
+6. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop, not the beginning, or `IsKeyPressed` will always return false
+7. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically)
+8. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
+9. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
+10. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
+11. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
+12. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
 
 ## Technical Constraints
 
