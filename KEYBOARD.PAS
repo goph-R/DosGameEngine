@@ -117,6 +117,9 @@ function IsKeyPressed(ScanCode: Byte): Boolean;
 { Clear the key pressed states }
 procedure ClearKeyPressed;
 
+{ Waits for any key press and returns with the scancode }
+function WaitForAnyKeyPress: Byte;
+
 implementation
 
 uses
@@ -149,17 +152,24 @@ begin
 end;
 {$F-}
 
-procedure InitKeyboard;
+{ Clear all key states }
+procedure ClearAllKeyStates;
 var
   i: Integer;
 begin
-  { Clear all key states }
   for i := 0 to 127 do
   begin
     KeyDown[i] := False;
     KeyPressed[i] := False;
     KeyChecked[i] := False;
   end;
+end;
+
+procedure InitKeyboard;
+var
+  i: Integer;
+begin
+  ClearAllKeyStates;
 
   { Save old interrupt handler and install ours }
   GetIntVec($09, OldInt9);
@@ -196,6 +206,26 @@ begin
       KeyChecked[i] := False;
       KeyPressed[i] := False;
     end;
+end;
+
+{ Waits for any key press and returns with the scancode }
+function WaitForAnyKeyPress: Byte;
+var
+  i: Byte;
+  Waiting: Boolean;
+begin
+  Waiting := True;
+  ClearAllKeyStates;
+  while Waiting do
+  begin
+    for i := 0 to 127 do
+      if IsKeyPressed(i) then
+      begin
+        WaitForAnyKeyPress := i;
+        Waiting := False;
+      end;
+  end;
+  ClearAllKeyStates;
 end;
 
 end.

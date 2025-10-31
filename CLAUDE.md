@@ -26,9 +26,8 @@ VGATEST.EXE
 
 The program will:
 1. Initialize VGA Mode 13h (320x200, 256 colors)
-2. Load and play FANTASY.HSC music file via Adlib
-3. Load and display TEST.PKM image file
-4. Wait for Enter key, then restore text mode
+2. Load and display TEST.PKM image file
+3. Wait for Enter key, then restore text mode
 
 ## Code Architecture
 
@@ -37,7 +36,7 @@ The program will:
 **SB.PAS** - Sound Blaster digital audio driver
 - `TSoundBlaster` object type for 8-bit PCM playback
 - `Init`/`Detect`: Auto-detect Sound Blaster (ports $220-$2C0)
-- `PlayVOC(filename)`: Load and play .VOC files
+- `PlayVOC(filename)`: Load and play .VOC files ⚠️ **UNDER DEVELOPMENT**
 - `PlayRaw(buffer, length, samplerate)`: Play raw 8-bit unsigned PCM
 - Full DMA programming (8237 DMA controller setup)
 - Supports DMA channels 0-3 (typically channel 1)
@@ -124,6 +123,7 @@ The program will:
   - `RenderMenu`: Draw menu with highlighted selection
   - `RunMenu`: Handle keyboard navigation and execute selected item
   - `FreeMenu`: Clean up menu items
+  - `ShowMessage`: Shows a message with an info line, waits for a key press, returns with the pressed scancode
 - **Menu features**: Disabled items (drawn in gray, skipped during navigation), inverted color selection bar
 - First menu item is always enabled (cannot be disabled)
 
@@ -152,44 +152,6 @@ The program will:
 - External .OBJ linking for HSCOBJ.OBJ (HSC player core)
 - Direct hardware access (VGA BIOS INT 10h, VGA memory writes)
 - BINOBJ.EXE used to embed binary data as linkable objects
-
-## Game Loop Timing
-
-The engine uses a **hybrid timing approach** (see GAME.PAS):
-
-### PIT Timer (100 Hz)
-- Programmable Interval Timer reprogrammed from 18.2Hz to 100Hz
-- Custom interrupt handler increments `TimerTicks` counter
-- Chains to BIOS timer handler to maintain system clock
-- Provides precise timing for game logic updates
-
-### VSync (70 Hz)
-- `WaitForVSync` syncs rendering to vertical blanking interval
-- Prevents screen tearing
-- Caps frame rate at ~70 FPS (VGA Mode 13h refresh rate)
-
-### Game Loop Pattern
-```pascal
-while GameRunning do
-begin
-  { Update game logic at fixed rate (e.g., 60 Hz) }
-  if TimerTicks - LastUpdateTick >= TicksPerUpdate then
-  begin
-    UpdateGameLogic;
-    LastUpdateTick := TimerTicks;
-  end;
-
-  { Render and sync to VBlank }
-  RenderFrame;
-  WaitForVSync;
-end;
-```
-
-**Key points:**
-- Game logic runs at consistent rate (deterministic physics)
-- Rendering runs as fast as VSync allows (~70 FPS)
-- Decoupled logic/render speeds (standard DOS game practice)
-- Always restore timer frequency to 18Hz on exit
 
 ## Development Workflow
 
@@ -359,11 +321,10 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 
 ## Test Programs
 
-- **VGATEST.PAS**: Main graphics/music test (VGA + HSC music + PKM image)
+- **VGATEST.PAS**: VGA graphics test with a PKM image load and show
 - **SBTEST.PAS**: Sound Blaster detection and VOC playback test
 - **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
-- **GAME.PAS**: Hybrid timing game loop demo (60Hz logic, 70Hz VSync rendering)
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration
 
 ## Common Pitfalls
@@ -373,7 +334,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 3. **Sound Blaster cleanup**: Always call `SoundCard.Done` to free DMA buffer and turn off speaker
 4. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
 5. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
-6. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop, not the beginning, or `IsKeyPressed` will always return false
+6. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
 7. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically)
 8. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
 9. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
@@ -401,5 +362,3 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 ## Known Issues
 
 1. **XMS.PAS far call problem**: The `XMS_Call` procedure cannot properly invoke the far pointer returned by INT 2Fh/4310h. Multiple approaches tried (inline asm `call dword ptr`, RETF trick, procedure variable casting) all fail or freeze. Needs investigation of Turbo Pascal 7.0 far call semantics.
-
-2. **Palette brightness**: Some PKM images may appear darker than expected - verify if palette values are in 0-63 range (VGA) or 0-255 range (need conversion).

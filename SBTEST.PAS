@@ -37,13 +37,13 @@ begin
     WriteLn;
 
     { Test playing a VOC file if it exists }
-    WriteLn('Press any key to play TEST.VOC (or ESC to skip)...');
+    WriteLn('Press any key to play EXPLODE.VOC (or ESC to skip)...');
     Ch := ReadKey;
 
     if Ch <> #27 then
     begin
-      Write('Playing TEST.VOC... ');
-      if SoundCard.PlayVOC('TEST.VOC') then
+      Write('Playing EXPLODE.VOC... ');
+      if SoundCard.PlayVOC('DATA\EXPLODE.VOC') then
       begin
         WriteLn('Playing!');
         WriteLn('(Sound is playing via DMA in background)');

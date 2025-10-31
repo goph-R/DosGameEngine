@@ -1,14 +1,37 @@
 program Setup;
 
-uses Crt, TextUI, Keyboard, Config;
+uses Crt, TextUI, Keyboard, Config, PlayHSC, SB;
+
+const
+  TestMusic = 'FANTASY.HSC';
+  TestSound = 'EXPLODE.VOC';
 
 var
   GameConfig: TConfig;
   MainMenu: TMenu;
   SoundCardMenu: TMenu;
+  SoundBlasterMenu: TMenu;
   SoundCardItem: PMenuItem;
   TestMusicItem: PMenuItem;
   TestSoundItem: PMenuItem;
+  SBPortItem: PMenuItem;
+  SBDMAItem: PMenuItem;
+  SBIRQItem: PMenuItem;
+  Music: HSC_obj;
+  SoundBlaster: TSoundBlaster;
+
+function HexStr(Value: Word; Digits: Byte): string;
+const
+  HexChars: array[0..15] of Char = '0123456789ABCDEF';
+var
+  Result: string;
+  i: Integer;
+begin
+  Result := '';
+  for i := Digits - 1 downto 0 do
+    Result := Result + HexChars[(Value shr (i * 4)) and $F];
+  HexStr := Result;
+end;
 
 procedure AdjustSoundItems;
 var
@@ -32,24 +55,88 @@ begin
   AdjustSoundItems;
 end;
 
+procedure AdjustSoundBlasterItems;
+begin
+  SBPortItem.Text := 'Port: ' + HexStr(GameConfig.SBPort) + 'h';
+  SBDMAItem.Text := 'DMA: ' + GameConfig.SBDMA;
+  SBIRQItem.Text := 'IRQ: ' + GameConfig.SBIRQ;
+end;
+
+procedure SetSoundBlasterPort(Port: Word);
+begin
+  GameConfig.SBPort = Port;
+  AdjustSoundBlasterItems;
+end;
+
+procedure SetSoundBlasterDMA(DMA: Byte);
+begin
+  GameConfig.SBDMA = DMA;
+  AdjustSoundBlasterItems;
+end;
+
+procedure SetSoundBlasterIRQ(IRQ: Byte);
+begin
+  GameConfig.SBIRQ = IRQ;
+  AdjustSoundBlasterItems;
+end;
+
 { Far calls required for procedure pointers }
 {$F+}  
 
 procedure SelectSoundCard;
 begin
-  RenderMenu(SoundCardMenu, 0, True);
+  SoundCardMenu.SelectedIndex := GameConfig.SoundCard;
   RunMenu(SoundCardMenu);
 end;
 
 procedure SelectTestMusic;
 begin
-  { TODO }
+  Music.Init(0);
+  if Music.LoadFile('DATA\' + TestMusic) then
+  begin
+    Music.Start;
+    ShowMessage(
+      'Music ' + TestMusic + ' is playing...',
+      'Press any key to stop'
+    );
+  end
+  else
+    ShowMessage(
+      'Could NOT load ' + TestMusic + '!',
+      'Press any key'
+    );
+  Music.Done;
   RunMenu(MainMenu);
 end;
 
 procedure SelectTestSound;
 begin
+  FillChar(SoundBlaster, SizeOf(SoundBlaster), 0);
+  
   { TODO }
+  SoundBlaster.BasePort := GameConfig.SBPort;
+  SoundBlaster.IRQ := GameConfig.SBIRQ;
+  SoundBlaster.DMA := GameConfig.SBDMA;
+
+  if SoundBlaster.Init then
+  begin
+    if SoundBlaster.PlayVOC('DATA\' + TestSound) then
+      ShowMessage(
+        'Sound ' + TestSound + ' is playing...',
+        'Press any key to stop'
+       )
+    else
+      ShowMessage(
+        'Could NOT load ' + TestSound + '!',
+        'Press any key'
+      );
+  end
+  else
+    ShowMessage(
+      'Sound Blaster NOT detected!',
+      'Press any key'
+    );
+  SoundBlaster.Done;
   RunMenu(MainMenu);
 end;
 
@@ -76,8 +163,30 @@ end;
 
 procedure SelectSoundBlaster;
 begin
-  { TODO }
   SetSoundCard(SoundCard_SoundBlaster);
+  RunMenu(SoundBlasterMenu);
+end;
+
+procedure SelectSoundBlasterPort;
+begin
+  { TODO }
+  RunMenu(SoundBlasterMenu);
+end;
+
+procedure SelectSoundBlasterDMA;
+begin
+  { TODO }
+  RunMenu(SoundBlasterMenu);
+end;
+
+procedure SelectSoundBlasterIRQ;
+begin
+  { TODO }
+  RunMenu(SoundBlasterMenu);
+end;
+
+procedure SelectSoundBlasterDone;
+begin
   RunMenu(MainMenu);
 end;
 
@@ -90,8 +199,8 @@ begin
   MainMenu.Title := 'Main Menu';
   MainMenu.FirstMenuItem := nil;
   MainMenu.Col := 24;
-  MainMenu.Row := 8;
-  MainMenu.Width := 31;
+  MainMenu.Row := 7;
+  MainMenu.Width := 33;
 
   SoundCardItem := AddMenuItem(MainMenu, 'Sound card: None', SelectSoundCard);
   TestMusicItem := AddMenuItem(MainMenu, 'Test music', SelectTestMusic);
@@ -105,7 +214,7 @@ end;
 
 procedure InitSoundCardMenu;
 begin
-  SoundCardMenu.Title := 'Sound Card';
+  SoundCardMenu.Title := 'Sound Card Setup';
   SoundCardMenu.FirstMenuItem := nil;
   SoundCardMenu.Col := 30;
   SoundCardMenu.Row := 8;
@@ -114,6 +223,23 @@ begin
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_None], SelectNone);
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_Adlib], SelectAdlib);
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_SoundBlaster], SelectSoundBlaster);
+end;
+
+procedure InitSoundBlasterMenu;
+begin
+  SoundBlasterMenu.Title := 'Sound Blaster Setup';
+  SoundBlasterMenu.FirstMenuItem := nil;
+  SoundBlasterMenu.Col := 30;
+  SoundBlasterMenu.Row := 7;
+  SoundBlasterMenu.Width := 20;
+
+  SBPortItem := AddMenuItem(SoundBlasterMenu, 'Port: 220h', SelectSoundBlasterPort);
+  SBDMAItem := AddMenuItem(SoundCardMenu, 'DMA: 1', SelectSoundBlasterDMA);
+  SBIRQItem := AddMenuItem(SoundCardMenu, 'IRQ: 5', SelectSoundBlasterIRQ);
+  AddEmptyMenuItem(MainMenu);
+  AddMenuItem(SoundCardMenu, 'Done', SelectSoundBlasterDone);
+
+  AdjustSoundBlasterItems;
 end;
 
 procedure RenderTitle;
@@ -135,7 +261,7 @@ end;
 begin
   { Init }
   TextMode(CO80);
-  HideCursor;
+  HideTextCursor;
   LoadConfig(GameConfig);
   InitKeyboard;
 

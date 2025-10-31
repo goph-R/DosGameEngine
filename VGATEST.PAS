@@ -1,4 +1,4 @@
-uses vga, playhsc, pkmload;
+uses VGA, PKMLoad;
 
 var
   FrameBuffer: PFrameBuffer;
@@ -7,18 +7,14 @@ var
   Palette: TPalette;
 
 begin
-  Music.Init(0);
-  if Music.LoadFile('FANTASY.HSC') then
-  begin
-    FrameBuffer := CreateFrameBuffer;
-    LoadPKM('TEST.PKM', FrameBuffer, Palette);
-    InitVGA;
-    SetPalette(Palette);
-    Music.Start;
-    RenderFrameBuffer(FrameBuffer);
-    ReadLn;
-    Music.Done;
-    CloseVGA;
-    FreeFrameBuffer(FrameBuffer);
-  end;
+  FrameBuffer := CreateFrameBuffer;
+  LoadPKM('DATA\TEST.PKM', FrameBuffer, Palette);
+  InitVGA;
+  SetPalette(Palette);
+  RenderFrameBuffer(FrameBuffer);
+  
+  ReadLn;
+
+  CloseVGA;
+  FreeFrameBuffer(FrameBuffer);
 end.

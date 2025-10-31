@@ -23,14 +23,15 @@ type
     Col: Integer;               { Menu column position }
     Row: Integer;               { Menu row position }
     Width: Integer;             { Menu width }
+    SelectedIndex: Integer;     { Index of the selected item }
   end;
 
 var
   VidMem : array[0..3999] of byte absolute $B800:0000;
 
 { Cursor management }
-procedure HideCursor;
-procedure ShowCursor;
+procedure HideTextCursor;
+procedure ShowTextCursor;
 
 { Text rendering }
 function GetColumnForCenter(s: string): Integer;
@@ -40,9 +41,9 @@ procedure RenderCenterText(Row: Integer; s: string; Color: Byte);
 procedure RenderEmptyLine(Row: Integer; Color: Byte);
 
 { Box rendering }
-procedure RenderBox(Col: Integer; Row: Integer; Width: Word; Height: Word;
+procedure RenderTextBox(Col: Integer; Row: Integer; Width: Word; Height: Word;
                     BoxColor: Byte; ShadowColor: Byte);
-procedure RenderBackground;
+procedure RenderTextBackground;
 
 { Menu management }
 function AddMenuItem(var Menu: TMenu; const Text: string; Process: TMenuItemProc): PMenuItem;
@@ -51,7 +52,10 @@ function CountMenuItems(var Menu: TMenu): Integer;
 function GetMenuItem(var Menu: TMenu; Index: Integer): PMenuItem;
 procedure RenderMenu(var Menu: TMenu; SelectedIndex: Integer; WithBox: Boolean);
 procedure FreeMenu(var Menu: TMenu);
-function RunMenu(var Menu: TMenu): Integer;
+procedure RunMenu(var Menu: TMenu);
+
+{ Dialogs }
+function ShowMessage(Message: string; Info: String): Byte;
 
 implementation
 
@@ -67,7 +71,7 @@ end;
 { Restore near calls }
 {$F-} 
 
-procedure HideCursor; assembler;
+procedure HideTextCursor; assembler;
 asm
   mov ah, 1
   mov ch, 32
@@ -75,7 +79,7 @@ asm
   int 10h
 end;
 
-procedure ShowCursor; assembler;
+procedure ShowTextCursor; assembler;
 asm
   mov ah, 1
   mov ch, 6
@@ -112,7 +116,7 @@ begin
   end;
 end;
 
-procedure RenderBox(
+procedure RenderTextBox(
   Col: Integer; Row: Integer; Width: Word; Height: Word;
   BoxColor: Byte; ShadowColor: Byte);
 const
@@ -164,11 +168,13 @@ begin
   { Right side shadow: one column to the right }
   { from Row+1 down to BottomRow+1 }
   for y := Row + 1 to BottomRow + 1 do
-    PutCharAt(RightCol + 1, y, Ord(' '), ShadowColor);
+    VidMem[(RightCol + 1 + y * ScreenCols) * 2 + 1] := ShadowColor;
+    {PutCharAt(RightCol + 1, y, Ord(' '), ShadowColor);}
 
   { Bottom side shadow: one row below, from Col+1 to RightCol+1 }
   for x := Col + 1 to RightCol + 1 do
-    PutCharAt(x, BottomRow + 1, Ord(' '), ShadowColor);
+    VidMem[(x + (BottomRow + 1) * ScreenCols) * 2 + 1] := ShadowColor;
+    {PutCharAt(x, BottomRow + 1, Ord(' '), ShadowColor);}
 end;
 
 procedure RenderCenterText(Row: Integer; s: string; Color: Byte);
@@ -176,7 +182,7 @@ begin
   RenderText(GetColumnForCenter(s), Row, s, Color);
 end;
 
-procedure RenderBackground;
+procedure RenderTextBackground;
 var
   i: Integer;
 begin
@@ -288,12 +294,12 @@ begin
   { Draw box }
   if WithBox then
   begin
-    RenderBackground;
-    RenderBox(Menu.Col, Menu.Row, Menu.Width, MenuHeight, $1F, $08);
+    RenderTextBackground;
+    RenderTextBox(Menu.Col, Menu.Row, Menu.Width, MenuHeight, $1F, $08);
   end;
 
   { Draw title }
-  RenderText(Menu.Col + 2, Menu.Row + 1, Menu.Title, $1E);
+  RenderText(Menu.Col + 3, Menu.Row + 1, Menu.Title, $1E);
 
   { Draw menu items }
   Index := 0;
@@ -333,9 +339,8 @@ begin
   Menu.FirstMenuItem := nil;
 end;
 
-
-{ Run a menu and return selected index (-1 if cancelled) }
-function RunMenu(var Menu: TMenu): Integer;
+{ Runs a menu, sets the TMenu.SelectedIndex at the end }
+procedure RunMenu(var Menu: TMenu);
 var
   SelectedIndex: Integer;
   ItemCount: Integer;
@@ -343,7 +348,7 @@ var
   SelectedItem: PMenuItem;
   RunProcess: Boolean;
 begin
-  SelectedIndex := 0;
+  SelectedIndex := Menu.SelectedIndex;
   ItemCount := CountMenuItems(Menu);
   Done := False;
   RunProcess := False;
@@ -352,7 +357,7 @@ begin
   if Menu.FirstMenuItem <> nil then
     Menu.FirstMenuItem^.Disabled := False;
 
-  RenderMenu(Menu, 0, True);
+  RenderMenu(Menu, Menu.SelectedIndex, True);
 
   while not Done do
   begin
@@ -402,11 +407,27 @@ begin
     ClearKeyPressed;
   end;
 
+  Menu.SelectedIndex := SelectedIndex;
+
   if RunProcess then
     SelectedItem^.Process;
-
-  RunMenu := SelectedIndex;
 end;
 
+function ShowMessage(Message: string; Info: String): Byte;
+var
+  Height: Integer;
+  Row: Integer;
+begin
+  if Info <> '' then
+    Height := 4
+  else
+    Height := 3;
+  Row := 11 - Height div 2;
+  RenderTextBox(10, Row, 60, Height, $1F, $08);
+  RenderCenterText(Row + 1, Message, $1F);
+  if Info <> '' then
+    RenderCenterText(Row + 2, Info, $17);
+  ShowMessage := WaitForAnyKeyPress;
+end;
 
 end.
