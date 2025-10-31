@@ -536,12 +536,10 @@ begin
   ShowInput := Value;
 end;
 
-
 procedure SetMenu(var Menu: TMenu);
 begin
   CurrentMenu := @Menu;
 end;
-
 
 procedure StartMenu;
 begin

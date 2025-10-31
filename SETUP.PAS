@@ -70,8 +70,40 @@ begin
   AdjustSoundBlasterItems;
 end;
 
+{ Helper: Generic input for Sound Blaster settings }
+function InputNumericValue(Row: Integer; Width: Integer; CurrentValue: Word; IsHex: Boolean): Word;
+var
+  s: string;
+  v: Word;
+  m: string;
+begin
+  repeat
+    if IsHex then
+    begin
+      s := ShowInput(37, Row, Width, HexStr(CurrentValue, Width));
+      v := HexStrToWord(s);
+      m := 'Please give a hexadecimal number!';
+    end
+    else
+    begin
+      s := ShowInput(37, Row, Width, IntToStr(CurrentValue));
+      v := StrToInt(s);
+      m := 'Please give a number!';
+    end;
+
+    { Validate }
+    if v = 0 then
+    begin
+      ShowMessage(m, 'Press any key');
+      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
+    end;
+  until v <> 0;
+
+  InputNumericValue := v;
+end;
+
 { Far calls required for procedure pointers }
-{$F+}  
+{$F+}
 
 procedure SelectSoundCard;
 begin
@@ -163,58 +195,22 @@ begin
 end;
 
 procedure SelectSoundBlasterPort;
-var
-  s: string;
-  v: Word;
 begin
-  repeat
-    s := ShowInput(37, 11, 3, HexStr(GameConfig.SBPort, 3));
-    v := HexStrToWord(s);
-    if v = 0 then
-    begin
-      ShowMessage('Please give a hexadecimal number!', 'Press any key');
-      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
-    end;
-  until v <> 0;
-  GameConfig.SBPort := v;
+  GameConfig.SBPort := InputNumericValue(10, 3, GameConfig.SBPort, True);
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterDMA;
-var
-  s: string;
-  v: Byte;
 begin
-  repeat
-    s := ShowInput(37, 12, 1, IntToStr(GameConfig.SBDMA));
-    v := StrToInt(s);
-    if v = 0 then
-    begin
-      ShowMessage('Please give a number!', 'Press any key');
-      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
-    end;
-  until v <> 0;
-  GameConfig.SBDMA := v;
+  GameConfig.SBDMA := InputNumericValue(11, 1, GameConfig.SBDMA, False);
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterIRQ;
-var
-  s: string;
-  v: Byte;
 begin
-  repeat
-    s := ShowInput(37, 13, 1, IntToStr(GameConfig.SBIRQ));
-    v := StrToInt(s);
-    if v = 0 then
-    begin
-      ShowMessage('Please give a number!', 'Press any key');
-      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
-    end;
-  until v <> 0;
-  GameConfig.SBIRQ := v;
+  GameConfig.SBIRQ := InputNumericValue(12, 1, GameConfig.SBIRQ, False);
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;
@@ -233,8 +229,8 @@ begin
   MainMenu.Title := 'Main Menu';
   MainMenu.FirstMenuItem := nil;
   MainMenu.Col := 24;
-  MainMenu.Row := 7;
-  MainMenu.Width := 33;
+  MainMenu.Row := 6;
+  MainMenu.Width := 32;
 
   SoundCardItem := AddMenuItem(MainMenu, 'Sound card: None', SelectSoundCard);
   TestMusicItem := AddMenuItem(MainMenu, 'Test music', SelectTestMusic);
@@ -251,7 +247,7 @@ begin
   SoundCardMenu.Title := 'Sound Card Setup';
   SoundCardMenu.FirstMenuItem := nil;
   SoundCardMenu.Col := 27;
-  SoundCardMenu.Row := 9;
+  SoundCardMenu.Row := 8;
   SoundCardMenu.Width := 26;
 
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_None], SelectNone);
@@ -264,7 +260,7 @@ begin
   SoundBlasterMenu.Title := 'Sound Blaster Setup';
   SoundBlasterMenu.FirstMenuItem := nil;
   SoundBlasterMenu.Col := 27;
-  SoundBlasterMenu.Row := 8;
+  SoundBlasterMenu.Row := 7;
   SoundBlasterMenu.Width := 26;
 
   SBPortItem := AddMenuItem(SoundBlasterMenu, 'Port:  220', SelectSoundBlasterPort);
