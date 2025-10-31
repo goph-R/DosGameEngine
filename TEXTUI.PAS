@@ -1,0 +1,412 @@
+unit TextUI;
+
+interface
+
+const
+  ScreenCols = 80;
+  ScreenRows = 25;
+
+type
+  PMenuItem = ^TMenuItem;
+  TMenuItemProc = procedure;
+
+  TMenuItem = record
+    Text: string[40];           { Menu item text }
+    Process: TMenuItemProc;     { Procedure to call when selected }
+    NextMenuItem: PMenuItem;    { Pointer to next item (nil = last) }
+    Disabled: Boolean;          { Is this item disabled? }
+  end;
+
+  TMenu = record
+    Title: string[40];          { Menu title }
+    FirstMenuItem: PMenuItem;   { Pointer to first menu item }
+    Col: Integer;               { Menu column position }
+    Row: Integer;               { Menu row position }
+    Width: Integer;             { Menu width }
+  end;
+
+var
+  VidMem : array[0..3999] of byte absolute $B800:0000;
+
+{ Cursor management }
+procedure HideCursor;
+procedure ShowCursor;
+
+{ Text rendering }
+function GetColumnForCenter(s: string): Integer;
+procedure PutCharAt(Col, Row: Integer; Ch: Byte; Color: Byte);
+procedure RenderText(Col: Integer; Row: Integer; s: string; Color: Byte);
+procedure RenderCenterText(Row: Integer; s: string; Color: Byte);
+procedure RenderEmptyLine(Row: Integer; Color: Byte);
+
+{ Box rendering }
+procedure RenderBox(Col: Integer; Row: Integer; Width: Word; Height: Word;
+                    BoxColor: Byte; ShadowColor: Byte);
+procedure RenderBackground;
+
+{ Menu management }
+function AddMenuItem(var Menu: TMenu; const Text: string; Process: TMenuItemProc): PMenuItem;
+function AddEmptyMenuItem(var Menu: TMenu): PMenuItem;
+function CountMenuItems(var Menu: TMenu): Integer;
+function GetMenuItem(var Menu: TMenu; Index: Integer): PMenuItem;
+procedure RenderMenu(var Menu: TMenu; SelectedIndex: Integer; WithBox: Boolean);
+procedure FreeMenu(var Menu: TMenu);
+function RunMenu(var Menu: TMenu): Integer;
+
+implementation
+
+uses Keyboard;
+
+{ Far calls required for procedure pointers }
+{$F+}  
+
+procedure DoNothing;
+begin
+end;
+
+{ Restore near calls }
+{$F-} 
+
+procedure HideCursor; assembler;
+asm
+  mov ah, 1
+  mov ch, 32
+  mov cl, 0
+  int 10h
+end;
+
+procedure ShowCursor; assembler;
+asm
+  mov ah, 1
+  mov ch, 6
+  mov cl, 7
+  int 10h
+end;
+
+function GetColumnForCenter(s: string): Integer;
+var
+  Col: Integer;
+begin
+  Col := (ScreenCols - Length(s)) div 2;
+  if Col < 0 then Col := 0;
+  GetColumnForCenter := Col;
+end;
+
+procedure PutCharAt(Col, Row: Integer; Ch: Byte; Color: Byte);
+var
+  Offset: Word;
+begin
+  { Each row has ScreenCols chars. Each char is 2 bytes in B800:0000. }
+  Offset := (Row * ScreenCols + Col) * 2;
+  VidMem[Offset]     := Ch;
+  VidMem[Offset + 1] := Color;
+end;
+
+procedure RenderText(Col: Integer; Row: Integer; s: string; Color: Byte);
+var
+  i: Integer;
+begin
+  for i := 1 to Length(s) do
+  begin
+    PutCharAt(Col + (i - 1), Row, Ord(s[i]), Color);
+  end;
+end;
+
+procedure RenderBox(
+  Col: Integer; Row: Integer; Width: Word; Height: Word;
+  BoxColor: Byte; ShadowColor: Byte);
+const
+  CH_TL = 201;
+  CH_TR = 187;
+  CH_BL = 200;
+  CH_BR = 188;
+  CH_H  = 205;
+  CH_V  = 186;
+var
+  x, y: Integer;
+  RightCol, BottomRow: Integer;
+begin
+  if (Width < 2) or (Height < 2) then Exit;
+
+  RightCol  := Col + Width - 1;
+  BottomRow := Row + Height - 1;
+
+  { --- 1) Fill box area first ------------------------------------ }
+  for y := Row to BottomRow do
+    for x := Col to RightCol do
+      PutCharAt(x, y, Ord(' '), BoxColor);
+
+  { --- 2) Draw border on top of fill ----------------------------- }
+
+  { Corners }
+  PutCharAt(Col,       Row,       CH_TL, BoxColor);
+  PutCharAt(RightCol,  Row,       CH_TR, BoxColor);
+  PutCharAt(Col,       BottomRow, CH_BL, BoxColor);
+  PutCharAt(RightCol,  BottomRow, CH_BR, BoxColor);
+
+  { Top & bottom edges }
+  if Width > 2 then
+    for x := Col + 1 to RightCol - 1 do
+    begin
+      PutCharAt(x, Row,       CH_H, BoxColor);
+      PutCharAt(x, BottomRow, CH_H, BoxColor);
+    end;
+
+  { Left & right edges }
+  if Height > 2 then
+    for y := Row + 1 to BottomRow - 1 do
+    begin
+      PutCharAt(Col,      y, CH_V, BoxColor);
+      PutCharAt(RightCol, y, CH_V, BoxColor);
+    end;
+
+  { --- 3) Draw drop shadow --------------------------------------- }
+  { Right side shadow: one column to the right }
+  { from Row+1 down to BottomRow+1 }
+  for y := Row + 1 to BottomRow + 1 do
+    PutCharAt(RightCol + 1, y, Ord(' '), ShadowColor);
+
+  { Bottom side shadow: one row below, from Col+1 to RightCol+1 }
+  for x := Col + 1 to RightCol + 1 do
+    PutCharAt(x, BottomRow + 1, Ord(' '), ShadowColor);
+end;
+
+procedure RenderCenterText(Row: Integer; s: string; Color: Byte);
+begin
+  RenderText(GetColumnForCenter(s), Row, s, Color);
+end;
+
+procedure RenderBackground;
+var
+  i: Integer;
+begin
+  for i := 80 to 1919 do        { Skip first and last row }
+  begin
+    VidMem[i * 2]     := 177;   { ASCII character }
+    VidMem[i * 2 + 1] := $17;   { blue, white }
+  end;
+end;
+
+procedure RenderEmptyLine(Row: Integer; Color: Byte);
+var
+  i: Integer;
+begin
+  for i := 0 to ScreenCols - 1 do
+  begin
+    PutCharAt(i, Row, 32, Color);
+  end;
+end;
+
+
+{ Menu management procedures }
+
+{ Create a new menu item }
+function CreateMenuItem(const Text: string; Process: TMenuItemProc): PMenuItem;
+var
+  Item: PMenuItem;
+begin
+  New(Item);
+  Item^.Text := Text;
+  Item^.Process := Process;
+  Item^.NextMenuItem := nil;
+  Item^.Disabled := False;
+  CreateMenuItem := Item;
+end;
+
+{ Add a menu item to the end of the menu }
+function AddMenuItem(var Menu: TMenu; const Text: string; Process: TMenuItemProc): PMenuItem;
+var
+  NewItem, Current: PMenuItem;
+begin
+  NewItem := CreateMenuItem(Text, Process);
+
+  if Menu.FirstMenuItem = nil then
+    Menu.FirstMenuItem := NewItem
+  else
+  begin
+    Current := Menu.FirstMenuItem;
+    while Current^.NextMenuItem <> nil do
+      Current := Current^.NextMenuItem;
+    Current^.NextMenuItem := NewItem;
+  end;
+
+  AddMenuItem := NewItem;
+end;
+
+function AddEmptyMenuItem(var Menu: TMenu): PMenuItem;
+var
+  Result: PMenuItem;
+begin
+  Result := AddMenuItem(Menu, '', DoNothing);
+  Result^.Disabled := True;
+  AddEmptyMenuItem := Result;
+end;
+
+{ Count menu items }
+function CountMenuItems(var Menu: TMenu): Integer;
+var
+  Current: PMenuItem;
+  Count: Integer;
+begin
+  Count := 0;
+  Current := Menu.FirstMenuItem;
+  while Current <> nil do
+  begin
+    Inc(Count);
+    Current := Current^.NextMenuItem;
+  end;
+  CountMenuItems := Count;
+end;
+
+{ Get menu item by index (0-based) }
+function GetMenuItem(var Menu: TMenu; Index: Integer): PMenuItem;
+var
+  Current: PMenuItem;
+  i: Integer;
+begin
+  Current := Menu.FirstMenuItem;
+  i := 0;
+  while (Current <> nil) and (i < Index) do
+  begin
+    Current := Current^.NextMenuItem;
+    Inc(i);
+  end;
+  GetMenuItem := Current;
+end;
+
+{ Render a menu }
+procedure RenderMenu(var Menu: TMenu; SelectedIndex: Integer; WithBox: Boolean);
+var
+  Current: PMenuItem;
+  Index: Integer;
+  ItemColor: Byte;
+  MenuHeight: Integer;
+  i: Integer;
+begin
+  MenuHeight := CountMenuItems(Menu) + 4;
+
+  { Draw box }
+  if WithBox then
+  begin
+    RenderBackground;
+    RenderBox(Menu.Col, Menu.Row, Menu.Width, MenuHeight, $1F, $08);
+  end;
+
+  { Draw title }
+  RenderText(Menu.Col + 2, Menu.Row + 1, Menu.Title, $1E);
+
+  { Draw menu items }
+  Index := 0;
+  Current := Menu.FirstMenuItem;
+  while Current <> nil do
+  begin
+    { Determine color }
+    if Current^.Disabled then
+      ItemColor := $17  { Gray - disabled }
+    else if Index = SelectedIndex then
+      ItemColor := $71  { White on blue - selected }
+    else
+      ItemColor := $1F; { White on blue - normal }
+
+    for i := Menu.Col + 2 to Menu.Col + Menu.Width - 3 do
+      PutCharAt(i, Menu.Row + 3 + Index, Ord(' '), ItemColor);
+
+    RenderText(Menu.Col + 2, Menu.Row + 3 + Index, ' ' + Current^.Text, ItemColor);
+
+    Current := Current^.NextMenuItem;
+    Inc(Index);
+  end;
+end;
+
+{ Free all menu items }
+procedure FreeMenu(var Menu: TMenu);
+var
+  Current, Next: PMenuItem;
+begin
+  Current := Menu.FirstMenuItem;
+  while Current <> nil do
+  begin
+    Next := Current^.NextMenuItem;
+    Dispose(Current);
+    Current := Next;
+  end;
+  Menu.FirstMenuItem := nil;
+end;
+
+
+{ Run a menu and return selected index (-1 if cancelled) }
+function RunMenu(var Menu: TMenu): Integer;
+var
+  SelectedIndex: Integer;
+  ItemCount: Integer;
+  Done: Boolean;
+  SelectedItem: PMenuItem;
+  RunProcess: Boolean;
+begin
+  SelectedIndex := 0;
+  ItemCount := CountMenuItems(Menu);
+  Done := False;
+  RunProcess := False;
+
+  { Ensure first item is never disabled }
+  if Menu.FirstMenuItem <> nil then
+    Menu.FirstMenuItem^.Disabled := False;
+
+  RenderMenu(Menu, 0, True);
+
+  while not Done do
+  begin
+    { Handle input }
+    if IsKeyPressed(Key_Up) then
+    begin
+      if SelectedIndex > 0 then
+      begin
+        Dec(SelectedIndex);
+        { Skip disabled items }
+        SelectedItem := GetMenuItem(Menu, SelectedIndex);
+        while (SelectedItem <> nil) and SelectedItem^.Disabled and (SelectedIndex > 0) do
+        begin
+          Dec(SelectedIndex);
+          SelectedItem := GetMenuItem(Menu, SelectedIndex);
+        end;
+      end;
+      RenderMenu(Menu, SelectedIndex, False);
+    end;
+
+    if IsKeyPressed(Key_Down) then
+    begin
+      if SelectedIndex < ItemCount - 1 then
+      begin
+        Inc(SelectedIndex);
+        { Skip disabled items }
+        SelectedItem := GetMenuItem(Menu, SelectedIndex);
+        while (SelectedItem <> nil) and SelectedItem^.Disabled and (SelectedIndex < ItemCount - 1) do
+        begin
+          Inc(SelectedIndex);
+          SelectedItem := GetMenuItem(Menu, SelectedIndex);
+        end;
+      end;
+      RenderMenu(Menu, SelectedIndex, False);
+    end;
+
+    if IsKeyPressed(Key_Enter) then
+    begin
+      SelectedItem := GetMenuItem(Menu, SelectedIndex);
+      if (SelectedItem <> nil) and (not SelectedItem^.Disabled) then
+      begin
+        RunProcess := True;
+        Done := True;
+      end;
+    end;
+
+    ClearKeyPressed;
+  end;
+
+  if RunProcess then
+    SelectedItem^.Process;
+
+  RunMenu := SelectedIndex;
+end;
+
+
+end.

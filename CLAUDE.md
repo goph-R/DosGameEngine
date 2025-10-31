@@ -100,11 +100,38 @@ The program will:
   - Can call `IsKeyPressed` multiple times per frame for same key safely
 - **CRITICAL**: Always call `DoneKeyboard` before exit to unhook interrupt handler, or system will hang
 
+**CONFIG.PAS** - Configuration management
+- Handles loading and saving settings to CONFIG.INI text file (INI format)
+- `TConfig` record type containing sound type and Sound Blaster settings
+- `LoadConfig(var Config)`: Load configuration from INI file, sets defaults if missing (SoundCard defaults to 0)
+- `SaveConfig(const Config)`: Save configuration to INI file
+- **Constants**:
+  - `GameTitle`, `GameVersion`: Application metadata constants
+  - `SoundCard_None` (0), `SoundCard_Adlib` (1), `SoundCard_SoundBlaster` (2) for sound card enumeration
+  - `ConfigFile`: Filename constant ('CONFIG.INI')
+- **INI Format**: Standard INI-style text file with `[Sound]` section and key=value pairs
+- Used by SETUP.PAS and can be used by games to detect sound hardware configuration
+
+**TEXTUI.PAS** - Text mode UI library
+- Direct video memory access ($B800:0000) for fast text rendering
+- **Types**: `TMenu`, `TMenuItem` (menu system with linked list structure)
+- **Cursor management**: `HideCursor`, `ShowCursor`
+- **Text rendering**: `PutCharAt`, `RenderText`, `RenderCenterText`, `RenderEmptyLine`
+- **Box rendering**: `RenderBox` (with drop shadows), `RenderBackground`
+- **Menu system**:
+  - `AddMenuItem`: Add item to menu with procedure pointer callback
+  - `AddEmptyMenuItem`: Add disabled separator item
+  - `RenderMenu`: Draw menu with highlighted selection
+  - `RunMenu`: Handle keyboard navigation and execute selected item
+  - `FreeMenu`: Clean up menu items
+- **Menu features**: Disabled items (drawn in gray, skipped during navigation), inverted color selection bar
+- First menu item is always enabled (cannot be disabled)
+
 ### File Formats
 
 **PKM Images**:
 - Format from GrafX2 drawing program (http://grafx2.chez.com/)
-- TEST.PKM, HELLO.PKM (examples)
+- TEST.PKM (example image)
 - Indexed color (256 colors) with embedded palette
 - RLE compression using configurable pack markers
 - **Current**: Only 320x200 images supported ⚠️ **UNDER CONSTRUCTION** (arbitrary dimensions planned)
@@ -246,35 +273,57 @@ tpc SETUP.PAS
 SETUP.EXE
 ```
 
-**SETUP.PAS** provides a classic DOS-style configuration utility:
+**SETUP.PAS** provides a DOS-style configuration utility:
+- Uses **CONFIG.PAS** and **TEXTUI.PAS** units
+- **Architecture**:
+  - Menu-driven interface using TMenu/TMenuItem linked lists
+  - Far procedure pointers (`{$F+}`) for menu callbacks
+  - Direct video memory rendering via TEXTUI
+  - Main menu with submenu navigation
 - **Features**:
-  - ASCII box-drawing character UI (IBM Extended ASCII)
   - Sound card selection: None, Adlib, Sound Blaster
-  - Sound Blaster configuration: Port (hex), IRQ, DMA
-  - Saves settings to SOUND.CFG binary file
+  - Saves settings to CONFIG.INI text file
+  - Menu system with disabled items support
 - **Controls**:
-  - W/S keys for navigation (cursor keys not supported on all systems)
-  - ENTER to select/confirm
+  - Up/Down arrow keys for navigation
+  - ENTER to select menu item
   - ESC to cancel/exit
-  - 0-9/A-F for hex input (Port field)
-  - BACKSPACE to delete characters
 - **Usage Pattern**:
   ```pascal
-  { Load config at game startup }
-  LoadConfig;
+  uses Config;
 
-  { Initialize sound based on config }
-  case Config.CardType of
-    SND_ADLIB: InitAdlib;
-    SND_SOUNDBLASTER:
-      begin
-        SoundCard.Port := Config.SBPort;
-        SoundCard.IRQ := Config.SBIRQ;
-        SoundCard.DMA := Config.SBDMA;
-        SoundCard.Init;
-      end;
+  var
+    GameConfig: TConfig;
+
+  begin
+    { Load config at game startup }
+    LoadConfig(GameConfig);
+
+    { Initialize sound based on config }
+    case GameConfig.SoundCard of
+      SoundCard_Adlib: InitAdlib;
+      SoundCard_SoundBlaster:
+        begin
+          SoundCard.Port := GameConfig.SBPort;
+          SoundCard.IRQ := GameConfig.SBIRQ;
+          SoundCard.DMA := GameConfig.SBDMA;
+          SoundCard.Init;
+        end;
+    end;
   end;
   ```
+
+**Example CONFIG.INI file**:
+```ini
+; DOS Game Engine Configuration
+
+[Sound]
+SoundCard=2
+SBPort=544
+SBIRQ=5
+SBDMA=1
+```
+Note: SoundCard defaults to 0 (None) if CONFIG.INI doesn't exist.
 
 ### Embedding Music in EXE
 ```bash
@@ -315,7 +364,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
 - **GAME.PAS**: Hybrid timing game loop demo (60Hz logic, 70Hz VSync rendering)
-- **SETUP.PAS**: DOS-style setup program for sound card configuration
+- **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration
 
 ## Common Pitfalls
 
@@ -331,6 +380,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 10. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
 11. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
 12. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
+13. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
 
 ## Technical Constraints
 
