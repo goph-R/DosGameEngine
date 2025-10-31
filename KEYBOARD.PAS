@@ -102,6 +102,31 @@ const
   Key_Period    = $34;  { . > }
   Key_Slash     = $35;  { / ? }
 
+  { Character lookup tables for input }
+  { Map scan codes to unshifted characters (0 = not printable) }
+  CharMapNormal: array[0..127] of Char = (
+    #0,  #0,  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', #0,  #0,  { 00-0F }
+    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', #0,  #0,  'a', 's', { 10-1F }
+    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '''', '`', #0,  '\', 'z', 'x', 'c', 'v', { 20-2F }
+    'b', 'n', 'm', ',', '.', '/', #0,  #0,  #0,  ' ', #0,  #0,  #0,  #0,  #0,  #0,  { 30-3F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 40-4F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 50-5F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 60-6F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0   { 70-7F }
+  );
+
+  { Map scan codes to shifted characters (0 = not printable) }
+  CharMapShift: array[0..127] of Char = (
+    #0,  #0,  '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', #0,  #0,  { 00-0F }
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', #0,  #0,  'A', 'S', { 10-1F }
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', #0,  '|', 'Z', 'X', 'C', 'V', { 20-2F }
+    'B', 'N', 'M', '<', '>', '?', #0,  #0,  #0,  ' ', #0,  #0,  #0,  #0,  #0,  #0,  { 30-3F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 40-4F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 50-5F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  { 60-6F }
+    #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0,  #0   { 70-7F }
+  );
+
 { Initialize keyboard handler - MUST be called before use }
 procedure InitKeyboard;
 
@@ -143,8 +168,8 @@ begin
   ScanCode := Port[$60];
   KeyIsDown := (ScanCode and $80) = 0;
   ScanCode := ScanCode and $7F;
-  { The key is pressed if it was down but now it released }
-  if KeyDown[ScanCode] and not KeyIsDown then
+  { The key is pressed if it was released but now it is down }
+  if not KeyDown[ScanCode] and KeyIsDown then
     KeyPressed[ScanCode] := True;
   { Set the current state }
   KeyDown[ScanCode] := KeyIsDown;

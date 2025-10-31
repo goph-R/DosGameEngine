@@ -1,6 +1,6 @@
 program Setup;
 
-uses Crt, TextUI, Keyboard, Config, PlayHSC, SB;
+uses Crt, TextUI, Keyboard, Config, PlayHSC, SB, StrUtil;
 
 const
   TestMusic = 'FANTASY.HSC';
@@ -22,19 +22,6 @@ var
   SBPortItem: PMenuItem;
   SBDMAItem: PMenuItem;
   SBIRQItem: PMenuItem;
-
-function HexStr(Value: Word; Digits: Byte): string;
-const
-  HexChars: array[0..15] of Char = '0123456789ABCDEF';
-var
-  Result: string;
-  i: Integer;
-begin
-  Result := '';
-  for i := Digits - 1 downto 0 do
-    Result := Result + HexChars[(Value shr (i * 4)) and $F];
-  HexStr := Result;
-end;
 
 procedure AdjustSoundItems;
 var
@@ -59,14 +46,10 @@ begin
 end;
 
 procedure AdjustSoundBlasterItems;
-var
-  s: string;
 begin
   SBPortItem^.Text := 'Port:  ' + HexStr(GameConfig.SBPort, 3);
-  Str(GameConfig.SBDMA, s);
-  SBDMAItem^.Text := 'DMA:   ' + s;
-  Str(GameConfig.SBIRQ, s);
-  SBIRQItem^.Text := 'IRQ:   ' + s;
+  SBDMAItem^.Text  := 'DMA:   ' + IntToStr(GameConfig.SBDMA);
+  SBIRQItem^.Text  := 'IRQ:   ' + IntToStr(GameConfig.SBIRQ);
 end;
 
 procedure SetSoundBlasterPort(Port: Word);
@@ -93,7 +76,7 @@ end;
 procedure SelectSoundCard;
 begin
   SoundCardMenu.SelectedIndex := GameConfig.SoundCard;
-  RunMenu(SoundCardMenu);
+  SetMenu(SoundCardMenu);
 end;
 
 procedure SelectTestMusic;
@@ -113,7 +96,7 @@ begin
       'Press any key'
     );
   Music.Done;
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
 end;
 
 procedure SelectTestSound;
@@ -146,58 +129,99 @@ begin
       'Press any key'
     );
   SoundBlaster.Done;
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
 end;
 
 procedure SelectSaveAndExit;
 begin
   SaveConfig(GameConfig);
+  StopMenu;
 end;
 
 procedure SelectExitWithoutSaving;
 begin
+  StopMenu;
 end;
 
 procedure SelectNone;
 begin
   SetSoundCard(SoundCard_None);
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
 end;
 
 procedure SelectAdlib;
 begin
   SetSoundCard(SoundCard_Adlib);
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
 end;
 
 procedure SelectSoundBlaster;
 begin
   SetSoundCard(SoundCard_SoundBlaster);
   SoundBlasterMenu.SelectedIndex := 0;
-  RunMenu(SoundBlasterMenu);
+  SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterPort;
+var
+  s: string;
+  v: Word;
 begin
-  { TODO }
-  RunMenu(SoundBlasterMenu);
+  repeat
+    s := ShowInput(37, 11, 3, HexStr(GameConfig.SBPort, 3));
+    v := HexStrToWord(s);
+    if v = 0 then
+    begin
+      ShowMessage('Please give a hexadecimal number!', 'Press any key');
+      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
+    end;
+  until v <> 0;
+  GameConfig.SBPort := v;
+  AdjustSoundBlasterItems;
+  SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterDMA;
+var
+  s: string;
+  v: Byte;
 begin
-  { TODO }
-  RunMenu(SoundBlasterMenu);
+  repeat
+    s := ShowInput(37, 12, 1, IntToStr(GameConfig.SBDMA));
+    v := StrToInt(s);
+    if v = 0 then
+    begin
+      ShowMessage('Please give a number!', 'Press any key');
+      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
+    end;
+  until v <> 0;
+  GameConfig.SBDMA := v;
+  AdjustSoundBlasterItems;
+  SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterIRQ;
+var
+  s: string;
+  v: Byte;
 begin
-  { TODO }
-  RunMenu(SoundBlasterMenu);
+  repeat
+    s := ShowInput(37, 13, 1, IntToStr(GameConfig.SBIRQ));
+    v := StrToInt(s);
+    if v = 0 then
+    begin
+      ShowMessage('Please give a number!', 'Press any key');
+      RenderMenu(SoundBlasterMenu, SoundBlasterMenu.SelectedIndex, True);
+    end;
+  until v <> 0;
+  GameConfig.SBIRQ := v;
+  AdjustSoundBlasterItems;
+  SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterDone;
 begin
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
 end;
 
 { Restore near calls }
@@ -283,7 +307,8 @@ begin
   RenderFooter;
 
   { Run }
-  RunMenu(MainMenu);
+  SetMenu(MainMenu);
+  StartMenu;
 
   { Done }
   FreeMenu(SoundBlasterMenu);

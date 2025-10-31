@@ -38,51 +38,7 @@ procedure SaveConfig(const Config: TConfig);
 
 implementation
 
-uses
-  Dos;
-
-{ Helper: Convert string to integer }
-function StrToInt(const S: string): Integer;
-var
-  i, Code: Integer;
-begin
-  Val(S, i, Code);
-  if Code <> 0 then
-    StrToInt := 0
-  else
-    StrToInt := i;
-end;
-
-{ Helper: Convert integer to string }
-function IntToStr(Value: Integer): string;
-var
-  S: string;
-begin
-  Str(Value, S);
-  IntToStr := S;
-end;
-
-{ Helper: Trim leading/trailing spaces }
-function Trim(const S: string): string;
-var
-  i, Start, Finish: Integer;
-begin
-  Start := 1;
-  Finish := Length(S);
-
-  { Find first non-space }
-  while (Start <= Finish) and (S[Start] = ' ') do
-    Inc(Start);
-
-  { Find last non-space }
-  while (Finish >= Start) and (S[Finish] = ' ') do
-    Dec(Finish);
-
-  if Start > Finish then
-    Trim := ''
-  else
-    Trim := Copy(S, Start, Finish - Start + 1);
-end;
+uses Dos, StrUtil;
 
 { Load config from INI file }
 procedure LoadConfig(var Config: TConfig);

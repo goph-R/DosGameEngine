@@ -17,6 +17,7 @@ type
     Disabled: Boolean;          { Is this item disabled? }
   end;
 
+  PMenu = ^TMenu;
   TMenu = record
     Title: string[40];          { Menu title }
     FirstMenuItem: PMenuItem;   { Pointer to first menu item }
@@ -32,6 +33,7 @@ var
 { Cursor management }
 procedure HideTextCursor;
 procedure ShowTextCursor;
+procedure SetTextCursorPosition(Row: Integer; Col: Integer);
 
 { Text rendering }
 function GetColumnForCenter(s: string): Integer;
@@ -52,14 +54,23 @@ function CountMenuItems(var Menu: TMenu): Integer;
 function GetMenuItem(var Menu: TMenu; Index: Integer): PMenuItem;
 procedure RenderMenu(var Menu: TMenu; SelectedIndex: Integer; WithBox: Boolean);
 procedure FreeMenu(var Menu: TMenu);
-procedure RunMenu(var Menu: TMenu);
+procedure SetMenu(var Menu: TMenu);
+procedure StartMenu;
+procedure StopMenu;
 
 { Dialogs }
 function ShowMessage(Message: string; Info: String): Byte;
 
+{ Input }
+function ShowInput(Col: Integer; Row: Integer; Width: Integer; CurrentValue: string): string;
+
 implementation
 
 uses Keyboard;
+
+var
+  CurrentMenu: PMenu;
+  Running: Boolean;
 
 { Far calls required for procedure pointers }
 {$F+}  
@@ -84,6 +95,15 @@ asm
   mov ah, 1
   mov ch, 6
   mov cl, 7
+  int 10h
+end;
+
+procedure SetTextCursorPosition(Row: Integer; Col: Integer); assembler;
+asm
+  mov ah, 2    { BIOS function: Set cursor position }
+  mov bh, 0    { Page number (0 = default) }
+  mov dh, byte ptr Row
+  mov dl, byte ptr Col
   int 10h
 end;
 
@@ -428,6 +448,113 @@ begin
   if Info <> '' then
     RenderCenterText(Row + 2, Info, $17);
   ShowMessage := WaitForAnyKeyPress;
+end;
+
+function ShowInput(Col: Integer; Row: Integer; Width: Integer; CurrentValue: string): string;
+var
+  Value: string;
+  PrevValue: string;
+  Done: Boolean;
+  ShiftPressed: Boolean;
+  i: Integer;
+  ScanCode: Byte;
+  Ch: Char;
+begin
+  Value := CurrentValue;
+  if Length(Value) > Width then
+    Value := Copy(Value, 1, Width);
+  Done := False;
+  PrevValue := '';
+
+  { Show text cursor }
+  ShowTextCursor;
+
+  { Initial render }
+  for i := 0 to Width - 1 do
+    PutCharAt(Col + i, Row, Ord(' '), $71);
+  RenderText(Col, Row, Value, $71);
+  SetTextCursorPosition(Row, Col + Length(Value));
+
+  while not Done do
+  begin
+    { Check shift state }
+    ShiftPressed := IsKeyDown(Key_LShift) or IsKeyDown(Key_RShift);
+
+    { Backspace - delete last character }
+    if IsKeyPressed(Key_Backspace) then
+    begin
+      if Length(Value) > 0 then
+        Delete(Value, Length(Value), 1);
+    end;
+
+    { Enter - confirm input }
+    if IsKeyPressed(Key_Enter) then
+      Done := True;
+
+    { Character input - scan through all possible keys }
+    if Length(Value) < Width then
+    begin
+      for ScanCode := 0 to 127 do
+      begin
+        if IsKeyPressed(ScanCode) then
+        begin
+          { Look up character from appropriate map }
+          if ShiftPressed then
+            Ch := CharMapShift[ScanCode]
+          else
+            Ch := CharMapNormal[ScanCode];
+
+          { Add character if printable }
+          if Ch <> #0 then
+            Value := Value + Ch;
+        end;
+      end;
+    end;
+
+    { Only re-render if value changed }
+    if Value <> PrevValue then
+    begin
+      { Clear input field }
+      for i := 0 to Width - 1 do
+        PutCharAt(Col + i, Row, Ord(' '), $71);
+
+      { Render current value }
+      RenderText(Col, Row, Value, $71);
+
+      { Position cursor at end of text }
+      SetTextCursorPosition(Row, Col + Length(Value));
+
+      PrevValue := Value;
+    end;
+
+    ClearKeyPressed;
+  end;
+
+  { Hide text cursor }
+  HideTextCursor;
+
+  ShowInput := Value;
+end;
+
+
+procedure SetMenu(var Menu: TMenu);
+begin
+  CurrentMenu := @Menu;
+end;
+
+
+procedure StartMenu;
+begin
+  Running := True;
+  while Running do
+  begin
+    RunMenu(CurrentMenu^);
+  end;
+end;
+
+procedure StopMenu;
+begin
+  Running := False;
 end;
 
 end.
