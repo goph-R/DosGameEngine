@@ -2,8 +2,6 @@ uses VGA, PKMLoad;
 
 var
   FrameBuffer: PFrameBuffer;
-  Music: HSC_obj;
-  Width, Height: Word;
   Palette: TPalette;
 
 begin
