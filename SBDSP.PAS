@@ -846,7 +846,7 @@ Begin
   DSPPRO_READWRITE := Base + $205;
   DSPPRO_INDEX     := Base + $204;
 
-  GetDSPVersion;  (* Just to check if we have a 16-bit card! *)
+  { GetDSPVersion moved to after detection - it calls WriteDSP/ReadDSP which can hang }
 
  (************************************************************************)
  (* Even if you have a Sound Blaster 16 card, this procedure initializes *)
@@ -876,11 +876,17 @@ Begin
   Port[DSP_RESET] := 0;
   Delay(10);
   if (Port[DSP_DATA_AVAIL] and $80 = $80) and (Port[DSP_READ_DATA] = $AA) then
-    ResetDSP := True
+  begin
+    ResetDSP := True;
+
+    { Now safe to check DSP version (uses WriteDSP/ReadDSP which can hang on invalid ports) }
+    GetDSPVersion;
+
+    IntHandler := IRQIntNums[IRQ];
+    InstallHandler;  { Only install handler if DSP detected successfully }
+  end
   else
     ResetDSP := False;
-  IntHandler := IRQIntNums[IRQ];
-  InstallHandler;
 end;
 
 Procedure Playback; near;

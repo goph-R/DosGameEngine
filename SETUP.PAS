@@ -47,7 +47,8 @@ end;
 
 procedure AdjustSoundBlasterItems;
 begin
-  SBPortItem^.Text := 'Port:  ' + HexStr(GameConfig.SBPort, 3);
+  { Display actual port value (base * $10), e.g., $22 -> $220 }
+  SBPortItem^.Text := 'Port:  ' + HexStr(GameConfig.SBPort * $10, 3);
   SBDMAItem^.Text  := 'DMA:   ' + IntToStr(GameConfig.SBDMA);
   SBIRQItem^.Text  := 'IRQ:   ' + IntToStr(GameConfig.SBIRQ);
 end;
@@ -133,22 +134,26 @@ end;
 
 procedure SelectTestSound;
 begin
-  { Initialize Sound Blaster if not already done }
-  if not SBInitialized then
+  { Uninstall old handler if already initialized (config may have changed) }
+  if SBInitialized then
   begin
-    { Base=2 (220h), IRQ from config, DMA from config, HighDMA=0 for now }
-    { Note: Base is multiplied by $10 in ResetDSP, so 2 = $220 }
-    if not ResetDSP(2, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
-    begin
-      ShowMessage(
-        'Sound Blaster NOT detected!',
-        'Press any key'
-      );
-      SetMenu(MainMenu);
-      Exit;
-    end;
-    SBInitialized := True;
+    UninstallHandler;
+    SBInitialized := False;
   end;
+
+  { Initialize Sound Blaster with current configuration }
+  { Note: SBPort is stored as base value (e.g., $22 for port $220) }
+  if not ResetDSP(GameConfig.SBPort, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
+  begin
+    ShowMessage(
+      'Sound Blaster NOT detected at port ' + HexStr(GameConfig.SBPort * $10, 3) + '!',
+      'Press any key'
+    );
+    SetMenu(MainMenu);
+    Exit;
+  end;
+
+  SBInitialized := True;
 
   { Play the VOC sound file }
   if PlayVOCFile('DATA\' + TestSound) then
@@ -213,8 +218,14 @@ begin
 end;
 
 procedure SelectSoundBlasterPort;
+var
+  DisplayValue: Word;
 begin
-  GameConfig.SBPort := InputNumericValue(10, 3, GameConfig.SBPort, True);
+  { Show actual port value to user (e.g., $220) }
+  DisplayValue := GameConfig.SBPort * $10;
+  DisplayValue := InputNumericValue(10, 3, DisplayValue, True);
+  { Convert back to base value for storage (e.g., $220 -> $22) }
+  GameConfig.SBPort := DisplayValue div $10;
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;

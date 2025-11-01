@@ -49,7 +49,7 @@ var
 begin
   { Defaults }
   Config.SoundCard := SoundCard_None;
-  Config.SBPort := $220;
+  Config.SBPort := $22;  { Base value: $22 * $10 = $220 }
   Config.SBIRQ := 5;
   Config.SBDMA := 1;
 

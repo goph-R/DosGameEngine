@@ -116,13 +116,14 @@ The program will:
 **CONFIG.PAS** - Configuration management
 - Handles loading and saving settings to CONFIG.INI text file (INI format)
 - `TConfig` record type containing sound type and Sound Blaster settings
-- `LoadConfig(var Config)`: Load configuration from INI file, sets defaults if missing (SoundCard defaults to 0)
+- `LoadConfig(var Config)`: Load configuration from INI file, sets defaults if missing (SoundCard defaults to 0, SBPort defaults to $22)
 - `SaveConfig(const Config)`: Save configuration to INI file
 - **Constants**:
   - `GameTitle`, `GameVersion`: Application metadata constants
   - `SoundCard_None` (0), `SoundCard_Adlib` (1), `SoundCard_SoundBlaster` (2) for sound card enumeration
   - `ConfigFile`: Filename constant ('CONFIG.INI')
 - **INI Format**: Standard INI-style text file with `[Sound]` section and key=value pairs
+- **Port Value Format**: SBPort stored as base value (e.g., $22 for port $220); SETUP.PAS handles conversion for display
 - Used by SETUP.PAS and can be used by games to detect sound hardware configuration
 
 **TEXTUI.PAS** - Text mode UI library
@@ -301,11 +302,14 @@ SETUP.EXE
 
 [Sound]
 SoundCard=2
-SBPort=544
+SBPort=34
 SBIRQ=5
 SBDMA=1
 ```
-Note: SoundCard defaults to 0 (None) if CONFIG.INI doesn't exist.
+Notes:
+- SoundCard defaults to 0 (None) if CONFIG.INI doesn't exist
+- SBPort is stored as base value: 34 ($22) represents port $220, 36 ($24) represents port $240, etc.
+- SETUP.PAS displays/accepts the actual port value ($220) and converts to/from base value automatically
 
 ### Embedding Music in EXE
 ```bash
