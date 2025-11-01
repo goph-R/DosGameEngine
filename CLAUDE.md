@@ -33,15 +33,29 @@ The program will:
 
 ### Core Units
 
-**SB.PAS** - Sound Blaster digital audio driver
-- `TSoundBlaster` object type for 8-bit PCM playback
-- `Init`/`Detect`: Auto-detect Sound Blaster (ports $220-$2C0)
-- `PlayVOC(filename)`: Load and play .VOC files ⚠️ **UNDER DEVELOPMENT**
-- `PlayRaw(buffer, length, samplerate)`: Play raw 8-bit unsigned PCM
-- Full DMA programming (8237 DMA controller setup)
-- Supports DMA channels 0-3 (typically channel 1)
-- DMA buffer management with 64KB boundary safety
-- **CRITICAL**: Always call `Done` to free DMA buffer and turn off speaker
+**SBDSP.PAS** - Professional Sound Blaster DSP driver (1995, by Romesh Prakashpalan)
+- Professional-grade Sound Blaster driver from VENDOR/SBDSP2B
+- Double-buffered DMA playback for smooth audio
+- Interrupt-driven (IRQ5/7) with proper DSP acknowledgment and PIC EOI handling
+- Supports 8-bit mono/stereo playback via DMA channels 0-3
+- `ResetDSP(Base, IRQ, DMA, HighDMA)`: Initialize Sound Blaster (Base: 2=$220, IRQ: 5/7, DMA: 1)
+- `PlaySound(BaseSoundType)`: Play raw 8-bit PCM from memory (up to 64KB)
+- `PlaySoundRPD(filename)`: Play RPD format files from disk with streaming
+- `DMAStop` / `DMAContinue`: Pause/resume playback
+- `SpeakerOn` / `SpeakerOff`: Control speaker output
+- `InstallHandler` / `UninstallHandler`: Manage IRQ interrupt hooks
+- Global `Playing` boolean flag indicates playback status
+- **CRITICAL**: Always call `UninstallHandler` before exit to unhook interrupt
+- **NOTE**: Compatible with HSC music playback (uses different interrupts)
+
+**VOCLOAD.PAS** - VOC file loader helper for SBDSP
+- Loads Creative Voice File (.VOC) format and plays via SBDSP
+- `PlayVOCFile(filename)`: Load and play VOC file, returns success boolean
+- `FreeVOCBuffer`: Free allocated sound buffer (call after playback or on exit)
+- Automatically frees previous buffer when loading new sound
+- Extracts sample rate and converts to SBDSP's `BaseSoundType` format
+- **MEMORY**: Buffer stays allocated during playback to prevent DMA read errors
+- **USAGE**: Don't wait for `Playing` flag in tight loop if HSC music is active (causes freezes)
 
 **XMS.PAS** - Extended Memory Specification (XMS) interface ⚠️ **UNDER DEVELOPMENT**
 - Provides access to extended memory (above 1MB) via HIMEM.SYS
@@ -180,18 +194,24 @@ end;
 
 ### Testing Sound Effects
 ```pascal
-uses SB;
-
-var
-  SoundCard: TSoundBlaster;
+uses SBDSP, VocLoad;
 
 begin
-  if SoundCard.Init then
+  { Initialize Sound Blaster: Base 2 ($220), IRQ 5, DMA 1, no High DMA }
+  if ResetDSP(2, 5, 1, 0) then
   begin
-    SoundCard.PlayVOC('EXPLOSION.VOC');
-    // Sound plays via DMA in background
-    SoundCard.WaitForPlayback; // Optional: wait for completion
-    SoundCard.Done;
+    { Play VOC file }
+    if PlayVOCFile('DATA\EXPLOSION.VOC') then
+    begin
+      { Sound plays in background via DMA }
+      { Optionally wait for completion if no music is playing }
+      while Playing do
+        asm nop end;  { Allow interrupts }
+    end;
+
+    { Cleanup on exit }
+    UninstallHandler;
+    FreeVOCBuffer;
   end;
 end;
 ```
@@ -322,26 +342,27 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 ## Test Programs
 
 - **VGATEST.PAS**: VGA graphics test with a PKM image load and show
-- **SBTEST.PAS**: Sound Blaster detection and VOC playback test
 - **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
 - **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
-- **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration
+- **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
 
 1. **Music interrupts**: Failing to call `HSC_obj.Done` will leave timer interrupt hooked, causing system hang on program exit
 2. **Keyboard interrupts**: Failing to call `DoneKeyboard` will leave INT 9h hooked, causing system hang on program exit
-3. **Sound Blaster cleanup**: Always call `SoundCard.Done` to free DMA buffer and turn off speaker
-4. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
-5. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
-6. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
-7. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically)
-8. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
-9. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
-10. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
-11. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
-12. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
-13. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
+3. **Sound Blaster cleanup**: Always call `UninstallHandler` and `FreeVOCBuffer` before exit to unhook IRQ and free DMA buffer
+4. **Sound buffer management**: Don't free VOC buffers while `Playing` is True - causes DMA to read freed memory (crackling/shortened sound)
+5. **Music + Sound conflicts**: When HSC music plays, don't wait in tight `while Playing` loop - causes freeze. Let sound play in background.
+6. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
+7. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
+8. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
+9. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically by SBDSP)
+10. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
+11. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
+12. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
+13. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
+14. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
+15. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
 
 ## Technical Constraints
 
@@ -358,6 +379,20 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
   - Extended: XMS support planned (HIMEM.SYS required) - currently broken
 - **Max file size**: 64KB code segments, heap limited by DOS memory
 - **No multithreading**: Single-threaded with interrupt-based music/DMA audio
+
+## Vendor Libraries
+
+The `VENDOR/` directory contains third-party libraries and tools:
+
+**VENDOR/SBDSP2B/** - SBDSP Sound Blaster driver v2.0β (1995)
+- Professional Sound Blaster DSP unit by Romesh Prakashpalan
+- Includes: SBDSP.PAS, SBDSP.TPU, test programs, and conversion utilities
+- **VOC2RPD.EXE**: Converts Creative Voice Files to RPD format
+- **WAV2RPD.EXE**: Converts WAV files to RPD format
+- **TESTDSP.PAS**: Example program showing SBDSP usage
+- **SBDSP.TXT**: Full documentation and usage guide
+- Copied SBDSP.PAS to root for use in engine
+- Original source preserved for reference and licensing
 
 ## Known Issues
 

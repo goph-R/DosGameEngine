@@ -1,6 +1,6 @@
 program Setup;
 
-uses Crt, TextUI, Keyboard, Config, PlayHSC, SB, StrUtil;
+uses Crt, TextUI, Keyboard, Config, PlayHSC, SBDSP, VocLoad, StrUtil;
 
 const
   TestMusic = 'FANTASY.HSC';
@@ -9,7 +9,7 @@ const
 var
   GameConfig: TConfig;
   Music: HSC_obj;
-  SoundBlaster: TSoundBlaster;
+  SBInitialized: Boolean;
 
   MainMenu: TMenu;
   TestMusicItem: PMenuItem;
@@ -133,34 +133,52 @@ end;
 
 procedure SelectTestSound;
 begin
-  FillChar(SoundBlaster, SizeOf(SoundBlaster), 0);
-  
-  { TODO }
-  {
-  SoundBlaster.BasePort := GameConfig.SBPort;
-  SoundBlaster.IRQ := GameConfig.SBIRQ;
-  SoundBlaster.DMA := GameConfig.SBDMA;
-  }
-
-  if SoundBlaster.Init then
+  { Initialize Sound Blaster if not already done }
+  if not SBInitialized then
   begin
-    if SoundBlaster.PlayVOC('DATA\' + TestSound) then
+    { Base=2 (220h), IRQ from config, DMA from config, HighDMA=0 for now }
+    { Note: Base is multiplied by $10 in ResetDSP, so 2 = $220 }
+    if not ResetDSP(2, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
+    begin
       ShowMessage(
-        'Sound ' + TestSound + ' is playing...',
-        'Press any key to stop'
-       )
-    else
-      ShowMessage(
-        'Could NOT load ' + TestSound + '!',
+        'Sound Blaster NOT detected!',
         'Press any key'
       );
+      SetMenu(MainMenu);
+      Exit;
+    end;
+    SBInitialized := True;
+  end;
+
+  { Play the VOC sound file }
+  if PlayVOCFile('DATA\' + TestSound) then
+  begin
+    { Show message immediately - sound plays in background }
+    ShowMessage(
+      'Sound ' + TestSound + ' is playing...',
+      'Press any key to stop'
+    );
+
+    { Stop sound immediately after key press }
+    if Playing then
+    begin
+      DMAStop;      { Stop DMA transfer }
+      SpeakerOff;   { Turn off speaker }
+      Playing := False;  { Mark as not playing }
+    end;
+
+    { Don't free buffer here - let it stay allocated! }
+    { VOCLOAD will free it when next sound plays or program exits }
+
   end
   else
+  begin
     ShowMessage(
-      'Sound Blaster NOT detected!',
+      'Could NOT load ' + TestSound + '!',
       'Press any key'
     );
-  SoundBlaster.Done;
+  end;
+
   SetMenu(MainMenu);
 end;
 
@@ -203,14 +221,14 @@ end;
 
 procedure SelectSoundBlasterDMA;
 begin
-  GameConfig.SBDMA := InputNumericValue(11, 1, GameConfig.SBDMA, False);
+  GameConfig.SBDMA := InputNumericValue(11, 2, GameConfig.SBDMA, False);
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;
 
 procedure SelectSoundBlasterIRQ;
 begin
-  GameConfig.SBIRQ := InputNumericValue(12, 1, GameConfig.SBIRQ, False);
+  GameConfig.SBIRQ := InputNumericValue(12, 2, GameConfig.SBIRQ, False);
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;
@@ -290,10 +308,12 @@ end;
 
 begin
   { Init }
+
   TextMode(CO80);
   HideTextCursor;
   LoadConfig(GameConfig);
   InitKeyboard;
+  SBInitialized := False;
 
   InitMainMenu;
   InitSoundCardMenu;
@@ -312,5 +332,15 @@ begin
   FreeMenu(MainMenu);
 
   DoneKeyboard;
+
+  { Cleanup Sound Blaster if initialized }
+  if SBInitialized then
+    UninstallHandler;
+
+  { Free any remaining VOC buffer }
+  FreeVOCBuffer;
+  
+  
+  
   TextMode(LastMode);
 end.

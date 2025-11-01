@@ -1,0 +1,429 @@
+*****************************************************************************
+*                           SBDSP Read Me file                              *
+*                           ==================                              *
+*                                                                           *
+*        SBDSP is Copyright (C) 1994, 1995 by Romesh Prakashpalan,          *
+*                         all rights reserved                               *
+*****************************************************************************
+
+Table Of Contents:
+==================
+
+   1) Introduction to SBDSP
+   2) Features and System Requirements
+   3) Getting Started
+   4) Modifications necessary to work with Turbo Pascal 6.0
+   5) Implementing REAL TIME FX
+   6) Structure of the RPD file format
+   7) Notes on the future + Contacting the author
+
+*****************************************************************************
+*                         Introduction to SBDSP                             *
+*****************************************************************************
+
+  SBDSP is a Pascal Unit that allows one to utilize the FULL power of the
+Sound Blaster's Digital channel. At one stage in my game programming projects
+I realized that I was going to need digital sound and music in my games!
+After all, the PC Speaker was just NOT going to be good enough for a
+production level game (BTW, I still haven't released anything as of this
+writing), but to my dismay, all of the books and literature seemed to use the
+darn libraries that Creative ships with "genuine" (albeit noisy) Sound Blasters.
+This meant that people without the drivers would not be able to run my
+programs! So, I contacted Creative, and found out that their developer's kit
+costs 100 U.S Dollars! I then hunted on the Internet, and found a few docs
+here and there, and I eventually managed to create the SBDSP and SBFM
+libraries. Anyways, I am releasing this unit to the public for those who need
+the capability of digital sound, and my code surpasses the information found
+in the SDK made by Creative. There are 2 Programs attached to the SBDSP unit
+itself, and those illustrate how to play back and record a sample (from
+Disk).
+
+  The rest of this document will give some information on the unit, as well
+as file formats utilized (RPD), and some tips on REAL TIME FX.
+
+                                         - Romesh Prakashpalan (1/23/95)
+                                          (hacscb93@huey.csun.edu)
+
+Disclaimer: The author (Romesh Prakashpalan) specifically disclaims
+==========  responsibility for any loss of profit or any consequential,
+            incidental, or other damages. The Turbo Pascal code attached to
+            this document is FREEWARE and includes the following programs/
+            units/files:
+               (SBDSP.PAS   - Turbo Pascal Unit)
+               (VOC2RPD.PAS - Turbo Pascal Program)
+               (WAV2RPD.PAS - Turbo Pascal Program)
+               (RPD2VOC.PAS - Turbo Pascal Program)
+               (TESTDSP.PAS - Turbo Pascal Program Demonstrating Playback)
+               (RECDSP.PAS  - Turbo Pascal Program Demonstrating Recording)
+               (SBDSP.TXT   - This Document)
+
+            These programs/units can be incorporated in your programs in full/
+            partial form, but this package is NOT to be distributed modified!
+            If you feel as if this package needs changing, contact me, and we
+            can work on changes TOGETHER, and release a new version.
+
+P.S: If you feel as if this unit is worth some money, please send some over
+     my way ;-) This way, I can fund my research and game programming projects,
+     and upgrade my computer. Or, at the very least include my name in the
+     credits section of whatever you release that uses the SBDSP unit. But,
+     note that a donation is NOT necessary, as this is FREEWARE, not
+     SHAREWARE!
+
+*****************************************************************************
+*                   Features implemented in SBDSP 2.0á                      *
+*****************************************************************************
+  [X] FULL Support for the Sound Blaster DSP chip
+  [X] DIRECT ACCESS to the Sound Blaster, none of Creative Lab's drivers are
+      needed!
+  [X] DMA Driven, no CPU intervention neccessary
+  [X] Play from Disk w/a small buffer in memory (File can be any size, but
+      Buffer is <= 64K).
+  [X] Double Buffering implemented in order to reduce "clicks"
+  [X] Play straight from memory (up to 64K)
+  [X] Software mixing of samples
+  [X] Stereo output for the SB-PRO or higher
+  [X] Full support for the SB-PRO mixer chip
+  [X] Conversion from the most popular PC Sound Formats (VOC, WAV)
+  [X] Conversion to the VOC file format
+  [X] Real Time Software Volume adjustment
+  [X] Recording option (8-bit), and supports the SB-PRO filters, and is
+      capable of switching from Line-In, Mic and CD inputs (SBPRO or higher)
+  [X] DOS Re-entrancy problem "appears" to have been fixed.
+
+*****************************************************************************
+*        Features NOT implemented in 2.0á (but will be in 2.0)              *
+*****************************************************************************
+  [ ] 16 bit sound will be included in 2.0 (final release)
+  [ ] Surround Sound MIGHT be included (I'm not sure, as I'll have to allocate
+      buffers dynamically which might be detrimental to a Real Mode program.
+
+*****************************************************************************
+*                         System Requirements                               *
+*****************************************************************************
+  [ ] IBM PC Compatible with a 80386 processor or higher
+  [ ] Sound Blaster Card, Pro required for Stereo output, and 16 required for
+      16-bit playback
+  [ ] AT LEAST 16K of memory set aside for Double Buffering (buffers can be
+      smaller, but system performance and sound quality will degrade)
+  [ ] Turbo Pascal V7.0 (can run in 6.0 with minor modifications)
+  [ ] A Human (or any sentient being) required to appreciate the sounds ;-)
+
+*****************************************************************************
+*                           Getting Started...                              *
+*****************************************************************************
+
+I) Playing a file from disk...
+
+  OK, now you have the unit, and have all of the system requirements, so
+how do we output a simple sound? If you have a favorite VOC or WAV file,
+convert it to a RPD file first, and make sure that it falls in the following
+parameters:
+
+  [ ] 8-bits/sample in Stereo/Mono in any sample rate (make sure that your
+      harware can actually play sounds of this type first!)
+
+  Then, in the beginning of your program (or anywhere before actually using
+the Sound Card), use the ResetDSP command:
+
+   ResetDSP (BaseAddress, IRQ, DMAChannel, HighDMAChannel);
+
+      Where Base =  1 for 210h
+                    2 for 220h
+                    3 for 230h, etc...
+
+      IRQ is typically 7 for older cards, and 5 for the newer ones
+      DMAChannel is usually 1 (SB16 owners note this is the LOW DMA channel)
+      HighDMA is usually 5 for SB16 owners, people without a SB16 (or AWE32),
+              should leave this at 0.
+
+Then, we just use the following command to play the RPD file:
+  PlaySoundRPD (Filename);
+
+  Where Filename is the name of your sound file (RPD). The Sound will be played
+in the background, while your program is free to do what it wants in the
+foreground. So, if you have a loop similiar to this:
+
+  PlaySoundRPD (Filename)
+  While SomeCondition do
+  Begin
+    (* Do something *)
+    If not Playing then
+      PlaySoundRPD (SomeOtherFile);
+  End
+
+  This above loop is the basis of a "JukeBox" type app, where when the sound
+is done playing, we load in the next song in the list. NOTE: The playing
+variable indicates if a sample is still playing over the Sound Card.
+
+II) Playing a Sound from Memory.
+  The above procedure works just great for long samples (speech, music), but
+what about when we want to play a sample from memory repeatedly? When I say
+repeatedly, I mean something like a machine gun shot, it would sound lousy,
+and be pretty inefficient if we had to load the sound from disk every time
+the user presses the fire button! That's why we have another function called:
+  LoadSoundRPD (Filename, SoundBuffer, AllocMem);
+
+  Where Filename is the name of your file, SoundBuffer is a buffer in memory
+of type: BaseSoundType, and AllocMem is True if you want the procedure to
+allocate memory for you, else it is False.
+
+First, we issue the LoadSoundRPD command:
+  LoadSoundRPD (Filename, SoundBuffer);
+
+  Now, we have the sound safely stored in a buffer in memory ready for the
+PlaySound command whenever we want to play it back!
+
+  So, we can have a loop like this:
+
+  LoadSoundRPD (Filename, BulletBuffer, True);
+  While Somecondition do
+  Begin
+    If (FireButtonPressed) and (not Playing) then
+      PlaySound (BulletBuffer);
+  End;
+  { Free the memory allocated: }
+  FreeMem (BulletBuffer.Buffer, BulletBuffer.BufferSize);
+
+III) Recording a sample to disk:
+  Version 2.0á was the first to implement recording (to disk), and was
+implemented for someone who needed it urgently. So, the recording function is
+less than perfect.
+
+  The steps needed for recording to disk are:
+    1) * Set Input source via the SetInputSource command
+    2) * Set Volume level for your input source via one of the following
+         commands:
+           - SetMicVolume
+           - SetLineInVolume
+           - SetCDVolume
+    3) Issue the RecordSoundRPD command:
+         RecordSoundRPD (Filename, Freq);
+
+         Where Filename is the Filename to be recorded to, and Freq is the
+         Frequency at which you want to sample at.
+
+    4) When you are done, issue the StopRecording command, and the file will
+       be closed, and all info will be saved for future use.
+
+    Note: Items marked with a * are only available on the SB-PRO or higher!
+
+Problems with recording option:
+  1) Currently only supports 8 bit mono.
+  2) Will write ALL of the last buffer in memory to disk, so it takes up more
+     disk space than necessary (File Size = N*BufferSize + SizeOf (Header)).
+     Where N is the number of times the buffer has been recorded to.
+
+IV) Tweaking for optimum performance:
+  If you look at the interface section, you will notice two procedures:
+CheckBufferSize and ChangeBufferSize. These two procedures will return and
+change the Size of the Double Buffer. Experience has shown that buffer sizes
+in the range of 8K (for mono 11Khz at 8bits/sample) -> 64K (stereo 44.1Khz)
+are the best ranges (BTW: 64K is the MAXIMUM buffer size). ChangeBufferSize
+returns True if the buffer size was changed successfully, and False otherwise.
+The only time it will return False is if you are recording/playing back a
+sample. CheckBufferSize simply returns the size of the allocated buffer in
+memory.
+
+*****************************************************************************
+*           Modifications necessary to work with Turbo Pascal 6.0           *
+*****************************************************************************
+  So, you say that you have Turbo Pascal 6.0, and the unit gives you a few
+errors when you want to compile? Well, then this section is for you:
+
+  SBDSP 2.0á was made to run/compile under Turbo Pascal version 7.0, so a
+few changes are necessary in order to make it work with Turbo Pascal 6.0.
+(Note: I myself upgraded from 5.5 to 7.0, and NEVER had 6.0, so this is
+       based on discussions with my friends who had Turbo Pascal 6.0)
+
+First: SBDSP requires use of the In Line Assembler, so it is incompatible
+       with versions of Turbo Pascal < 6.0, so an assembly module would
+       be required in order to get the same functionality out of it if you
+       are using Turbo Pascal 5.5 or lower.
+
+       As far as I know, Turbo Pascal 6.0 DID NOT have the PChar type. For
+       those of you who have Turbo Pascal 6, PChar is a string type similar
+       to that of C's. In TP 7.0, pointer arithmetic is ONLY defined for this
+       type, so it makes it quite convenient to use this type when dealing
+       with pointers! I have made use of this type in the following procedures:
+
+            ChangeSampleVol
+            MixSamples
+
+       Now, fixing this in Turbo Pascal 6.0 would require the following
+       changes:
+
+         In the interface section of the unit create a new type definition:
+           CharArr = Array [0..$FFFE] of Char;
+           PChar = ^CharArr;
+
+         Now, anytime where we see a variable of PChar type being referenced
+         as an array, reference it as a POINTER ARRAY. For instance, in my
+         code when you see: TempC[I] := Char (20);
+         Change this to: TempC^[I] := Char (20);
+
+    If at any time, you get a "type mismatch" error when passing pointers,
+    just re-cast your pointer to the PChar type -> PChar (YourPointer), and
+    this should do the trick!
+
+    There's one last thing, TP 6.0 doesn't default to having EXTENDED SYNTAX
+    ON, so make sure that the {$X} switch is on: {$X+}, as TP 6.0 defaults
+    to {$X-}
+
+    This should be all for owners of Turbo Pascal 6.0, but I could be wrong,
+    as I don't have the Compiler myself, so if anything gives you any troubles,
+    mail me, and I shall try to find out what is wrong...
+
+    Borland Pascal 7.0 should NOT be used to create PROTECTED MODE programs
+    with this unit, as it works with Segments:Offsets in REAL MODE, and NOT
+    with Selectors and Offsets! You will get really screwed up sound output
+    if you do try to use the unit with BP 7.0, so beware!
+
+*****************************************************************************
+*                       Implementing REAL TIME FX                           *
+*****************************************************************************
+
+  For those of you interested in doing REAL TIME FX, a few guidelines follow:
+
+First, you have to know how the data is stored, FX engines have to work with
+uncompressed samples in order to work at all (unless you have a DSP chip, and
+know how to program it). Eight bit samples are ideal for this purpose. The
+data is stored as a series of unsigned 8-bit quantities in the RPD file. This
+means that we can have a resolution of 1 part in 256 (0 - 255). Consequently,
+all transformations have to be done in this range, or else we will get VERY
+distorted results. The way my SBDSP unit works is as follows:
+
+  I)  We have a buffer of up to 64K in memory.
+       a) This Buffer is "split" into 2 chunks, Buffer1 and Buffer2.
+       b) When Buffer1 is playing, Buffer2 is being loaded from disk, and vice
+          versa.
+
+  II) After a certain buffer is loaded from disk, THAT is the ideal time to do
+      our operations on it (this is what makes it REAL TIME).
+
+Since we are using DMA xfers (that don't need CPU intervention within a buffer)
+this technique works well. For a VERY simple FX, try to understand my VOICE
+AMPLIFICATION Function, this is a very simple function to get started on.
+
+The above technique works well if you are using a reasonable buffer size, and
+the operations that you perform are not TOO complicated (unless of course, you
+are using a Pentium(TM) Processor ;-) ).
+
+*****************************************************************************
+*                   Structure of the RPD file format:                       *
+*****************************************************************************
+
+  The RPD file format was created by myself as an alternative sound format for
+games (mine in particular). I got tired of reading in complicated VOC files,
+and WAV files (WAV files are easier, but are still too much for a game). So,
+I created a new file format for myself, as well as tools to convert from the
+VOC and WAV file formats to RPD. I had no idea how popular that my Sound
+Library would become (about 100 people wanted/got my Library in the space of
+a couple of months), so I have started bundling the VOC2RPD and WAV2RPD programs
+with SBDSP. Version 2.0á will also have a converter that converts a RPD file
+to the VOC and/or WAV file formats. But, people need to know the basic
+structure of the RPD file format, so here it is:
+
+                   RPD file format, version 1.01
+                   =============================
+
+   Byte Offset                     Description
+   -----------                     -----------
+      0-2                      Signature -> "RPD"
+      3-4                      Version (1 Word), Lo Byte = Major Version,
+                               Hi Byte = Minor Version
+       5                       DAC Type (Bits/Sample), see table below
+       6                       Mono = 0, Stereo = 1, Surround = 2
+       7                       # of Digital Channels in the Sample
+       8                       Method of Laying down channels
+      9-12                     Size of sample (LongInt)
+       13                      Signed/Unsigned 16-bit sample (v1.01)
+                                 0 indicates a Unsigned sample (16-bit)
+                                 1 indicates a Signed sample   (16-bit)
+     14-44                     Reserved for future expansion
+     45-EOF                    Sample Data
+
+
+                           DAC Type Table:
+                           ===============
+
+  DACType                               Description
+  -------                               -----------
+   0B6h                               Sixteen Bit Sound
+   014h                               Eight Bit Sound
+   016h                               Two Bit ADPCM compression
+   017h                               Two Bit ADPCM w/Reference byte
+   074h                               Four Bit ADPCM compression
+   075h                               Four Bit ADPCM w/Reference byte
+   076h                               2.6 Bit ADPCM compression
+   077h                               2.6 Bit ADPCM w/Reference byte
+
+                             Channel Method
+                             --------------
+
+   0 - Indicates that Channel 1 Byte comes first, then Channel 2 Byte, etc...
+   1 - Indicates that Channel 1 data comes for Sample Size bytes, then comes
+       Channel 2 data for Sample Size Bytes, etc...
+
+   This is an example of the same file with different channel methods:
+
+   Channel Method 0:
+     # of Channels = 3
+     Size of Sample = 1260
+
+Byte:   0      1      2      3      4      5      6      7    ...  1260
+     +------+------+------+------+------+------+------+------+
+     | Ch 1 | Ch 2 | Ch 3 | Ch 1 | Ch 2 | Ch 3 | Ch 1 | Ch 2  ...
+     +------+------+------+------+------+------+------+------+
+
+   Channel Method 1:
+
+   # of Channels = 3
+   Size of Sample = 1260 / 3 = 420
+
+Byte:0                419               838              1260
+     +-----------------+-----------------+-----------------+
+     | Ch 1            |  Ch 2           | Ch 3            |
+     +-----------------+-----------------+-----------------+
+
+*****************************************************************************
+*                       Notes on the future...                              *
+*****************************************************************************
+
+  This unit (2.0á) is just a pre-release (áeta), and a lot of the features
+that will/should be present in 2.0 are missing. Most notable of these is
+16-bit sound. I am currently having some problems on 16-bit playback, so I
+do not have any release dates planned. Release 2.0 will also convert a 16-bit
+sound to 8-bit in Real Time (for users without a SB 16), so that you don't
+have to worry about what type of sound to use (but it won't sound good at all!)
+However, this unit does give you pretty much all you need in order to make a
+game/music player, and exploits all the capabilities of cards up to the Pro.
+This package as it stands is pretty general, and should cover all of your needs
+for digital sound playback. I am debating whether to implement EMS memory
+for storage of samples (instead of disk xfers, when there is enough room), as
+Turbo Pascal 7.0 makes this pretty painless with the TEMSStream object, but
+I'm not sure if TP 6.0 has this, and if it doesn't, then I will have widened
+the gap between the users of TP 6.0 and those who use TP 7.0 :-(. But, I have
+to remind myself that I'm not getting paid to do this, and this is my final
+semester. That by the way is the reason that I can't make the REAL version of
+this package (2.0) available before June! I'm taking 7 subjects + working
+20hrs a week, so I'm exhausted mentally and physically by the time that I get
+home. Though I have to remind myself that people like Ethan Brodsky and myself
+are the only ones that are making Sound Libraries for *FREE*, and people
+depend on us for *good* quality code (even more important now that we have
+lost Mike Tedder to the GUS).
+
+                                             - Romesh Prakashpalan
+                                               (hbcsc294@huey.csun.edu)
+                                                     02/11/95
+
+                                             Or, write to me at the following
+                                             (snail mail) address:
+
+                                                 17304 Westbury Dr.
+                                               Granada Hills, CA 91344
+                                                      U.S.A
+
+  Software (C) 1995 by Romesh Prakashpalan, All rights reserved. IBM is a
+registered trademark of International Business Machines Corp. Pentium is a
+registered trademark of Intel Corp. Sound Blaster is a registered trademark
+of Creative Labs Corp.
