@@ -49,6 +49,8 @@
 
    function XMSerrorMSG(Error:Byte):string;
 
+   function Debug_GetCallXMSBytes(var B0,B1,B2,B3,B4,B5,B6: Byte): Boolean;
+
    implementation
 
    const XMSinst:Boolean=FALSE;  {For reading only !!!}
@@ -85,6 +87,28 @@
        POP  AX                {               |                     }
        POP  DS                {               /                     }
    end;
+
+   function Debug_GetCallXMSBytes(var B0,B1,B2,B3,B4,B5,B6: Byte): Boolean;
+var
+  P: Pointer;
+  S, O: Word;
+begin
+  { Address of CallXMS (local to unit) }
+  P := @CallXMS;
+  S := Seg(P^);
+  O := Ofs(P^);
+
+  B0 := Mem[S:O+0];
+  B1 := Mem[S:O+1];
+  B2 := Mem[S:O+2];
+  B3 := Mem[S:O+3];
+  B4 := Mem[S:O+4];
+  B5 := Mem[S:O+5];
+  B6 := Mem[S:O+6];
+
+  Debug_GetCallXMSBytes := True;
+end;
+
 
    procedure GetXMSmem(var Total:Word; var Block:Word); assembler;
    asm
@@ -146,33 +170,65 @@
        MOV  AH,0Fh
        CALL CALLXMS
    end;
+procedure MakeCall(p:pointer); far; assembler;
+asm
+    { 1. Check for XMS driver via INT 2Fh, AX=4300h }
+    mov   ax,4300h
+    int   2Fh              { AL = $80 if XMS present }
+    cmp   al,80h
+    jne   @EXITUS          { if not, skip everything }
+
+    mov   XMSinst,1        { remember: XMS is available }
+
+    { 2. Get XMS entry point via INT 2Fh, AX=4310h }
+    mov   ax,4310h
+    int   2Fh              { returns ES:BX = XMS driver entry point }
+    mov   dx,es            { DX = segment of XMS entry }
+    mov   cx,bx            { CX = offset of XMS entry }
+
+    cld
+
+    { 3. Patch CallXMS's 5 NOP bytes into a FAR CALL instruction }
+    {    Save ES and DI because we'll change them }
+    push  es
+    push  di
+
+    { IMPORTANT:
+      Turbo Pascal already created a stack frame.
+      For a FAR procedure with one pointer parameter "p",
+      after TP's prologue:
+        [BP+6] = offset of p
+        [BP+8] = segment of p
+
+      We passed @CallXMS as that parameter.
+    }
+
+    mov   ax,ss:[bp+8]     { AX = segment of CallXMS }
+    mov   es,ax
+    mov   di,ss:[bp+6]     { DI = offset of CallXMS }
+
+    inc   di               { skip the first byte (PUSH AX) }
+
+    mov   al,9Ah           { 9A = CALL FAR imm16:16 opcode }
+    stosb                  { write opcode }
+
+    mov   ax,cx            { AX = offset of XMS entry point }
+    stosw                  { write <ofs> }
+
+    mov   ax,dx            { AX = segment of XMS entry point }
+    stosw                  { write <seg> }
+
+    { restore DI and ES as they were before we messed with them }
+    pop   di
+    pop   es
+
+@EXITUS:
+    { no manual pop bp / retf here!
+      Turbo Pascal will generate the normal epilogue/RETF for us }
+end;
 
 
 
-   procedure MakeCall(p:pointer); far; assembler;
-   asm
-       MOV   AX,4300h
-       INT   2Fh
-       CMP   AL,80h
-       JNE   @EXITUS
-       MOV   XMSinst,1
-       MOV   AX,4310h
-       INT   2Fh
-       MOV   DX,ES
-       MOV   CX,BX
-       CLD
-       MOV   AX,SS:[BP+8]
-       MOV   ES,AX
-       MOV   DI,SS:[BP+6]
-       INC   DI
-       MOV   AL,9Ah
-       STOSB
-       MOV   AX,CX
-       STOSW
-       MOV   AX,DX
-       STOSW
-       @EXITUS:
-   end;
 
    function XMSerrorMSG(Error:Byte):string;
    begin
