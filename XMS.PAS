@@ -1,237 +1,350 @@
-unit XMS;
+   {$I-,D-,L-,N-,E-,F+,O-,G-,X+,S-,R-,V-}
 
-{
-  Minimal XMS interface for Turbo Pascal 7 (real mode).
+   {**************************************************}
+   {*                                                *}
+   {*    UNIT   XMS                                  *}
+   {*          Copyright (c) 1992  KIV without Co    *}
+   {*                                                *}
+   {**************************************************}
 
-  Features:
-    - XMS_Init            : detect XMS driver, store entry point
-    - XMS_GetVersion      : optional utility
-    - XMS_AllocKB         : allocate block in extended memory (size in KB)
-    - XMS_Free            : free that block
-    - XMS_MoveToXMS       : copy from conventional RAM -> XMS block
-    - XMS_MoveFromXMS     : copy from XMS block -> conventional RAM
+   unit XMS;
 
-  Notes:
-    - You can't get a direct pointer into XMS. You "move" bytes in/out.
-    - We rely on the XMS driver's "Move Extended Memory Block" function.
-    - All offsets/lengths must fit in 32-bit values, but TP7 can't do 32-bit
-      arithmetic automatically, so we pass them split as words.
-    - This is a minimal version. You can build helpers on top of it
-      (sprite banks, tilemap banks, etc).
-}
+   interface
 
-interface
+   var XMSerror:Byte;
 
-type
-  TXMSHandle = word;
+   type EMMstruct=record
+                     size:LongInt;  {must be even!}
+                     soh  :Word;     {source handle}
+                     soo  :LongInt;  {source offset}
+                     dsh  :Word;     {destination handle}
+                     dso  :LongInt;  {destination offset}
+                  end;
+   { if handle=0 then correspond offset is pointer to RAM }
 
-  { Result codes }
-  TXMSBoolean = boolean;
+   function XMSinstalled:Boolean;
 
-  { Record passed to XMS move function }
-  TXMSMoveRec = record
-    Length: longint;       { bytes to move }
-    SrcHandle: word;       { 0 = conventional mem, else XMS handle }
-    SrcOffset: longint;    { if SrcHandle=0: segment:offset packed in Segment*16+Offset }
-    DstHandle: word;       { 0 = conventional mem }
-    DstOffset: longint;
-  end;
+   procedure GetXMSmem(var Total:Word; var Block:Word);  {in Kb}
+   function AllocXMS(Mem:Word):Word;                     {in Kb}
+   function ReallocXMS(Handle, Mem:Word):Boolean;        {in Kb}
+   function FreeXMS(Handle:Word):Boolean;
+   function MoveXMS( var M:EMMstruct ):Boolean;
+   function Mem2Xms( var Buf; Count,Handle:Word;
+                    Offset:LongInt):Boolean;
+   function Xms2Mem( Handle:Word; Offset:LongInt;
+                     var Buf; Count:Word):Boolean;
+   function LockBlock(Handle:Word; var Address:LongInt):Boolean;
+   {return 32-bit linear address of locked block}
 
-function XMS_Init: TXMSBoolean;
-function XMS_IsPresent: TXMSBoolean;
-function XMS_GetVersion: word;
+   function UnlockBlock(Handle:Word):Boolean;
 
-function XMS_AllocKB(KB: word; var Handle: TXMSHandle): TXMSBoolean;
-function XMS_Free(Handle: TXMSHandle): TXMSBoolean;
+   function GetXMShandleInfo(Handle:Word; var LockCount:Byte;
+                             var FreeHandles:Byte;
+                             var Size:Word):Boolean;
 
-function XMS_MoveToXMS(Handle: TXMSHandle; XmsDestOfs: longint;
-                       SrcSeg, SrcOfs: word;
-                       Count: word): TXMSBoolean;
 
-function XMS_MoveFromXMS(Handle: TXMSHandle; XmsSrcOfs: longint;
-                         DstSeg, DstOfs: word;
-                         Count: word): TXMSBoolean;
+   function RequestHMA(Mem:Word):Boolean;  {in bytes; $FFFF for all}
+   function ReleaseHMA:Boolean;
 
-implementation
 
-var
-  XMS_EntryPoint : pointer;  { call gate to XMS driver }
-  XMS_Present    : boolean;
-  XMS_EntryOfs   : word;
-  XMS_EntrySeg   : word;
+   function XMSerrorMSG(Error:Byte):string;
 
-{
-  Low-level helper to call XMS driver.
-  AH = function number.
-  On return:
-    - AL often = status (1 = OK, 0 = fail)
-    - Other regs depend on function.
-}
-procedure XMS_Call;
-type
-  TXMSProc = procedure; far;
-var
-  XMSProc: TXMSProc;
-begin
-  { Convert pointer to far procedure and call it }
-  XMSProc := TXMSProc(XMS_EntryPoint);
-  XMSProc;
-end;
+   implementation
 
-function XMS_Init: TXMSBoolean;
-{ Detect XMS driver and get entry point via INT 2Fh }
-begin
-  { Int 2Fh, AX=4300h: check for XMS driver }
-  asm
-    mov ax, $4300
-    int $2F
-    cmp al, $80
-    jne @no_xms
-    mov XMS_Present, 1
-    jmp @got
-@no_xms:
-    mov XMS_Present, 0
-@got:
-  end;
+   const XMSinst:Boolean=FALSE;  {For reading only !!!}
 
-  if not XMS_Present then
-  begin
-    XMS_EntryPoint := nil;
-    XMS_Init := false;
-    exit;
-  end;
+   function XMSinstalled:Boolean;
+   begin
+       XMSinstalled:=XMSinst;
+   end;
 
-  { Int 2Fh, AX=4310h: get XMS driver entry point in ES:BX }
-  asm
-    mov ax, $4310
-    int $2F
-    mov word ptr XMS_EntryPoint+0, bx
-    mov word ptr XMS_EntryPoint+2, es
-    mov XMS_EntryOfs, bx
-    mov XMS_EntrySeg, es
-  end;
+   procedure CallXMS; far; assembler;
+   asm
+       PUSH AX
+       DB 90h,90h,90h,90h,90h
+       POP  CX
+       PUSH DS
+       PUSH AX
+                              { set XMSerror  \                     }
+                              {               |                     }
+       MOV  AX,SEG @DATA      {               |                     }
+       MOV  DS,AX             {                > because ds may be  }
+       POP  AX                {               |                     }
+       PUSH AX                {               |    changed !        }
+       CMP CH,08h             {               |                     }
+       JE   @3                {               |                     }
+       CMP  AX,1              {               |                     }
+       JE   @1                {               |                     }
+       @3:                    {               |                     }
+       MOV  XMSERROR,BL       {               |                     }
+       JMP  @2                {               |                     }
+       @1:                    {               |                     }
+       XOR  AX,AX             {               |                     }
+       MOV  XMSERROR,AL       {               |                     }
+       @2:                    {               |                     }
+       POP  AX                {               |                     }
+       POP  DS                {               /                     }
+   end;
 
-  XMS_Init := true;
-end;
+   procedure GetXMSmem(var Total:Word; var Block:Word); assembler;
+   asm
+       MOV   AH,08h
+       CALL  CALLXMS
+       LES   DI,TOTAL
+       MOV   ES:[DI],DX
+       LES   DI,BLOCK
+       MOV   ES:[DI],AX
+   end;
 
-function XMS_IsPresent: TXMSBoolean;
-begin
-  XMS_IsPresent := XMS_Present;
-end;
+   function AllocXMS(Mem:Word):Word; assembler;
+   asm
+       MOV   DX,MEM
+       MOV   AH,09h
+       CALL  CALLXMS
+       CMP   AX,1
+       JNE   @1
+       MOV   AX,DX
+       JMP   @2
+       @1:
+       MOV   AX,0
+       @2:
+   end;
 
-function XMS_GetVersion: word;
-{ AH=$00 -> Get XMS version. Returns AL=major, AH=minor }
-var
-  ver: word;
-begin
-  ver := 0;
-  asm
-    mov ah, $00
-    call XMS_Call
-    mov bl, al    { major in AL }
-    mov bh, ah    { minor in AH }
-    mov ver, bx
-  end;
-  XMS_GetVersion := ver;  { hi byte = minor, lo byte = major }
-end;
+   function FreeXMS(Handle:Word):Boolean; assembler;
+   asm
+       MOV  DX,HANDLE
+       MOV  AH,0Ah
+       CALL CALLXMS
+   end;
 
-function XMS_AllocKB(KB: word; var Handle: TXMSHandle): TXMSBoolean;
-{ AH=$09 Allocate Extended Memory Block
-  DX= size in KB
-  Returns: AX=handle if AL=1, else AL=0 fail }
-var
-  ok: byte;
-  h : word;
-begin
-  ok := 0;
-  h  := 0;
-  asm
-    mov ah, $09
-    mov dx, KB
-    call XMS_Call
-    mov ok, al
-    mov h, ax
-  end;
-  Handle := h;
-  XMS_AllocKB := (ok = 1);
-end;
+   function MoveXMS( VAR M:EMMstruct ):Boolean; assembler;
+   asm
+       PUSH DS
+       LDS  SI,M
+       MOV  AH,0Bh
+       CALL CALLXMS
+       POP  DS
+   end;
 
-function XMS_Free(Handle: TXMSHandle): TXMSBoolean;
-{ AH=$0A Free Extended Memory Block
-  DX = handle }
-var
-  ok: byte;
-begin
-  ok := 0;
-  asm
-    mov ah, $0A
-    mov dx, Handle
-    call XMS_Call
-    mov ok, al
-  end;
-  XMS_Free := (ok = 1);
-end;
+   function RequestHMA(Mem:Word):Boolean; assembler;
+   asm
+       MOV   DX,MEM
+       MOV   AH,01h
+       CALL  CALLXMS
+   end;
 
-function XMS_DoMove(var M: TXMSMoveRec): boolean; assembler;
-{ AH=$0B Move Extended Memory Block
-  DS:SI -> move structure
-  Returns: AL=1 if success, AL=0 if fail (AH contains error code if fail) }
-asm
-  push ds
-  lds  si, M
-  mov  ah, $0B
-  call XMS_Call
-  pop  ds
-  { AL now contains: 1=success, 0=fail }
-  { Turbo Pascal boolean: True=1, False=0, so AL is already correct }
-  and  al, 1  { Ensure it's exactly 0 or 1 }
-end;
+   function ReleaseHMA:Boolean; assembler;
+   asm
+       MOV  AH,02h
+       CALL CALLXMS
+   end;
 
-function MakeLinearAddr(Segm, Ofs: word): longint;
-{ Convert segment:offset to linear 20-bit style (Seg*16+Ofs),
-  stored in a 32-bit longint for the XMS structure. }
-var
-  tmp: longint;
-begin
-  tmp := longint(Segm) shl 4;
-  tmp := tmp + Ofs;
-  MakeLinearAddr := tmp;
-end;
+   function ReallocXMS(Handle, Mem:Word):Boolean; assembler;
+   asm
+       MOV  DX,HANDLE
+       MOV  BX,MEM
+       MOV  AH,0Fh
+       CALL CALLXMS
+   end;
 
-function XMS_MoveToXMS(Handle: TXMSHandle; XmsDestOfs: longint;
-                       SrcSeg, SrcOfs: word;
-                       Count: word): TXMSBoolean;
-{ Copy Count bytes from conventional memory buffer (SrcSeg:SrcOfs)
-  into XMS block Handle at offset XmsDestOfs. }
-var
-  M: TXMSMoveRec;
-begin
-  M.Length    := Count;
-  M.SrcHandle := 0;  { 0 means source is conventional RAM }
-  M.SrcOffset := MakeLinearAddr(SrcSeg, SrcOfs);
 
-  M.DstHandle := Handle;
-  M.DstOffset := XmsDestOfs;
 
-  XMS_MoveToXMS := XMS_DoMove(M);
-end;
+   procedure MakeCall(p:pointer); far; assembler;
+   asm
+       MOV   AX,4300h
+       INT   2Fh
+       CMP   AL,80h
+       JNE   @EXITUS
+       MOV   XMSinst,1
+       MOV   AX,4310h
+       INT   2Fh
+       MOV   DX,ES
+       MOV   CX,BX
+       CLD
+       MOV   AX,SS:[BP+8]
+       MOV   ES,AX
+       MOV   DI,SS:[BP+6]
+       INC   DI
+       MOV   AL,9Ah
+       STOSB
+       MOV   AX,CX
+       STOSW
+       MOV   AX,DX
+       STOSW
+       @EXITUS:
+   end;
 
-function XMS_MoveFromXMS(Handle: TXMSHandle; XmsSrcOfs: longint;
-                         DstSeg, DstOfs: word;
-                         Count: word): TXMSBoolean;
-{ Copy Count bytes from XMS block Handle at offset XmsSrcOfs
-  into conventional memory buffer (DstSeg:DstOfs). }
-var
-  M: TXMSMoveRec;
-begin
-  M.Length    := Count;
-  M.SrcHandle := Handle;
-  M.SrcOffset := XmsSrcOfs;
+   function XMSerrorMSG(Error:Byte):string;
+   begin
+       case Error of
+           $00:XMSerrorMSG:='successful';
+           $80:XMSerrorMSG:='function not implemented';
+           $81:XMSerrorMSG:='VDISK was detected';
+           $82:XMSerrorMSG:='an A20 error occurred';
+           $8E:XMSerrorMSG:='a general driver error';
+           $8F:XMSerrorMSG:='unrecoverable driver error';
+           $90:XMSerrorMSG:='HMA does not exist';
+           $91:XMSerrorMSG:='HMA is already in use';
+           $92:XMSerrorMSG:='DX is less then the /HMAMIN= parameter';
+           $93:XMSerrorMSG:='HMA is not allocated';
+           $94:XMSerrorMSG:='A20 line still enabled';
+           $A0:XMSerrorMSG:='all extended memory is allocated';
+           $A1:XMSerrorMSG:='all available extended memory handles are allocated';
+           $A2:XMSerrorMSG:='invalid handle';
+           $A3:XMSerrorMSG:='source handle is invalid';
+           $A4:XMSerrorMSG:='source offset is invalid';
+           $A5:XMSerrorMSG:='destination handle is invalid';
+           $A6:XMSerrorMSG:='destination offset is invalid';
+           $A7:XMSerrorMSG:='length is invalid';
+           $A8:XMSerrorMSG:='move has an invalid overlap';
+           $A9:XMSerrorMSG:='parity error occured';
+           $AA:XMSerrorMSG:='block is not locked';
+           $AB:XMSerrorMSG:='block is locked';
+           $AC:XMSerrorMSG:='block lock count overflowed';
+           $AD:XMSerrorMSG:='lock failed';
+           $B0:XMSerrorMSG:='only a smaller UMB is available';
+           $B1:XMSerrorMSG:='no UMB''s are available';
+           $B2:XMSerrorMSG:='UMB segment number is invalid';
+           else XMSerrorMSG:='unknown error';
+       end;
+   end;
 
-  M.DstHandle := 0; { 0 means dest is conventional RAM }
-  M.DstOffset := MakeLinearAddr(DstSeg, DstOfs);
+   function LockBlock(Handle:Word; var Address:LongInt):Boolean; assembler;
+   asm
+       MOV   DX,HANDLE
+       MOV   AH,0Ch
+       CALL  CALLXMS
+       LES   DI,ADDRESS
+       MOV   ES:[DI],BX
+       INC   DI
+       INC   DI
+       MOV   ES:[DI],DX
+   end;
 
-  XMS_MoveFromXMS := XMS_DoMove(M);
-end;
 
-end.
+   function UnlockBlock(Handle:Word):Boolean; assembler;
+   asm
+       MOV   DX,HANDLE
+       MOV   AH,0Dh
+       CALL  CALLXMS
+   end;
+
+   function GetXMShandleInfo(Handle:Word; var LockCount:Byte;
+                             var FreeHandles:Byte;
+                             var Size:Word):Boolean; assembler;
+   asm
+       MOV   DX,HANDLE
+       MOV   AH,0Eh
+       CALL  CALLXMS
+       CMP   AX,1
+       JNE   @ERROR
+       LES   DI,LOCKCOUNT
+       MOV   ES:[DI],BH
+       LES   DI,FREEHANDLES
+       MOV   ES:[DI],BL
+       LES   DI,SIZE
+       MOV   ES:[DI],DX
+       PUSH DS
+       PUSH AX
+       MOV  AX,SEG @DATA
+       MOV  DS,AX
+       MOV  BL,0
+       MOV  XMSERROR,BL
+       POP  AX
+       POP  DS
+       @ERROR:
+   end;
+
+   function Mem2Xms( var Buf; Count,Handle:Word; Offset:LongInt):Boolean;
+   var E:EMMstruct;
+       w:Word;
+       ww:Boolean;
+   begin
+       with E do
+       begin
+           ww:=Odd(Count);
+           if ww then
+           begin
+               Size:=2;
+               soh:=handle;
+               soo:=Offset+Count;
+               dsh:=0;
+               dso:=LongInt(@w);
+               if not MoveXMS(E) then
+               begin
+                   Mem2Xms:=False;
+                   Exit;
+               end;
+           end;
+           if ww then Size:=Count+1 else Size:=Count;
+           soh:=0;
+           soo:=LongInt(@Buf);
+           dsh:=handle;
+           dso:=Offset;
+           if not MoveXMS(E) then
+           begin
+               Mem2Xms:=False;
+               Exit;
+           end;
+           if ww then
+           begin
+               Size:=2;
+               soh:=0;
+               soo:=LongInt(@w);
+               dsh:=handle;
+               dso:=Offset+Count;
+               if not MoveXMS(E) then
+               begin
+                   Mem2Xms:=False;
+                   Exit;
+               end;
+           end;
+       end;
+       Mem2Xms:=True;
+   end;
+
+   function Xms2Mem( Handle:Word; Offset:LongInt; var Buf; Count:Word):Boolean;
+   var E:EMMstruct;
+       w:Word;
+       ww:Boolean;
+   begin
+       with E do
+       begin
+           Size:=Count;
+           ww:=Odd(Count);
+           if ww then Dec(Size);
+           soh:=handle;
+           soo:=Offset;
+           dsh:=0;
+           dso:=LongInt(@Buf);
+           if not MoveXMS(E) then
+           begin
+               Xms2Mem:=False;
+               Exit;
+           end;
+           if ww then
+           begin
+               size:=2;
+               soh:=handle;
+               soo:=Offset+Count-1;
+               dsh:=0;
+               dso:=LongInt(@w);
+               if not MoveXMS(E) then
+               begin
+                   Xms2Mem:=False;
+                   Exit;
+               end;
+               Move(w,Ptr(Seg(Buf),Ofs(Buf)+Count-1)^,1);
+           end;
+       end;
+       Xms2Mem:=True;
+   end;
+
+
+   begin
+       MakeCall(@CallXMS);
+
+   end.     { UNIT XMS }
+
+
+
