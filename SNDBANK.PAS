@@ -2,6 +2,7 @@ unit SndBank;
 
 { Sound Bank - XMS-based sound library manager for SBDSP }
 { Stores multiple VOC files in extended memory, loads on demand }
+{ DMA-safe buffer allocation by ChatGPT (2025) }
 
 interface
 
@@ -23,8 +24,10 @@ type
   TSoundBank = object
     Sounds: array[0..MaxSounds-1] of TSoundInfo;
     Count: Integer;
-    PlayBuffer: Pointer;      { Conventional memory playback buffer }
-    PlayBufferSize: Word;     { Current buffer size }
+    PlayBufferRaw: Pointer;   { the raw block from GetMem }
+    PlayBuffer: Pointer;      { the aligned/safe pointer we actually use }
+    PlayBufferAllocSize: Word; { requested size }
+    PlayBufferSize: Word;
     XMSAvailable: Boolean;
 
     function Init: Boolean;
@@ -39,10 +42,15 @@ type
 
 implementation
 
+type
+  TByteArray = array[0..64000] of Byte;
+  PByteArray = ^TByteArray;
+
 { Initialize sound bank }
 function TSoundBank.Init: Boolean;
 begin
   Count := 0;
+  PlayBufferRaw := nil;
   PlayBuffer := nil;
   PlayBufferSize := 0;
   XMSAvailable := XMSinstalled;
@@ -64,30 +72,25 @@ var
   Header: array[0..25] of Byte;
   BlockType: Byte;
   BlockSize: array[0..2] of Byte;
+  RawBlockLen24: LongInt;
   SampleRate: Byte;
   Packing: Byte;
-  DataSize: Word;
+  PCMSize: Word;
+  TotalSize: Word;
   TempBuffer: Pointer;
-  XMSHandle: Word;
+  AllocatedHandle: Word;  { Renamed to avoid "with" scope conflict }
   BytesRead: Word;
-  E: EMMstruct;
-  TransferSize: LongInt;
   CalcSampleRate: Word;
+  P: ^Byte;
 begin
-  LoadSound := -1;  { Error }
+  LoadSound := -1;
+  if Count >= MaxSounds then Exit;
 
-  if Count >= MaxSounds then
-    Exit;
-
-  { Open VOC file }
   Assign(F, FileName);
-  {$I-}
-  Reset(F, 1);
-  {$I+}
-  if IOResult <> 0 then
-    Exit;
+  {$I-} Reset(F, 1); {$I+}
+  if IOResult <> 0 then Exit;
 
-  { Read and verify VOC header }
+  { Read the main VOC header (26 bytes) }
   BlockRead(F, Header, 26, BytesRead);
   if (BytesRead <> 26) or (Header[0] <> $43) or (Header[19] <> $1A) then
   begin
@@ -95,111 +98,96 @@ begin
     Exit;
   end;
 
-  { Find sound data block (type 1) }
+  { Read blocks until we find type 1 (sound data) }
   repeat
     BlockRead(F, BlockType, 1, BytesRead);
     if BytesRead <> 1 then Break;
-    if BlockType = 0 then Break;  { Terminator }
+    if BlockType = 0 then Break; { terminator }
 
     BlockRead(F, BlockSize, 3, BytesRead);
-    DataSize := Word(BlockSize[0]) or (Word(BlockSize[1]) shl 8);
+    if BytesRead <> 3 then Break;
+
+    { 24-bit little-endian block length }
+    RawBlockLen24 :=
+      LongInt(BlockSize[0]) or
+      (LongInt(BlockSize[1]) shl 8) or
+      (LongInt(BlockSize[2]) shl 16);
 
     if BlockType = 1 then
     begin
-      { Read sample rate and packing }
+      { VOC block type 1 layout:
+        byte 0: blockType (1)
+        byte 1..3: block length (24-bit)
+        byte 4: sample rate code
+        byte 5: packing
+        byte 6..: PCM data (RawBlockLen24 - 2 bytes long)
+      }
+
+      { Read sample rate code + packing }
       BlockRead(F, SampleRate, 1, BytesRead);
       BlockRead(F, Packing, 1, BytesRead);
-      Dec(DataSize, 2);
 
-      { Allocate XMS memory for this sound }
-      XMSHandle := AllocXMS((DataSize + 1023) div 1024);  { Round up to KB }
-      if XMSHandle = 0 then
+      { PCM payload length = blocklen - 2 (rate+packing) }
+      PCMSize := RawBlockLen24 - 2;
+
+      { Total buffer we will store in XMS = 6-byte VOC header + PCM data }
+      TotalSize := 6 + PCMSize;
+
+      { Allocate XMS block big enough for TotalSize }
+      AllocatedHandle := AllocXMS((TotalSize + 1023) div 1024);
+      if AllocatedHandle = 0 then
       begin
         Close(F);
         Exit;
       end;
 
-      { Allocate temporary buffer in conventional memory }
-      { XMS requires even-sized transfers, so round up if odd }
-      if Odd(DataSize) then
-        GetMem(TempBuffer, DataSize + 1)
-      else
-        GetMem(TempBuffer, DataSize);
+      { Allocate temp buffer in conventional memory to build [header+data] }
+      { We also want an even size for XMS transfer later }
+      GetMem(TempBuffer, TotalSize + 1);  { +1 is fine, cheap slack }
 
-      { Read sound data }
-      BlockRead(F, TempBuffer^, DataSize, BytesRead);
+      { Build the first 6 bytes exactly like a VOC block }
+      P := TempBuffer;
+      P^ := BlockType;            Inc(P);  { byte 0: 1 }
+      P^ := BlockSize[0];         Inc(P);  { bytes 1..3: original 24-bit len }
+      P^ := BlockSize[1];         Inc(P);
+      P^ := BlockSize[2];         Inc(P);
+      P^ := SampleRate;           Inc(P);  { byte 4: VOC time constant }
+      P^ := Packing;              Inc(P);  { byte 5: packing method }
 
-      { Verify read was successful }
-      if BytesRead <> DataSize then
+      { Read PCM data directly after that header }
+      BlockRead(F, P^, PCMSize, BytesRead);
+      if BytesRead <> PCMSize then
       begin
-        if Odd(DataSize) then
-          FreeMem(TempBuffer, DataSize + 1)
-        else
-          FreeMem(TempBuffer, DataSize);
-        FreeXMS(XMSHandle);
+        FreeMem(TempBuffer, TotalSize + 1);
+        FreeXMS(AllocatedHandle);
         Close(F);
         Exit;
       end;
 
-      { Transfer to XMS using direct MoveXMS (avoid Mem2Xms bug with odd sizes) }
-      { Round up to even size for XMS transfer }
-      if Odd(DataSize) then
-        TransferSize := DataSize + 1
-      else
-        TransferSize := DataSize;
-
-      with E do
+      { Copy to XMS using standard Mem2Xms function }
+      if not Mem2Xms(TempBuffer^, TotalSize, AllocatedHandle, 0) or (XMSerror <> 0) then
       begin
-        size := TransferSize;
-        soh := 0;                        { Source: conventional memory }
-        { Convert pointer to linear address: (Seg * 16) + Ofs }
-        soo := (LongInt(Seg(TempBuffer^)) * 16) + Ofs(TempBuffer^);
-        dsh := XMSHandle;                { Destination: XMS }
-        dso := 0;                        { Destination offset }
-      end;
-
-      if not MoveXMS(E) then
-      begin
-        { XMS transfer failed }
-        if Odd(DataSize) then
-          FreeMem(TempBuffer, DataSize + 1)
-        else
-          FreeMem(TempBuffer, DataSize);
-        FreeXMS(XMSHandle);
+        FreeMem(TempBuffer, TotalSize + 1);
+        FreeXMS(AllocatedHandle);
         Close(F);
         Exit;
       end;
 
-      { Verify XMS transfer succeeded }
-      if XMSerror <> 0 then
-      begin
-        if Odd(DataSize) then
-          FreeMem(TempBuffer, DataSize + 1)
-        else
-          FreeMem(TempBuffer, DataSize);
-        FreeXMS(XMSHandle);
-        Close(F);
-        Exit;
-      end;
+      { Free temp buffer }
+      FreeMem(TempBuffer, TotalSize + 1);
 
-      { Free temporary buffer }
-      if Odd(DataSize) then
-        FreeMem(TempBuffer, DataSize + 1)
-      else
-        FreeMem(TempBuffer, DataSize);
-
-      { Calculate sample rate from VOC byte }
+      { Compute real sample frequency in Hz from VOC time constant }
       CalcSampleRate := 1000000 div (256 - SampleRate);
 
-      { Store sound info }
+      { Store info in our table }
       with Sounds[Count] do
       begin
-        Name := FileName;
-        XMSHandle := XMSHandle;
-        XMSOffset := 0;
-        Size := DataSize;
-        SampleRate := CalcSampleRate;
-        Loaded := True;
+        Name       := FileName;
+        XMSHandle  := AllocatedHandle;  { Store the allocated XMS handle }
+        XMSOffset  := 0;
+        Size       := TotalSize;        { NOTE: includes 6-byte header now }
+        SampleRate := CalcSampleRate;   { e.g. 11111 Hz }
+        Loaded     := True;
       end;
 
       LoadSound := Count;
@@ -208,39 +196,100 @@ begin
     end
     else
     begin
-      { Skip unknown block }
-      Seek(F, FilePos(F) + DataSize);
+      { Skip non-type-1 blocks }
+      Seek(F, FilePos(F) + RawBlockLen24);
     end;
   until False;
 
   Close(F);
 end;
 
+
 { Allocate playback buffer in conventional memory }
 function TSoundBank.AllocPlayBuffer(Size: Word): Boolean;
+var
+  RawPtr: Pointer;
+  CandidatePtr: Pointer;
+  Phys: LongInt;
+  OffsetIn64K: Word;
+  i: Word;
+  Result: Boolean;
 begin
-  { Free old buffer if different size }
-  if (PlayBuffer <> nil) and (PlayBufferSize <> Size) then
-    FreePlayBuffer;
-
-  { Allocate new buffer if needed }
-  if PlayBuffer = nil then
+  { If we already have a buffer of the right size, reuse it }
+  if (PlayBufferRaw <> nil) and (PlayBufferAllocSize = Size) then
   begin
-    GetMem(PlayBuffer, Size);
-    PlayBufferSize := Size;
+    AllocPlayBuffer := True;
+    Exit;
   end;
 
-  AllocPlayBuffer := (PlayBuffer <> nil);
+  { Otherwise free old buffer first }
+  if PlayBufferRaw <> nil then
+    FreePlayBuffer;
+
+  { Over-allocate so we can slide inside it.
+    Worst case, we might need up to almost 64K extra to find a safe window.
+    But your sounds are small (<64K), so +256 or +1024 may be enough.
+    We'll be generous: Size + $1000 (4096 bytes).
+  }
+  GetMem(RawPtr, Size + $1000);
+  if RawPtr = nil then
+  begin
+    AllocPlayBuffer := False;
+    Exit;
+  end;
+
+  { Now scan forward inside this block to find a safe address }
+  PlayBuffer := nil;
+
+  for i := 0 to $0FFF do  { up to 4096 byte shift }
+  begin
+    CandidatePtr := Ptr(Seg(RawPtr^), Ofs(RawPtr^) + i);
+
+    { physical linear address = segment * 16 + offset }
+    Phys := LongInt(Seg(CandidatePtr^)) * 16 + Ofs(CandidatePtr^);
+
+    { low 16 bits are position within current 64K window }
+    OffsetIn64K := Phys and $FFFF;
+
+    { Check: will this block fit without crossing 64K boundary? }
+    if OffsetIn64K + Size <= 65536 then
+    begin
+      { optionally also enforce even physical addr }
+      if (Phys and 1) = 0 then
+      begin
+        PlayBufferRaw := RawPtr;
+        PlayBuffer := CandidatePtr;
+        PlayBufferAllocSize := Size;
+        Break;
+      end;
+    end;
+  end;
+
+  { Did we find one? }
+  Result := (PlayBuffer <> nil);
+  if not Result then
+  begin
+    { We failed to find a safe sub-block.
+      Clean up to avoid leak.
+    }
+    FreeMem(RawPtr, Size + $1000);
+    PlayBufferRaw := nil;
+    PlayBuffer := nil;
+    PlayBufferAllocSize := 0;
+  end;
+  AllocPlayBuffer := Result;
 end;
+
 
 { Free playback buffer }
 procedure TSoundBank.FreePlayBuffer;
 begin
-  if PlayBuffer <> nil then
+  if PlayBufferRaw <> nil then
   begin
-    FreeMem(PlayBuffer, PlayBufferSize);
+    FreeMem(PlayBufferRaw, PlayBufferAllocSize + $1000);
+    PlayBufferRaw := nil;
     PlayBuffer := nil;
-    PlayBufferSize := 0;
+    PlayBufferAllocSize := 0;
   end;
 end;
 
@@ -249,46 +298,27 @@ function TSoundBank.PlaySound(SoundID: Integer): Boolean;
 var
   Sound: BaseSoundType;
   BufferSize: Word;
-  E: EMMstruct;
 begin
   PlaySound := False;
+  if (SoundID < 0) or (SoundID >= Count) then Exit;
+  if not Sounds[SoundID].Loaded then Exit;
 
-  if (SoundID < 0) or (SoundID >= Count) then
-    Exit;
-
-  if not Sounds[SoundID].Loaded then
-    Exit;
-
-  { Allocate playback buffer (round up to even size for XMS) }
+  { We need a playback buffer big enough for header+PCM }
   BufferSize := Sounds[SoundID].Size;
-  if Odd(BufferSize) then
-    Inc(BufferSize);
+  if Odd(BufferSize) then Inc(BufferSize);
 
-  if not AllocPlayBuffer(BufferSize) then
+  if not AllocPlayBuffer(BufferSize) then Exit;
+
+  { Copy full block (header + PCM) from XMS into PlayBuffer }
+  if not Xms2Mem(
+        Sounds[SoundID].XMSHandle,
+        Sounds[SoundID].XMSOffset,
+        PlayBuffer^,
+        Sounds[SoundID].Size
+     ) or (XMSerror <> 0) then
     Exit;
 
-  { Copy sound from XMS using direct MoveXMS }
-  with E do
-  begin
-    size := BufferSize;
-    soh := Sounds[SoundID].XMSHandle;     { Source: XMS }
-    soo := Sounds[SoundID].XMSOffset;     { Source offset }
-    dsh := 0;                             { Destination: conventional memory }
-    { Convert pointer to linear address: (Seg * 16) + Ofs }
-    dso := (LongInt(Seg(PlayBuffer^)) * 16) + Ofs(PlayBuffer^);
-  end;
-
-  { Disable interrupts during XMS transfer to prevent SB IRQ conflicts }
-  if not MoveXMS(E) then
-  begin
-    Exit;
-  end;
-
-  { Verify XMS retrieval succeeded }
-  if XMSerror <> 0 then
-    Exit;
-
-  { Ensure DSP is stopped before playing new sound }
+  { Stop anything that was already playing }
   if Playing then
   begin
     DMAStop;
@@ -297,14 +327,14 @@ begin
     Playing := False;
   end;
 
-  { Set up SBDSP sound structure }
-  Sound.Buffer := PlayBuffer;
-  Sound.BufferSize := Sounds[SoundID].Size;
-  Sound.Frequency := Sounds[SoundID].SampleRate;
-  Sound.DACType := EightBitDMA;
-  Sound.Phase := 0;  { Mono }
+  { Tell SBDSP about the sound }
+  Sound.Buffer      := PlayBuffer;
+  Sound.BufferSize  := Sounds[SoundID].Size;       { includes 6-byte header }
+  Sound.Frequency   := Sounds[SoundID].SampleRate; { e.g. 11111 Hz }
+  Sound.DACType     := SBDSP.EightBitDMA;          { 8-bit DMA playback }
+  Sound.Phase       := SBDSP.Mono;                 { mono for now }
 
-  { Play via SBDSP }
+  { Fire it }
   SBDSP.PlaySound(Sound);
 
   PlaySound := True;

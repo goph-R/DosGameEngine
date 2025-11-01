@@ -57,15 +57,29 @@ The program will:
 - **MEMORY**: Buffer stays allocated during playback to prevent DMA read errors
 - **USAGE**: Don't wait for `Playing` flag in tight loop if HSC music is active (causes freezes)
 
-**XMS.PAS** - Extended Memory Specification (XMS) interface ⚠️ **UNDER DEVELOPMENT**
-- Provides access to extended memory (above 1MB) via HIMEM.SYS
-- `XMS_Init`: Detect and initialize XMS driver
-- `XMS_AllocKB`: Allocate blocks in extended memory
-- `XMS_Free`: Free allocated XMS blocks
-- `XMS_MoveToXMS` / `XMS_MoveFromXMS`: Transfer data to/from extended memory
-- **STATUS**: Currently has issues with far call mechanism to XMS driver entry point
-- **TODO**: Fix XMS_Call procedure to properly invoke far pointer on Turbo Pascal 7.0
-- **USE CASE**: Store large data (sprites, maps, samples) in XMS, swap on demand
+**XMS.PAS** - Extended Memory Specification (XMS) interface (1992, by KIV without Co) ✅ **WORKING**
+- Professional XMS driver providing access to extended memory (above 1MB) via HIMEM.SYS
+- `XMSinstalled`: Check if XMS driver is loaded
+- `AllocXMS(KB)`: Allocate blocks in extended memory (in kilobytes)
+- `FreeXMS(Handle)`: Free allocated XMS blocks
+- `Mem2Xms` / `Xms2Mem`: Transfer data to/from extended memory (handles odd-byte transfers automatically)
+- `MoveXMS(EMMstruct)`: Low-level XMS memory move operation
+- `GetXMSmem`: Query available XMS memory
+- **CRITICAL**: When handle=0 in EMMstruct, offset must be pointer value (seg:ofs), NOT physical linear address
+- **USE CASE**: Store large data (sprites, maps, samples) in XMS, swap on demand to conventional memory
+
+**SNDBANK.PAS** - XMS-based sound library manager for SBDSP (2025, DMA-safe buffer by ChatGPT)
+- Stores multiple VOC files in extended memory, loads on demand for playback
+- `TSoundBank` object type for managing sound effects library
+- `Init`: Initialize sound bank and verify XMS availability
+- `LoadSound(filename)`: Load VOC file into XMS memory, returns sound ID (-1 on error)
+- `PlaySound(ID)`: Transfer sound from XMS to conventional memory and play via SBDSP
+- `StopSound`: Stop currently playing sound
+- `Done`: Cleanup - free all XMS blocks and buffers
+- **DMA-SAFE ALLOCATION**: Allocates playback buffers that don't cross 64KB page boundaries (critical for DMA)
+- **MEMORY**: Sounds stored in XMS, only playback buffer in conventional memory (saves precious DOS RAM)
+- **USAGE**: Ideal for games with multiple sound effects - load all at startup, play repeatedly without disk I/O
+- **IMPORTANT**: Requires XMS driver (HIMEM.SYS) and Sound Blaster initialization via SBDSP.ResetDSP
 
 **VGA.PAS** - Low-level VGA Mode 13h graphics driver
 - `TFrameBuffer`: 64000-byte (320x200) pixel buffer type
@@ -194,6 +208,8 @@ end;
 ```
 
 ### Testing Sound Effects
+
+**Simple approach (VocLoad)** - For single sounds or testing:
 ```pascal
 uses SBDSP, VocLoad;
 
@@ -214,6 +230,36 @@ begin
     UninstallHandler;
     FreeVOCBuffer;
   end;
+end;
+```
+
+**Advanced approach (SndBank)** - For games with multiple sounds:
+```pascal
+uses SBDSP, SndBank, XMS;
+
+var
+  Bank: TSoundBank;
+  ExplosionID, LaserID: Integer;
+
+begin
+  { Initialize Sound Blaster }
+  if not ResetDSP(2, 5, 1, 0) then Halt(1);
+
+  { Initialize sound bank (requires XMS/HIMEM.SYS) }
+  if not Bank.Init then Halt(1);
+
+  { Load sounds into XMS at startup }
+  ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
+  LaserID := Bank.LoadSound('DATA\LASER.VOC');
+
+  { Play sounds on demand - no disk I/O, just XMS transfer }
+  Bank.PlaySound(ExplosionID);  { Fast! Data already in XMS }
+
+  { Game loop... }
+
+  { Cleanup on exit }
+  Bank.Done;  { Frees all XMS blocks and buffers }
+  UninstallHandler;
 end;
 ```
 
@@ -347,7 +393,8 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 
 - **VGATEST.PAS**: VGA graphics test with a PKM image load and show
 - **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
-- **XMSTEST.PAS**: Extended memory test ⚠️ (currently broken - far call issue)
+- **XMSTEST2.PAS**: XMS round-trip test (write pattern to XMS, read back, verify) ✅
+- **SNDTEST.PAS**: XMS sound bank test with SBDSP (loads VOC into XMS, plays on demand) ✅
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
@@ -400,4 +447,4 @@ The `VENDOR/` directory contains third-party libraries and tools:
 
 ## Known Issues
 
-1. **XMS.PAS far call problem**: The `XMS_Call` procedure cannot properly invoke the far pointer returned by INT 2Fh/4310h. Multiple approaches tried (inline asm `call dword ptr`, RETF trick, procedure variable casting) all fail or freeze. Needs investigation of Turbo Pascal 7.0 far call semantics.
+1. ~~**XMS.PAS far call problem**~~: **RESOLVED** - XMS.PAS now working correctly. The professional XMS driver by KIV without Co (1992) uses self-modifying code to patch the far call address at runtime.
