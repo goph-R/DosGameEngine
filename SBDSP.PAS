@@ -586,17 +586,30 @@ Begin
 End;
 
 Function GetAbsoluteAddress (P: Pointer): LongInt;
-(* Faster when implemented in assembly (and easier!)    *)
-(* Uses the only 32-bit code in this unit               *)
+(* 286/8086 compatible version using 16-bit register pairs *)
+(* Calculates: Segment * 16 + Offset using DX:AX *)
 Begin
   asm
-    DB 66h; XOR AX, AX                 {; Make sure that no "junk" is in the}
-    DB 66h; XOR BX, BX                 {; extended Registers}
-    MOV AX, WORD PTR [P+2]             {; AX := SEG (P^) }
-    MOV BX, WORD PTR [P]               {; BX := OFS (P^) }
-    DB 66h; SHL AX, 4                  {; EAX := SEG (P^) * 16}
-    DB 66h; ADD AX, BX                 {; EAX := EAX + OFS (P^)}
-    DB 66h; MOV WORD PTR @RESULT, AX   {; GetAbsoluteAddress := EAX }
+    XOR DX, DX                     {; Clear high word }
+    MOV AX, WORD PTR [P+2]         {; AX = Segment }
+
+    {; Shift DX:AX left by 4 bits (multiply by 16) }
+    SHL AX, 1                      {; Shift bit into carry }
+    RCL DX, 1                      {; Rotate carry into DX }
+    SHL AX, 1
+    RCL DX, 1
+    SHL AX, 1
+    RCL DX, 1
+    SHL AX, 1
+    RCL DX, 1
+
+    {; Now DX:AX = Segment * 16, add the offset }
+    ADD AX, WORD PTR [P]           {; Add offset to low word }
+    ADC DX, 0                      {; Add carry to high word }
+
+    {; Store 32-bit result (LongInt = DX:AX) }
+    MOV WORD PTR @RESULT, AX       {; Low word }
+    MOV WORD PTR @RESULT+2, DX     {; High word }
   end;
 End;
 
