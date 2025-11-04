@@ -100,6 +100,17 @@ The program will:
 - `Start` / `Stop` / `Fade`: Playback control
 - Hooks into timer interrupt (IRQ0) for automatic polling
 - **CRITICAL**: Always call `Done` destructor before exit to unhook interrupt
+- **IRQ0 WARNING**: Do NOT read PIT Timer 0 counters or hook IRQ0 while HSC is active - causes interrupt conflicts and sound issues. Use RTCTimer.PAS (IRQ8) for high-resolution timing instead.
+
+**RTCTIMER.PAS** - Real-Time Clock interrupt timer (2025, RTC IRQ8 high-resolution timing)
+- Provides high-resolution timing via RTC periodic interrupt (IRQ8 on slave PIC)
+- `InitRTC(Freq)`: Initialize RTC at specified frequency (2-8192 Hz, typical: 1024 Hz)
+- `DoneRTC`: Cleanup - disable periodic interrupt and restore handler
+- `GetTimeSeconds`: Returns elapsed time in seconds as Real
+- `RTC_Ticks`: Global tick counter (increments at configured frequency)
+- **IRQ8 ADVANTAGE**: Completely separate from PIT Timer 0 (IRQ0) - no conflicts with HSC music player or BIOS timer
+- **CRITICAL**: Always call `DoneRTC` before exit to unhook interrupt
+- **USE CASE**: Frame-rate independent game loops, delta timing, animation (see IMGTEST.PAS for example)
 
 **PKMLOAD.PAS** - PKM image format loader
 - PKM format: RLE-compressed paletted image format from GrafX2 drawing program (http://grafx2.chez.com/)
@@ -395,6 +406,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
 - **XMSTEST2.PAS**: XMS round-trip test (write pattern to XMS, read back, verify) ✅
 - **SNDTEST.PAS**: XMS sound bank test with SBDSP (loads VOC into XMS, plays on demand) ✅
+- **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
@@ -414,7 +426,8 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 13. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
 14. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
 15. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
-16. **DOSBox-X sound cutoff mystery**: In DOSBox-X (works perfectly in 86Box), `Bank.PlaySound()` cuts off sound immediately unless caller declares dummy variables. **Workaround**: Add `Dummy1, Dummy2, Dummy3, Dummy4: Integer; DummyStr1, DummyStr2: String` in caller's var section. Amount needed varies with memory state - over-provision for reliability. **Investigation summary**: This is a DOSBox-X emulation quirk, NOT a code bug. Theories tested and failed: (1) Direction Flag - added CLD in multiple places, (2) Interrupt preemption - added atomic CLI/CLD section around DMA programming, (3) Timing delays - Delay() calls don't help, (4) Memory barriers - assembly memory reads don't help, (5) Static variables - moving Sound record to object field doesn't help, (6) Stack size - {$M} directive doesn't help. **Only caller-side dummy variables work**. The mechanism is unknown. SBDSP.PAS now has atomic DMA programming section as defense-in-depth, but it doesn't fix DOSBox-X. See IMGTEST.PAS and SNDTEST.PAS for examples.
+16. ~~**DOSBox-X sound cutoff mystery**~~: **✅ SOLVED** - The infamous sound cutoff bug was caused by **PIT Timer 0 / IRQ0 interrupt conflicts**. When HSC music player hooks IRQ0 for polling, reading PIT Timer 0 counters creates race conditions and nested interrupt issues that disrupt Sound Blaster DMA timing. **Solution**: Use **RTCTimer.PAS** (RTC IRQ8 on slave PIC) for high-resolution timing instead of reading PIT Timer 0. IRQ8 is completely separate from IRQ0, eliminating all conflicts. The "dummy variable workaround" was masking a timing-dependent bug by changing stack layout - switching to RTC fixed the root cause. See IMGTEST.PAS for the corrected implementation.
+17. **PIT Timer 0 / IRQ0 conflicts**: Never share PIT Timer 0 with interrupt-driven systems like HSC music player. Reading PIT counters or hooking IRQ0 while HSC is active causes interrupt conflicts, timing glitches, stack corruption, and sound cutoff. **Always use RTCTimer.PAS (IRQ8) for high-resolution timing** - it's on the slave PIC and completely isolated from music/BIOS timers.
 
 ## Technical Constraints
 
@@ -428,7 +441,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
   - DMA channels 0-3 supported (default: channel 1)
 - **Memory**:
   - Conventional: 640KB real-mode limit
-  - Extended: XMS support planned (HIMEM.SYS required) - currently broken
+  - Extended: XMS support via XMS.PAS (HIMEM.SYS required) - ✅ WORKING
 - **Max file size**: 64KB code segments, heap limited by DOS memory
 - **No multithreading**: Single-threaded with interrupt-based music/DMA audio
 
