@@ -53,6 +53,7 @@ CSETUP.BAT
 SETUP.EXE
 
 # 2. Copy the saved CONFIG.INI to the TESTS folder
+copy CONFIG.INI ..\TESTS
 
 # 3. Try the sprite animation demo
 cd ..\TESTS
@@ -263,7 +264,7 @@ Use **Audacity** (Windows/Linux/Mac):
    - Encoding: "Unsigned 8-bit PCM"
 
 ### HSC Music
-Use HSC tracker software or convert from MOD files.
+Use [HSC-tracker](https://demozoo.org/productions/293837/) or [Adlib Tracker II](https://adlibtracker.net/).
 
 ## ⚠️ Critical Cleanup Rules
 
