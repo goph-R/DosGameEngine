@@ -326,7 +326,8 @@ MIT License - See [LICENSE](LICENSE) file
 - [GrafX2](http://grafx2.chez.com/) - DOS pixel art editor
 - [Turbo Pascal 7.0](https://en.wikipedia.org/wiki/Turbo_Pascal) - Classic Pascal compiler
 - [Audacity](https://www.audacityteam.org/) - Audio editor for VOC creation
-
+- [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC music tracker
+- [Adlib Tracker II](https://adlibtracker.net/) - A more modern tracker for HSC creation
 ---
 
 **Made with 💾 for retro DOS enthusiasts**
