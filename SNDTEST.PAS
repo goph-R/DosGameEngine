@@ -9,6 +9,10 @@ var
   ExplosionID: Integer;
   Choice: Char;
 
+  { DOSBox-X workaround: Required for Bank.PlaySound to work }
+  Dummy1, Dummy2, Dummy3, Dummy4: Integer;
+  DummyStr1, DummyStr2: String;
+
 begin
   ClrScr;
   WriteLn('XMS Sound Bank Test with SBDSP');

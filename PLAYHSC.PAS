@@ -188,6 +188,7 @@ TYPE
 
     CONSTRUCTOR Init (AdlibAddress : WORD);
     PROCEDURE Start;
+    PROCEDURE Poll;  (* Call this in your game loop for polling mode *)
     PROCEDURE Stop;
     PROCEDURE Fade;
     PROCEDURE LoadMem (Music_Address : Pointer);
@@ -212,6 +213,12 @@ USES CRT;
 {$L HSCOBJ.OBJ}                     (*        external                 *)
 PROCEDURE _HscPlayer; EXTERNAL;     (*                  player         *)
 {$F-}                               (*                          object *)
+
+PROCEDURE PollMusic; ASSEMBLER;
+  ASM
+    MOV  AH,1
+    CALL _HscPlayer
+  END;
 
 FUNCTION  DetectAdlib (SuggestedPort : WORD) : WORD; ASSEMBLER;
   ASM
@@ -277,9 +284,16 @@ PROCEDURE HSC_obj.Start;
 BEGIN
   IF NOT Music_Run THEN BEGIN
     IF Address <> NIL THEN BEGIN
-      StartMusic (Address,FALSE,TRUE);
+      StartMusic (Address,TRUE,TRUE);  { Polling=TRUE for manual polling mode }
       Music_Run := TRUE;
     END;
+  END;
+END;
+
+PROCEDURE HSC_obj.Poll;
+BEGIN
+  IF Music_Run THEN BEGIN
+    PollMusic;  { Call HSC player's polling function }
   END;
 END;
 

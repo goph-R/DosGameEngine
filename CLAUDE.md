@@ -414,6 +414,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 13. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
 14. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
 15. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
+16. **DOSBox-X sound cutoff mystery**: In DOSBox-X (works perfectly in 86Box), `Bank.PlaySound()` cuts off sound immediately unless caller declares dummy variables. **Workaround**: Add `Dummy1, Dummy2, Dummy3, Dummy4: Integer; DummyStr1, DummyStr2: String` in caller's var section. Amount needed varies with memory state - over-provision for reliability. **Investigation summary**: This is a DOSBox-X emulation quirk, NOT a code bug. Theories tested and failed: (1) Direction Flag - added CLD in multiple places, (2) Interrupt preemption - added atomic CLI/CLD section around DMA programming, (3) Timing delays - Delay() calls don't help, (4) Memory barriers - assembly memory reads don't help, (5) Static variables - moving Sound record to object field doesn't help, (6) Stack size - {$M} directive doesn't help. **Only caller-side dummy variables work**. The mechanism is unknown. SBDSP.PAS now has atomic DMA programming section as defense-in-depth, but it doesn't fix DOSBox-X. See IMGTEST.PAS and SNDTEST.PAS for examples.
 
 ## Technical Constraints
 

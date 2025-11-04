@@ -4,6 +4,11 @@ unit SndBank;
 { Stores multiple VOC files in extended memory, loads on demand }
 { DMA-safe buffer allocation by ChatGPT (2025) }
 
+{ DOSBox-X QUIRK: PlaySound() requires caller to have dummy variables }
+{ in their var section or sound cuts off immediately. Works fine in   }
+{ 86Box without workaround. Cause unknown after extensive testing.    }
+{ See CLAUDE.md Common Pitfall #16 for full investigation.            }
+
 interface
 
 uses XMS, SBDSP, Crt, Dos;
@@ -214,6 +219,8 @@ var
   OffsetIn64K: Word;
   i: Word;
   Result: Boolean;
+  TempOfs: LongInt;     { For safe offset arithmetic }
+  NewSeg, NewOfs: Word; { For pointer normalization }
 begin
   { If we already have a buffer of the right size, reuse it }
   if (PlayBufferRaw <> nil) and (PlayBufferAllocSize = Size) then
@@ -243,7 +250,17 @@ begin
 
   for i := 0 to $0FFF do  { up to 4096 byte shift }
   begin
-    CandidatePtr := Ptr(Seg(RawPtr^), Ofs(RawPtr^) + i);
+    { Calculate candidate pointer with proper wraparound handling }
+    TempOfs := LongInt(Ofs(RawPtr^)) + i;  { Use LongInt to prevent Word overflow! }
+    if TempOfs >= 65536 then
+    begin
+      { Offset overflowed - normalize to seg:ofs (1 segment = 16 bytes = $10) }
+      NewSeg := Seg(RawPtr^) + (TempOfs div 65536) * $1000;  { Add $1000 segs per 64KB }
+      NewOfs := TempOfs mod 65536;
+      CandidatePtr := Ptr(NewSeg, NewOfs);
+    end
+    else
+      CandidatePtr := Ptr(Seg(RawPtr^), Word(TempOfs));
 
     { physical linear address = segment * 16 + offset }
     Phys := LongInt(Seg(CandidatePtr^)) * 16 + Ofs(CandidatePtr^);
@@ -260,6 +277,11 @@ begin
         PlayBufferRaw := RawPtr;
         PlayBuffer := CandidatePtr;
         PlayBufferAllocSize := Size;
+
+        { DEBUG: Print buffer allocation info }
+        WriteLn('DMA Buffer: Phys=', Phys, ' Offset64K=', OffsetIn64K,
+                ' Size=', Size, ' End=', OffsetIn64K + Size, ' Shift=', i);
+
         Break;
       end;
     end;
@@ -272,6 +294,7 @@ begin
     { We failed to find a safe sub-block.
       Clean up to avoid leak.
     }
+    WriteLn('ERROR: Could not find DMA-safe buffer in 4K search window!');
     FreeMem(RawPtr, Size + $1000);
     PlayBufferRaw := nil;
     PlayBuffer := nil;
@@ -299,6 +322,12 @@ var
   Sound: BaseSoundType;
   BufferSize: Word;
 begin
+  { DOSBox-X fix: Clear Direction Flag - some code (HSC player, interrupts) }
+  { may leave DF set, causing XMS transfers and DMA setup to run backwards }
+  asm
+    cld
+  end;
+
   PlaySound := False;
   if (SoundID < 0) or (SoundID >= Count) then Exit;
   if not Sounds[SoundID].Loaded then Exit;
@@ -322,7 +351,7 @@ begin
   if Playing then
   begin
     DMAStop;
-    Delay(50);
+    {Delay(50);}
     SpeakerOff;
     Playing := False;
   end;

@@ -936,6 +936,14 @@ begin
   If not PlayingSixteenBit then
     Time_Constant := 256 - (1000000 div CurrentSound.Frequency);
 
+  { ---- BEGIN: Atomic DMA/DSP program window ---- }
+  { Prevent interrupt preemption and force forward string ops }
+  asm
+    pushf      { save flags incl. IF/DF }
+    cli        { no preemption during programming }
+    cld        { guarantee forward string ops }
+  end;
+
   (* Now, we must program the DMA chip for another xfer *)
   Port[DMAMaskPort]     := DMAStopMask;  (* Stop any DMA activity so far *)
   Port[DMAClrPtrPort]   := $00;
@@ -985,6 +993,11 @@ begin
       WriteDSP(Hi(Length));
     End;
   End;
+
+  asm
+    popf       { restore IF/DF exactly as they were }
+  end;
+  { ---- END: Atomic DMA/DSP program window ---- }
 End;
 
 Procedure PlaySoundDSK (Filename: String; Frequency: Word; SoundType: Byte);
@@ -1194,6 +1207,8 @@ End;
 
 Procedure PlaySound (Sound: BaseSoundType);
 Begin
+  { Normalize DF before we set up globals (belt-and-suspenders) }
+  asm cld end;
   LeftToPlay := Sound.BufferSize - 6;
   CurrentSound.DACType := Sound.DACType;
   CurrentSound.Frequency := Sound.Frequency;
@@ -1405,13 +1420,20 @@ Procedure SBIntHandler; interrupt;
 (*                 Voice Amplification. Also modified to handle DOS        *)
 (*                 re-entrancy issues. Recording implemented as well.      *)
 (*                 Made the function a LOT prettier with modules broken up!*)
+(*   2025 PATCH: Removed CLI/STI to allow HSC timer interrupts to continue *)
+(*               while processing SB DMA blocks. The DOS re-entrancy code  *)
+(*               (InDOSFlag, PSP switching, DTA) already protects against  *)
+(*               conflicts. This allows simultaneous music + sound FX.     *)
 (***************************************************************************)
 
 var
   NewDTAArea: Array [1..128] of Byte;
   OldDTAArea: Pointer;
 Begin
-  asm CLI end;  (* NO Interrupts while in this code! *)
+  { Ensure DF=0 inside handler; prevent DF leak on exit }
+  asm cld end;
+  { CLI removed - allow timer interrupts (HSC music) to continue }
+  { asm CLI end; }
   (* First, we set the DOS critical error flag, so it uses that stack on   *)
   (* re-entry.                                                             *)
   If not Recording then
@@ -1452,7 +1474,8 @@ Begin
   Regs.DS := Seg (OldDTAArea);
   Regs.DX := Ofs (OldDTAArea);
   MsDOS (Regs);
-  asm STI end;      (* Interupts are OK now! *)
+  { STI removed - interrupts remain enabled throughout handler }
+  { asm STI end; }
   ClearInterrupt;   (* Tell the PIC chip that the interrupt is OVER *)
 End;
 
