@@ -26,56 +26,11 @@ var
   GameConfig: TConfig;
 
 var
-  PITTicks: LongInt;
-  LastPITValue: Word;
   ElapsedTime: Real;
   i: Integer;
   ExplosionID: Integer;
   Bank: TSoundBank;
   LastBIOSTicks: LongInt;
-
-  { DOSBox-X workaround: Required for Bank.PlaySound to work }
-  { Mechanism unknown - only caller-side dummy vars fix the bug }
-  { See CLAUDE.md Common Pitfall #16 for full investigation history 
-  Dummy1, Dummy2, Dummy3, Dummy4: Integer;
-  DummyStr1, DummyStr2: String;}
-
-
-{ InitHiResTimer removed - now using Timer 0 which is already initialized by BIOS }
-(*
-procedure InitHiResTimer; assembler;
-asm
-  mov al, 0B6h      { 1011_0110b:
-                       ch2 select,
-                       lobyte/hibyte,
-                       mode 3 (square wave),
-                       binary }
-  out 43h, al
-
-  xor ax, ax        { divisor = 0 -> actually means 65536 }
-  out 42h, al       { low byte }
-  mov al, ah
-  out 42h, al       { high byte }
-
-  { Enable timer 2 counting, but keep speaker muted }
-  in  al, 61h
-  or  al, 01h       { set bit0 = 1 (gate high so ch2 runs) }
-  and al, 0FDh      { clear bit1 = 0 (mute speaker output) }
-  out 61h, al
-end;
-*)
-
-function ReadPIT: Word; assembler;
-asm
-  mov al, 00h       { 00_000000b = latch counter 0 (system timer) }
-  out 43h, al
-
-  in  al, 40h       { latched low byte from Timer 0 }
-  mov ah, al
-  in  al, 40h       { latched high byte from Timer 0 }
-  xchg al, ah       { AX = current 16-bit count }
-  { AX now holds the *current down-counter value* of Timer 0 }
-end;
 
 function GetBIOSTicks: LongInt;
 { Read BIOS timer tick counter at 0040:006C (increments at 18.2065 Hz) }
@@ -111,7 +66,7 @@ begin
   if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
   begin
     Music.Init(0);
-    Music.LoadFile('DATA\FANTASY.HSC');
+    Music.LoadFile('..\DATA\FANTASY.HSC');
     Music.Start;
   end;
   
@@ -153,10 +108,10 @@ begin
     WriteLn('Sound bank initialized - OK');
     WriteLn;
 
-      { Load sounds into XMS }
+    { Load sounds into XMS }
     WriteLn('Loading sounds into XMS memory...');
 
-    ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
+    ExplosionID := Bank.LoadSound('..\DATA\EXPLODE.VOC');
     if ExplosionID < 0 then
     begin
       WriteLn('ERROR: Failed to load EXPLODE.VOC');
@@ -175,7 +130,7 @@ begin
   FrontBuffer := CreateFrameBuffer;
 
   { Load test image and palette directly to screen }
-  if not LoadPKM('DATA\TEST.PKM', BackBuffer, Palette) then
+  if not LoadPKM('..\DATA\TEST.PKM', BackBuffer, Palette) then
   begin
     CloseVGA;
     WriteLn('Error: Could not load TEST.PKM');
@@ -193,13 +148,7 @@ begin
 
   ElapsedTime := 0;
   Frame := 0;
-
   Running := True;
-
-
-  { Initialize timer (after music init if music is active) }
-  PITTicks := 0;
-  LastPITValue := ReadPIT;
   CurrentTime := GetHighResTime;
 
   while Running do
@@ -216,6 +165,7 @@ begin
     { Wait for vertical sync to prevent tearing }
     if UseVSync then
       WaitForVSync;
+
     RenderFrameBuffer(FrontBuffer);
 
     { Calculate delta time }
@@ -263,11 +213,9 @@ begin
     begin
       Key := ReadKey;
       if Key = Chr(27) then
-        Running := False;
-      if (Key = 'e') and (GameConfig.SoundCard = SoundCard_SoundBlaster) then
-      begin
+        Running := False
+      else if (Key = 'e') and (GameConfig.SoundCard = SoundCard_SoundBlaster) then
         Bank.PlaySound(ExplosionID);
-      end;
     end; 
 
   end;
@@ -280,10 +228,13 @@ begin
 
   CloseVGA;
 
+  { CRITICAL: Unhook RTC interrupt before exit }
+  DoneRTC;
+
   WriteLn('Image test completed!');
   WriteLn('');
   WriteLn('Summary:');
-  WriteLn('- Timer: PIT direct read with wrap detection (~1us resolution)');
+  WriteLn('- Timer: RTC based');
   WriteLn('- GetImage: Captured sprite regions from screen buffer');
   WriteLn('- Animation: Frame-rate independent movement using delta time');
   WriteLn('  Velocity: 80 pixels/sec horizontal, 60 pixels/sec vertical');

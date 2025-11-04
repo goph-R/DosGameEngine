@@ -1,333 +1,303 @@
-Got it—here’s a clean, self-contained Markdown “mini-spec” for **HSC (HSC Adlib Composer / HSC-Tracker)** as implemented by AdPlug’s player. I pulled it straight from `hsc.h` and `hsc.cpp` and organized it into layout, structures, decoding rules, and playback behavior.
+Perfect — I’ve got the file. Based on your request, here’s the cleaned-up **official-style documentation** for the **HSC Music File Format** — rewritten from the uploaded technical draft into a proper standalone specification.
 
 ---
 
-# HSC Format — AdPlug Implementation Notes
+# 🎵 HSC Music File Format Specification
 
-**Primary source:** AdPlug’s HSC player (`ChscPlayer`) in `src/hsc.h` and `src/hsc.cpp`. ([GitHub][1])
-
-> This document describes how AdPlug expects/decodes HSC files: file layout, pattern/event encoding, instruments, order list, and the runtime behavior (speed/timing, effects, percussion mode).
+*(HSC AdLib Composer / HSC Tracker, OPL2 Music Data Format)*
 
 ---
 
-## High-level layout
+## Overview
 
-AdPlug validates and parses an HSC file as:
+The **HSC file format** stores music sequences composed for **AdLib (OPL2)** synthesizers.
+It contains 128 instruments, a pattern order list, and pattern data (note and effect pairs).
+Each HSC file represents a complete song that can be played by a 9-channel OPL2 synthesizer.
 
-* **Instrument block**: 128 instruments × **12 bytes** each = **1536 bytes**.
-* **Order list** (“tracklist” / song arrangement): **51 bytes**.
-* **Pattern data**: each pattern is **64 rows × 9 channels × 2 bytes = 1152 bytes**.
-  Total pattern bytes = `number_of_patterns * 1152`.
-
-Validation constants from the loader:
-
-* Minimum plausible size: `1536 (instr) + 51 (orders) + 1152 (1 pattern) = 1587 + 1152`.
-* Maximum sanity check: `< 59188` (some files have a trailing `0x00`, hence “+1” in code).
-* Pattern count derived as:
-  `total_patterns = (filesize - 1587) / 1152`. ([GitHub][2])
+| Section         | Description                                    | Size              |
+| --------------- | ---------------------------------------------- | ----------------- |
+| Instrument bank | 128 instruments × 12 bytes                     | 1536 bytes        |
+| Order list      | Sequence of pattern indices (51 bytes typical) | 51 bytes          |
+| Pattern data    | 64 rows × 9 channels × 2 bytes per pattern     | 1152 × N patterns |
 
 ---
 
-## In-memory structures (AdPlug)
+## File Layout Summary
 
-### Player class + key fields
+| Offset | Size | Description                                                     |
+| -----: | ---- | --------------------------------------------------------------- |
+| 0x0000 | 1536 | Instrument data (128 × 12 bytes)                                |
+| 0x0600 | 51   | Order list (pattern sequence)                                   |
+| 0x0633 | ...  | Pattern data (each 1152 bytes = 64 rows × 9 channels × 2 bytes) |
 
-From `hsc.h`:
+The number of patterns is derived as:
 
-```cpp
-class ChscPlayer : public CPlayer {
-  ...
-  struct hscnote { unsigned char note, effect; };      // pattern cell (2 bytes)
-  struct hscchan { unsigned char inst;                 // current instrument
-                   signed char  slide;                 // manual slide accumulator
-                   unsigned short freq; };            // current OPL F-number
-
-  hscchan channel[9];                 // 9 AdLib voices
-  unsigned char instr[128][12];       // instrument data (12 bytes each)
-  unsigned char song[0x80];           // order list (AdPlug reads 51 bytes)
-  hscnote patterns[50][64*9];         // up to 50 patterns, each 64 rows * 9 ch
-  unsigned char pattpos, songpos;     // current row/order
-  unsigned char pattbreak, songend, mode6, bd, fadein;
-  unsigned int  speed, del;           // speed/tick counters
-  unsigned char adl_freq[9];          // cached OPL freq reg hi bits
-  int mtkmode;                        // MPU-401 Trakker compatibility hack
-  ...
-};
+```
+pattern_count = (file_size - 1587) / 1152
 ```
 
-The player reports a **fixed refresh of 18.2 Hz** (PIT tick), i.e. `getrefresh() { return 18.2f; }`. ([GitHub][1])
-
 ---
 
-## File sections in detail
+## 1. Instrument Block (1536 bytes)
 
-### 1) Instrument block (1536 bytes = 128 × 12)
+Each instrument is **12 bytes** and defines all OPL2 register parameters for one sound.
 
-AdPlug loads 128 instruments of **12 bytes** each, then applies a small **fix-up** to a few fields:
+| Byte | Register Written       | Description                                           |
+| ---: | ---------------------- | ----------------------------------------------------- |
+|    0 | 0x23 + op              | Carrier: Tremolo/Vibrato/Sustain/KSR + Multiple       |
+|    1 | 0x20 + op              | Modulator: Tremolo/Vibrato/Sustain/KSR + Multiple     |
+|    2 | 0x43 + op              | Carrier Total Level (TL) / KSL — bit corrected        |
+|    3 | 0x40 + op              | Modulator Total Level (TL) / KSL — bit corrected      |
+|    4 | 0x63 + op              | Carrier Attack/Decay                                  |
+|    5 | 0x60 + op              | Modulator Attack/Decay                                |
+|    6 | 0x83 + op              | Carrier Sustain/Release                               |
+|    7 | 0x80 + op              | Modulator Sustain/Release                             |
+|    8 | 0xC0 + chan            | Feedback + Connection                                 |
+|    9 | 0xE3 + op              | Carrier waveform select                               |
+|   10 | 0xE0 + op              | Modulator waveform select                             |
+|   11 | (not written directly) | Pitch slide base (upper nibble, normalized)           |
+
+A nibble is a group of 4 bits — exactly half a byte.
+
+### Bit Correction Details (`ins[2]`, `ins[3]`, `ins[11]`)
+
+The original **HSC instrument format** (as produced by early HSC Tracker/AdLib Composer versions) stored certain **OPL2 register fields** in a slightly inconsistent way compared to the actual **AdLib chip layout**.
+When AdPlug (and compatible players) load instruments, they apply the following fix-ups:
 
 ```cpp
-for (i=0; i<128*12; i++) instr_flat[i] = f->readInt(1);
-
-for (i=0; i<128; i++) {
-  instr[i][2] ^= (instr[i][2] & 0x40) << 1;   // adjust KSL/TL bit
-  instr[i][3] ^= (instr[i][3] & 0x40) << 1;   // adjust KSL/TL bit
-  instr[i][11] >>= 4;                         // pitch slide nibble normalization
-}
+ins[2] ^= (ins[2] & 0x40) << 1  // adjust carrier TL/KSL bit overlap 
+ins[3] ^= (ins[3] & 0x40) << 1  // adjust modulator TL/KSL bit overlap
+ins[11] >>= 4                   // normalize pitch slide nibble
 ```
 
-Instrument bytes are then used to program OPL registers as follows:
+#### 1. KSL/TL Bit Fix (`ins[2]` and `ins[3]`)
 
-```cpp
-// Set channel (feedback/connection)
-opl->write(0xc0 + chan, ins[8]);
+* Each operator in the OPL2 has a **Total Level (TL)** register:
 
-// Operator params (carrier vs modulator are addressed via +op_table[chan]
-// and by choosing 0x23/0x63/0x83/0xE3 for "carrier" vs 0x20/0x60/0x80/0xE0 for "modulator")
+  ```
+  Bits 0–5 → Volume level (0–63)
+  Bits 6–7 → Key Scale Level (KSL)
+  ```
 
-// "Characteristics" (trem/vib/sus/KSR + multiple):
-opl->write(0x23 + op, ins[0]);   // carrier
-opl->write(0x20 + op, ins[1]);   // modulator
+* In some HSC instrument banks, the **bit 6 (value 0x40)** — the lowest KSL bit — was **misaligned** due to the tracker’s internal byte packing.
+  This caused the TL and KSL fields to overlap incorrectly: e.g., a KSL value of 1 might double the intended TL level.
 
-// Attack/Decay:
-opl->write(0x63 + op, ins[4]);   // carrier (decay low nibble, attack high nibble)
-opl->write(0x60 + op, ins[5]);   // modulator
+* The expression
 
-// Sustain/Release:
-opl->write(0x83 + op, ins[6]);   // carrier (release low nibble, sustain high nibble)
-opl->write(0x80 + op, ins[7]);   // modulator
+  ```cpp
+  ins[x] ^= (ins[x] & 0x40) << 1
+  ```
 
-// Waveform select:
-opl->write(0xE3 + op, ins[9]);   // carrier (2 LSBs meaningful)
-opl->write(0xE0 + op, ins[10]);  // modulator
+  effectively **swaps** the misplaced KSL bit into its proper position (bit 7).
+  In other words, if bit 6 was set, bit 7 becomes set too, restoring the correct KSL value.
 
-// Total level (KSL/TL): written via setvolume() using ins[2] (carrier) and ins[3] (modulator)
+* This ensures the written OPL registers (`0x40+op` and `0x43+op`) receive the right 2-bit KSL field and a clean 6-bit TL value.
+
+#### 2. Pitch Slide Normalization (`ins[11]`)
+
+* Byte 11 of each instrument stores a **base frequency offset**, used by the tracker’s pitch-slide effect.
+* The original HSC files encoded this offset in the **upper nibble** (bits 4–7) only.
+  For example, an instrument might have `ins[11] = 0xA0`, meaning a slide base of `0x0A`.
+* AdPlug shifts it down with:
+
+  ```cpp
+  ins[11] >>= 4
+  ```
+
+  so the value becomes a normal 4-bit integer (0–15) that can be directly added to the F-number during note playback.
+
+---
+
+**Summary:**
+These adjustments correct for historical quirks in how the tracker saved instrument bytes.
+They ensure that the reconstructed OPL register values match what the composer actually heard when saving the `.HSC` file — preserving tone and pitch consistency across players.
+
+
+---
+
+## 2. Order List (Song Sequence)
+
+| Description                  | Notes                                        |
+| ---------------------------- | -------------------------------------------- |
+| Contains up to **51 bytes**  | Each byte = pattern index                    |
+| `0xFF`                       | End of song                                  |
+| `0x80..0xB1`                 | Goto pattern command (lower 7 bits = target) |
+| `>= 0xB2`                    | Invalid / treated as song end                |
+| Out-of-range pattern indices | Clamped to valid count (≤ 50)                |
+
+Pseudo-code to read:
+
+```text
+orders = read(51)
+for each entry:
+    if entry == 0xFF → end_of_song
+    else if entry >= 0x80 and entry <= 0xB1 → jump to entry & 0x7F
+    else if entry >= 0xB2 → treat as 0xFF
 ```
 
-> Practical mapping summary:
->
-> * `ins[8]` → `0xC0+chan` (feedback + connection bit)
-> * `ins[0]/ins[1]` → `0x23/0x20 + op` (trem/vib/sus/KSR/multiple)
-> * `ins[4]/ins[5]` → `0x63/0x60 + op` (attack/decay)
-> * `ins[6]/ins[7]` → `0x83/0x80 + op` (sustain/release)
-> * `ins[9]/ins[10]` → `0xE3/0xE0 + op` (waveform)
-> * `ins[2]/ins[3]` → total level (written to `0x43/0x40 + op` with masking)
-> * `ins[11]` → pitch slide base (added to F-number), stored in the high nibble originally; AdPlug shifts it down (`>>=4`). ([GitHub][2])
+---
 
-> **Note:** The bit-twiddle on `ins[2]` and `ins[3]` corrects a KSL/TL quirk in some HSC banks. AdPlug masks with `~63` when writing TL so KSL bits survive. ([GitHub][2])
+## 3. Pattern Data
+
+Each pattern = **64 rows × 9 channels**, where each cell is 2 bytes:
+
+| Byte | Name     | Description                      |
+| ---: | -------- | -------------------------------- |
+|    1 | `note`   | Note number or instrument marker |
+|    2 | `effect` | Effect or instrument number      |
+
+### Pattern Size:
+
+```
+64 rows × 9 channels × 2 bytes = 1152 bytes
+```
+
+### Note Cell Meaning
+
+| Condition                | Action                                                |
+| ------------------------ | ----------------------------------------------------- |
+| `note == 0`              | No note change (effects may still apply)              |
+| `note & 0x80 != 0`       | Set instrument → `effect = instrument number`         |
+| `note != 0`              | Play note: AdPlug decrements value by 1 before lookup |
+| Resulting `note == 0x7E` | Key-off (pause)                                       |
 
 ---
 
-### 2) Order list (“song”)
+## 4. Effects (by High Nibble of Effect Byte)
 
-* AdPlug reads **51 bytes** into `song[]`.
-* Values ≥ `0xB2` are treated as “end/invalid” safeguards; `0xFF` explicitly marks **end of song**.
-* Values with **bit 7 set** (i.e. `>= 0x80`) and `<= 0xB1` are **“goto pattern”** control words; the low 7 bits are interpreted as a jump target.
-* Otherwise, values are pattern numbers.
-* A **sanity check** clamps out-of-range entries to `0xFF` if they exceed the computed total pattern count or `0x31`. ([GitHub][2])
-
-Helpers:
-
-* `getpatterns()` scans orders to find the **highest** pattern index and returns `max+1`.
-* `getorders()` returns the count up to the first `0xFF`. ([GitHub][2])
-
----
-
-### 3) Pattern data
-
-* Up to **50 patterns** are stored, each pattern = **64 rows × 9 channels**.
-* Each cell is an **`hscnote`** (2 bytes):
-  **`note`** (1 byte) and **`effect`** (1 byte).
-* On disk this is a flat block per pattern, size **1152 bytes**. ([GitHub][2])
-
-**Reading:** AdPlug bulk-reads the pattern area directly into `patterns[50][64*9]`. (The size math throughout the loader uses 1152 per pattern.) ([GitHub][2])
+| High Nibble | Description                   | Behavior                                                                            |
+| ----------- | ----------------------------- | ----------------------------------------------------------------------------------- |
+| `0x00`      | Global control                | 01: Pattern break<br>03: Fade in<br>05: 6-voice rhythm ON<br>06: 9-voice melodic ON |
+| `0x10`      | Pitch slide down              | Decrease frequency by low nibble                                                    |
+| `0x20`      | Pitch slide up                | Increase frequency by low nibble                                                    |
+| `0x50`      | Set percussion instrument     | (Unused)                                                                            |
+| `0x60`      | Set feedback                  | `C0+chan = (ins[8]&1) + (low_nibble<<1)`                                            |
+| `0xA0`      | Set carrier volume            | TL of carrier = `(low_nibble << 2)`                                                 |
+| `0xB0`      | Set modulator volume          | TL of modulator = `(low_nibble << 2)`                                               |
+| `0xC0`      | Set overall instrument volume | Both ops’ TL set to `(low_nibble << 2)`                                             |
+| `0xD0`      | Position jump                 | Jump to order `low_nibble`                                                          |
+| `0xF0`      | Set speed                     | Speed = `low_nibble`                                                                |
 
 ---
 
-## Pattern cell semantics
+## 5. Timing & Playback
 
-For each row & channel, AdPlug decodes:
+| Parameter             | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| Refresh rate          | 18.2 Hz (one tick per PIT IRQ0 interval)       |
+| Speed                 | Rows per tick counter (`speed`, `del`)         |
+| Speed effect (`F0xx`) | Sets `speed = value`, `del = speed + 1`        |
+| Rows per pattern      | 64                                             |
+| Channels              | 9 total, or 6 melodic + 3 drums in rhythm mode |
 
-* **Instrument set:** if `note & 0x80` (bit 7 set), then the cell means “**set instrument**” and the **`effect`** byte is taken as the instrument number. No note is played for that cell.
+Pseudo-logic per update tick:
 
-* **Note event:** otherwise, if `note != 0`, it’s a note trigger:
+```text
+if (--del == 0):
+    del = speed
+    advance row
+else:
+    process effects only
+```
 
-  * AdPlug decrements the value once (`note--`).
-  * A **pause** (key-off) is recognized when (after the decrement) `note == 0x7E` *or* the computed octave is invalid; in that case AdPlug clears the “key on” bit.
-  * Otherwise, it computes octave and F-number:
+---
 
-    ```
+## 6. Rhythm (6-Voice) Mode
+
+Enabled by effect `05`.
+Channels 0–5 remain melodic, while channels 6–8 become drums:
+
+| Channel | Drum      | Bit in 0xBD |
+| ------- | --------- | ----------- |
+| 6       | Bass Drum | Bits 4–5    |
+| 7       | Hi-Hat    | Bit 0       |
+| 8       | Cymbal    | Bit 1       |
+
+When rhythm mode is active, note events on channels 6–8 toggle these bits instead of normal note-on.
+
+---
+
+## 7. End-of-Song Behavior
+
+When the order list hits `0xFF` or an invalid pattern index:
+
+```
+songend = true
+reset songpos to 0 (or stop playback)
+```
+
+If a pattern break (`01` effect) occurs, the player skips remaining rows in the current pattern and proceeds to the next order.
+
+---
+
+## 8. Suggested Writer Implementation
+
+When producing `.HSC` files programmatically:
+
+1. **Write 128 instruments** — 12 bytes each (zeros allowed if not defined).
+2. **Write order list (51 bytes)** — pattern numbers, ending with `0xFF`.
+3. **Write patterns** — each 64×9×2 bytes.
+4. **Encode cells:**
+
+   * Set instrument: `note |= 0x80`, `effect = instrument_index`.
+   * Play note: `note = pitch_number`, `effect = effect_byte`.
+   * Empty cell: `note = 0`, `effect = 0`.
+5. **Initial speed:** place an `F0xx` effect on first row (typ. `F006`).
+6. **Enable drums:** issue `05` (global) in a control channel.
+
+---
+
+## 9. Practical Limits
+
+| Property         | Limit |
+| ---------------- | ----- |
+| Instruments      | 128   |
+| Patterns         | 50    |
+| Orders           | 51    |
+| Channels         | 9     |
+| Rows per pattern | 64    |
+
+---
+
+## 10. Example Pseudocode: Pattern Decoding
+
+```pseudocode
+for each row in 64:
+  for each chan in 9:
+    note = read_byte()
+    eff  = read_byte()
+
+    if note & 0x80:
+        instrument[chan] = eff
+        continue
+
+    if note == 0:
+        apply_effect(chan, eff)
+        continue
+
+    note = note - 1
+    if note == 0x7E:
+        key_off(chan)
+        continue
+
+    pitch = note_table[note % 12] + instrument[chan].pitchbase + slide[chan]
     octave = ((note / 12) & 7) << 2
-    fnr    = note_table[note % 12] + instr[inst][11] + channel[chan].slide
-    ```
-
-    Then it sets frequency registers and optionally the key-on bit (unless in drum channels under mode6).
-  * If `mtkmode` (an MPU-401 Trakker compatibility toggle) is on, AdPlug applies an extra `note--` before computing pitch. ([GitHub][2])
-
-* **No note change:** if `note == 0`, only effects (if any) apply. ([GitHub][2])
+    set_frequency(chan, pitch, octave)
+    apply_effect(chan, eff)
+```
 
 ---
 
-## Effects (by high nibble of `effect`)
+## 11. Implementation Notes
 
-AdPlug handles the following effect categories (the **low nibble** is `eff_op`):
-
-### `0x00` — “Global” control (specials)
-
-* `0x01` — **Pattern break** (advance to next order)
-* `0x03` — **Fade in** (internal fade counter set to 31; applied to volumes)
-* `0x05` — **6-voice mode ON** (OPL rhythm mode enabled; channels 6–8 used for drums)
-* `0x06` — **6-voice mode OFF** (return to 9 melodic voices)
-
-(Notes in code say some global main-volume slides are intentionally not implemented because no known HSCs use them that way.) ([GitHub][2])
-
-### `0x10` and `0x20` — **Manual pitch slides**
-
-* `0x1?` → slide **down** by `eff_op`
-* `0x2?` → slide **up** by `eff_op`
-  AdPlug updates both the **current freq** and the per-channel **slide accumulator**. If no simultaneous note is triggered, it writes the new frequency immediately. ([GitHub][2])
-
-### `0x50` — Set percussion instrument (**unimplemented**)
-
-Placeholder; ignored by AdPlug. ([GitHub][2])
-
-### `0x60` — **Set feedback**
-
-Writes channel feedback/connection:
-`opl->write(0xC0 + chan, (ins[8] & 1) + (eff_op << 1))`.
-(LSB from instrument’s connection bit is preserved.) ([GitHub][2])
-
-### `0xA0` — **Set carrier volume**
-
-`vol = eff_op << 2` → written to `0x43 + op` (TL for carrier) with masking to preserve KSL bits. ([GitHub][2])
-
-### `0xB0` — **Set modulator volume**
-
-Same as above, but to `0x40 + op` (TL for modulator). If the instrument uses “carrier as output,” it uses the carrier’s TL slot appropriately. ([GitHub][2])
-
-### `0xC0` — **Set instrument volume** (both ops)
-
-Sets a common dB level (`eff_op << 2`) to carrier TL and (if carrier-output flag is set) also to modulator TL. ([GitHub][2])
-
-### `0xD0` — **Position jump**
-
-`pattbreak++; songpos = eff_op; songend = 1;` (forces order jump). ([GitHub][2])
-
-### `0xF0` — **Set speed**
-
-`speed = eff_op; del = ++speed;` (see timing below). ([GitHub][2])
+* The **fixed tick rate** (18.2 Hz) matches the PC timer interrupt frequency.
+* **Speed** defines how many ticks per row; lower values = faster playback.
+* **Instrument TL/KSL** correction ensures compatibility with older HSC data banks.
+* Pattern arrays are capped at 50; exceeding this may cause truncation.
 
 ---
 
-## Timing, speed, and flow
+## 12. Reference
 
-* **Refresh rate:** hard-coded **18.2 Hz**. Every `update()` call simulates one tick. ([GitHub][1])
-* **Speed handling:** The pair `(speed, del)` controls when a row advances. At the top of `update()` it decrements `del`; if not zero, it returns (no row advance).
-
-  * On `F0` effect, `speed = eff_op; del = ++speed;`.
-* **Row/order advance:**
-
-  * If `pattbreak` got set by an effect, AdPlug resets `pattpos` to 0, advances `songpos` (mod 50), and flags end when wrapping.
-  * Otherwise it increments `pattpos` (mod 64); on wrap it advances `songpos` similarly.
-* **Order values ≥ `0xB2`** or otherwise “weird” are normalized to avoid reading out of bounds; `0xFF` terminates. ([GitHub][2])
-
----
-
-## Rhythm (6-voice) mode
-
-When **mode6** is ON (via effect `0x05`) AdPlug enables OPL **rhythm**:
-
-* **Melodic voices**: channels 0–5 (six voices)
-* **Drums**: channels 6, 7, 8 become:
-
-  * 6 → **Bass Drum** (sets/clears bits 4/5 of `0xBD`)
-  * 7 → **Hi-Hat** (bit 0)
-  * 8 → **Cymbal** (bit 1)
-
-On each note for channels 6–8, AdPlug manipulates `0xBD` to trigger the respective drum(s). It never sets the “key on” bit for those channels in rhythm mode. ([GitHub][2])
-
----
-
-## Utility getters
-
-* `getpatterns()` — scans orders and returns the highest referenced pattern index + 1.
-* `getorders()` — counts until the first `0xFF`.
-* `getinstruments()` — counts how many of the 128 have any non-zero byte. ([GitHub][2])
-
----
-
-## Writer’s hints (if you build an exporter)
-
-If you’re generating an HSC **from scratch** that AdPlug can play:
-
-1. **Write instruments:** 128 × 12 bytes.
-
-   * If you don’t want to define them yet, you can write zeroes and set instruments later in a tracker.
-   * Be aware AdPlug applies the KSL fix and `>>=4` to byte 11.
-
-2. **Write order list (51 bytes):**
-
-   * Fill with pattern numbers (0..max), terminate with `0xFF`.
-   * You can use `0x80..0xB1` encodings for “goto pattern” if desired.
-
-3. **Write patterns:** for each pattern you have, output **64 × 9 × 2** bytes (`note`, `effect` per cell).
-
-   * To **set instrument** on a channel: put `note` with bit 7 = 1, and `effect = instrument_index`.
-   * To **play a note**:
-
-     * `note` = 1..N (AdPlug decrements once internally; 0 is “no note change”).
-     * Special pause is recognized via the post-decrement check (`0x7E`); you can also just emit a “no note” and rely on key-off semantics in your flow.
-   * To leave a cell empty: `note = 0, effect = 0`.
-
-4. **Speed:** you can set an initial speed by placing an `F0xx` effect at row 0 in one channel (e.g., `0xF006`).
-
-5. **Percussion:** to use OPL rhythm, emit `0x05` (global) to enable, and write drum notes on channels 6–8. (AdPlug ignores `0x50` “set percussion instrument”.)
-
-Everything above is exactly how AdPlug’s `ChscPlayer` will read and interpret the file. ([GitHub][1])
-
----
-
-## Known quirks / caveats
-
-* **Instrument TL/KSL fix-ups:** HSC instrument banks sometimes store TL/KSL bits in a way that AdPlug corrects at load time. If you’re producing instruments externally, expect AdPlug to do:
-
-  ```
-  ins[2] ^= (ins[2] & 0x40) << 1;
-  ins[3] ^= (ins[3] & 0x40) << 1;
-  ins[11] >>= 4;
-  ```
-
-  before use. ([GitHub][2])
-
-* **Pattern count cap:** AdPlug allocates for **50 patterns** (`patterns[50][...]`) and validates orders accordingly; very large pattern indices will be clamped/end-stopped during load. ([GitHub][1])
-
-* **Refresh is fixed:** 18.2 Hz tick; `speed` controls how many ticks per row. If you want exact tempo mapping from MIDI, you must quantize to rows and choose an `F0xx` that feels right at 18.2 Hz. ([GitHub][1])
-
----
-
-## Appendix: Quick register map used by instruments
-
-(Where `op` is the operator base from `op_table[chan]`.)
-
-| Instrument byte | OPL register written          | Meaning (OPL2)                         |
-| --------------: | ----------------------------- | -------------------------------------- |
-|        `ins[8]` | `0xC0 + chan`                 | Feedback + connection bit              |
-|        `ins[0]` | `0x23 + op`                   | **Carrier**: trem/vib/sus/KSR + mult   |
-|        `ins[1]` | `0x20 + op`                   | **Modulator**: trem/vib/sus/KSR + mult |
-|        `ins[4]` | `0x63 + op`                   | **Carrier**: Attack/Decay              |
-|        `ins[5]` | `0x60 + op`                   | **Modulator**: Attack/Decay            |
-|        `ins[6]` | `0x83 + op`                   | **Carrier**: Sustain/Release           |
-|        `ins[7]` | `0x80 + op`                   | **Modulator**: Sustain/Release         |
-|        `ins[9]` | `0xE3 + op`                   | **Carrier**: Waveform (2 LSBs)         |
-|       `ins[10]` | `0xE0 + op`                   | **Modulator**: Waveform (2 LSBs)       |
-|        `ins[2]` | `0x43 + op` (via `setvolume`) | **Carrier** TL (mask preserves KSL)    |
-|        `ins[3]` | `0x40 + op` (via `setvolume`) | **Modulator** TL (mask preserves KSL)  |
-|       `ins[11]` | (added to F-number)           | Pitch slide base (after `>> 4` fix)    |
-
-All register writes and comments come directly from AdPlug’s `setinstr()`/`setvolume()` implementations. ([GitHub][2])
-
----
-
-If you want, I can also produce a compact **writer’s template** (structs + minimal encoder) in C/C#/Python that matches this spec exactly.
-
-[1]: https://raw.githubusercontent.com/adplug/adplug/refs/heads/master/src/hsc.h "raw.githubusercontent.com"
-[2]: https://raw.githubusercontent.com/adplug/adplug/refs/heads/master/src/hsc.cpp "raw.githubusercontent.com"
+Specification derived from analysis of AdPlug’s `hsc.h` and `hsc.cpp` (licensed open source)
+but rewritten as an **independent, formal description** for implementers of HSC readers/writers.

@@ -188,7 +188,6 @@ TYPE
 
     CONSTRUCTOR Init (AdlibAddress : WORD);
     PROCEDURE Start;
-    PROCEDURE StartWithoutPolling;
     PROCEDURE Poll;  (* Call this in your game loop for polling mode *)
     PROCEDURE Stop;
     PROCEDURE Fade;
@@ -286,16 +285,6 @@ BEGIN
   IF NOT Music_Run THEN BEGIN
     IF Address <> NIL THEN BEGIN
       StartMusic (Address,TRUE,TRUE);  { Polling=TRUE for manual polling mode }
-      Music_Run := TRUE;
-    END;
-  END;
-END;
-
-PROCEDURE HSC_obj.StartWithoutPolling;
-BEGIN
-  IF NOT Music_Run THEN BEGIN
-    IF Address <> NIL THEN BEGIN
-      StartMusic (Address,FALSE,TRUE);
       Music_Run := TRUE;
     END;
   END;

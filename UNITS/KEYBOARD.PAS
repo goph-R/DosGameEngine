@@ -142,6 +142,9 @@ function IsKeyPressed(ScanCode: Byte): Boolean;
 { Clear the key pressed states }
 procedure ClearKeyPressed;
 
+{ Clear all key states }
+procedure ClearAllKeyStates;
+
 { Waits for any key press and returns with the scancode }
 function WaitForAnyKeyPress: Byte;
 

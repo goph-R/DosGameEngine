@@ -59,6 +59,7 @@ procedure StartMenu;
 procedure StopMenu;
 
 { Dialogs }
+procedure ShowMessageNoWait(Message: string; Info: String);
 function ShowMessage(Message: string; Info: String): Byte;
 
 { Input }
@@ -433,7 +434,7 @@ begin
     SelectedItem^.Process;
 end;
 
-function ShowMessage(Message: string; Info: String): Byte;
+procedure ShowMessageNoWait(Message: string; Info: String);
 var
   Height: Integer;
   Row: Integer;
@@ -447,6 +448,11 @@ begin
   RenderCenterText(Row + 1, Message, $1F);
   if Info <> '' then
     RenderCenterText(Row + 2, Info, $17);
+end;
+
+function ShowMessage(Message: string; Info: String): Byte;
+begin
+  ShowMessageNoWait(Message, Info);
   ShowMessage := WaitForAnyKeyPress;
 end;
 

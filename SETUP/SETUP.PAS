@@ -3,8 +3,8 @@ program Setup;
 uses Crt, TextUI, Keyboard, Config, PlayHSC, SBDSP, VocLoad, StrUtil;
 
 const
-  TestMusic = 'FANTASY.HSC';
-  TestSound = 'EXPLODE.VOC';
+  TestMusic = '..\DATA\FANTASY.HSC';
+  TestSound = '..\DATA\EXPLODE.VOC';
 
 var
   GameConfig: TConfig;
@@ -113,21 +113,41 @@ begin
 end;
 
 procedure SelectTestMusic;
+var
+  Waiting: Boolean;
+  i: Integer;
 begin
   Music.Init(0);
-  if Music.LoadFile('DATA\' + TestMusic) then
+  if Music.LoadFile(TestMusic) then
   begin
-    Music.StartWithoutPolling;
-    ShowMessage(
+
+    Music.Start;
+    ShowMessageNoWait(
       'Music ' + TestMusic + ' is playing...',
       'Press any key to stop'
     );
+    
+    { Music needs polling }
+    Waiting := True;
+    ClearAllKeyStates;
+    while Waiting do
+    begin
+      for i := 0 to 127 do
+        if IsKeyPressed(i) then
+        begin
+          Waiting := False;
+        end;
+        Music.Poll;
+    end;
+    ClearAllKeyStates;
+
   end
   else
     ShowMessage(
       'Could NOT load ' + TestMusic + '!',
       'Press any key'
     );
+
   Music.Done;
   SetMenu(MainMenu);
 end;
@@ -156,7 +176,7 @@ begin
   SBInitialized := True;
 
   { Play the VOC sound file }
-  if PlayVOCFile('DATA\' + TestSound) then
+  if PlayVOCFile(TestSound) then
   begin
     { Show message immediately - sound plays in background }
     ShowMessage(
