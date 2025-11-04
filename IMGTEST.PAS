@@ -6,7 +6,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  VGA, PkmLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config;
+  VGA, PkmLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer;
 
 var
   FrontBuffer, BackBuffer, ScreenBuffer: PFrameBuffer;
@@ -36,9 +36,9 @@ var
 
   { DOSBox-X workaround: Required for Bank.PlaySound to work }
   { Mechanism unknown - only caller-side dummy vars fix the bug }
-  { See CLAUDE.md Common Pitfall #16 for full investigation history }
+  { See CLAUDE.md Common Pitfall #16 for full investigation history 
   Dummy1, Dummy2, Dummy3, Dummy4: Integer;
-  DummyStr1, DummyStr2: String;
+  DummyStr1, DummyStr2: String;}
 
 
 { InitHiResTimer removed - now using Timer 0 which is already initialized by BIOS }
@@ -84,37 +84,14 @@ begin
 end;
 
 function GetHighResTime: Real;
-{ Returns time in seconds }
-{ Uses BIOS ticks when music is active (HSC reprograms PIT) }
-var
-  CurrentPIT: Word;
-  Elapsed: LongInt;
-  CurrentTicks: LongInt;
 begin
-
-  { No music - use direct PIT reads for high resolution }
-  CurrentPIT := ReadPIT;
-
-  { Detect if PIT wrapped (it counts DOWN, wraps at 0 back to 65535) }
-  if CurrentPIT > LastPITValue then
-    { Wrapped - calculate ticks from LastPITValue down to 0, then from 65535 down to CurrentPIT }
-    Elapsed := LongInt(LastPITValue) + (65536 - LongInt(CurrentPIT))
-  else
-    { Normal - just the difference }
-    Elapsed := LongInt(LastPITValue - CurrentPIT);
-
-  Inc(PITTicks, Elapsed);
-  LastPITValue := CurrentPIT;
-
-  { Convert PIT ticks to seconds (PIT runs at 1193182 Hz) }
-  GetHighResTime := PITTicks / 1193182.0;
-
+  GetHighResTime := RTC_Ticks / 1024.0;
 end;
 
 begin
   ClrScr;
 
-  { Timer 0 already initialized by BIOS - no setup needed }
+  InitRTC(1024);
 
   LoadConfig(GameConfig);
 
@@ -317,12 +294,14 @@ begin
   WriteLn('  novsync - Disable VSync for maximum framerate (with tearing)');
   
   if GameConfig.SoundCard = SoundCard_SoundBlaster then
+  begin
     Bank.Done;
+    UninstallHandler;
+  end;
 
   if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
   begin
-    Music.Done;
-    UninstallHandler;
+    Music.Done;    
   end;
 
 end.
