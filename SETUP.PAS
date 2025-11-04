@@ -114,9 +114,10 @@ end;
 
 procedure SelectTestMusic;
 begin
+  Music.Init(0);
   if Music.LoadFile('DATA\' + TestMusic) then
   begin
-    Music.Start;
+    Music.StartWithoutPolling;
     ShowMessage(
       'Music ' + TestMusic + ' is playing...',
       'Press any key to stop'
@@ -324,9 +325,6 @@ begin
   LoadConfig(GameConfig);
   InitKeyboard;
   SBInitialized := False;
-    Music.Init(0);
-    Music.LoadFile('DATA\' + TestMusic);
-    Music.Start;
 
 
   InitMainMenu;
@@ -353,8 +351,6 @@ begin
 
   { Free any remaining VOC buffer }
   FreeVOCBuffer;
-  
-  Music.Done;
   
   TextMode(LastMode);
 end.
