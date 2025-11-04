@@ -153,7 +153,7 @@ end.
 
 ### Playing Music
 ```pascal
-uses PlayHSC;
+uses PlayHSC, Crt;
 
 var
   Music: HSC_Obj;
@@ -163,7 +163,11 @@ begin
   if Music.LoadFile('DATA\FANTASY.HSC') then
   begin
     Music.Start;
-    { ... your game loop ... }
+    while not KeyPressed do
+    begin
+      { ... your game loop ... }
+      Music.Poll; { Music needs polling }
+    end;
     Music.Done;  { CRITICAL: Unhook interrupt! }
   end;
 end.
