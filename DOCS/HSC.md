@@ -1,7 +1,3 @@
-Perfect — I’ve got the file. Based on your request, here’s the cleaned-up **official-style documentation** for the **HSC Music File Format** — rewritten from the uploaded technical draft into a proper standalone specification.
-
----
-
 # 🎵 HSC Music File Format Specification
 
 *(HSC AdLib Composer / HSC Tracker, OPL2 Music Data Format)*

@@ -1,4 +1,4 @@
-# 📘 PKM File Format Specification (GrafX2 2.00, v1.08 — 1997)
+# 🖼️ PKM File Format Specification (GrafX2 2.00, v1.08 — 1997)
 
 > **Author:** Karl Maritaud
 > **Source:** GrafX2 Technical Documentation (TECH_ENG.TXT, May 10, 1997)

@@ -4,7 +4,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 
 ![DOS](https://img.shields.io/badge/DOS-16--bit-blue)
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ## ✨ Features
 
@@ -22,7 +22,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 - **XMS sound bank**: Store multiple sounds in extended memory, load on demand
 - **DMA-safe buffers**: Automatic 64KB boundary handling
 
-### ⌨️ Input
+### 🎮 Input
 - **Keyboard handler**: Direct INT 9h hardware access
 - **Scan code support**: IsKeyDown (continuous) and IsKeyPressed (single-tap) detection
 - **No BIOS delays**: Instant response for games
@@ -127,127 +127,12 @@ D:\ENGINE\
     └── XMS\            - XMS memory manager (1992)
 ```
 
-## 🎮 Example Code
-
-### VGA Graphics
-```pascal
-uses VGA, PKMLoad;
-
-var
-  FrameBuffer: PFrameBuffer;
-  Palette: TPalette;
-
-begin
-  FrameBuffer := CreateFrameBuffer;
-  LoadPKM('DATA\TEST.PKM', FrameBuffer, Palette);
-
-  InitVGA;
-  SetPalette(Palette);
-  RenderFrameBuffer(FrameBuffer);
-  ReadLn;
-
-  CloseVGA;
-  FreeFrameBuffer(FrameBuffer);
-end.
-```
-
-### Playing Music
-```pascal
-uses PlayHSC, Crt;
-
-var
-  Music: HSC_Obj;
-
-begin
-  Music.Init(0);  { Auto-detect Adlib at port 388h }
-  if Music.LoadFile('DATA\FANTASY.HSC') then
-  begin
-    Music.Start;
-    while not KeyPressed do
-    begin
-      { ... your game loop ... }
-      Music.Poll; { Music needs polling }
-    end;
-    Music.Done;  { CRITICAL: Unhook interrupt! }
-  end;
-end.
-```
-
-### Sound Effects with XMS
-```pascal
-uses SBDSP, SndBank, XMS;
-
-var
-  Bank: TSoundBank;
-  ExplosionID: Integer;
-
-begin
-  { Initialize Sound Blaster }
-  ResetDSP($22, 5, 1, 0);  { Port $220, IRQ 5, DMA 1 }
-
-  { Initialize sound bank }
-  Bank.Init;
-
-  { Load sounds into XMS at startup }
-  ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
-
-  { Play on demand - no disk I/O! }
-  Bank.PlaySound(ExplosionID);
-
-  { Cleanup }
-  Bank.Done;
-  UninstallHandler;
-end.
-```
-
-### Game Loop with Delta Timing
-```pascal
-uses VGA, Keyboard, RTCTimer;
-
-var
-  Running: Boolean;
-  LastTime, CurrentTime, DeltaTime: Real;
-  PlayerX, PlayerY: Real;
-
-begin
-  InitVGA;
-  InitKeyboard;
-  InitRTC(1024);  { 1024 Hz timer }
-
-  CurrentTime := RTC_Ticks / 1024.0;
-  Running := True;
-
-  while Running do
-  begin
-    { Calculate delta time }
-    LastTime := CurrentTime;
-    CurrentTime := RTC_Ticks / 1024.0;
-    DeltaTime := CurrentTime - LastTime;
-
-    { Frame-rate independent movement }
-    if IsKeyDown(Key_Right) then
-      PlayerX := PlayerX + 100.0 * DeltaTime;  { 100 pixels/sec }
-
-    if IsKeyPressed(Key_Escape) then
-      Running := False;
-
-    { Render frame... }
-
-    ClearKeyPressed;  { MUST call at end of loop }
-  end;
-
-  { CRITICAL: Clean up all interrupts }
-  DoneRTC;
-  DoneKeyboard;
-  CloseVGA;
-end.
-```
-
 ## 📖 Documentation
 
 - **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
 - **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
 - **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
+- **[DOCS/EXAMPLE.md](DOCS/HSC.md)** - Example codes for usage
 - **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
 
 ## 🎨 Creating Assets
@@ -312,11 +197,7 @@ CloseVGA;         { Restore text mode }
 
 Contributions welcome! This engine aims to preserve 1990s DOS demoscene programming techniques while remaining hackable and educational.
 
-## 📜 License
-
-MIT License - See [LICENSE](LICENSE) file
-
-## 🙏 Credits
+## 📜 Credits
 
 - **SBDSP**: Romesh Prakashpalan (1995)
 - **XMS Driver**: KIV without Co (1992)
