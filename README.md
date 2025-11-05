@@ -190,9 +190,7 @@ CloseVGA;         { Restore text mode }
 
 - **SBDSP**: Romesh Prakashpalan (1995)
 - **XMS Driver**: KIV without Co (1992)
-- **HSC Player**: GLAMOROUS RAY (1994)
-- **RTCTimer**: by ChatGPT (2025)
-- **Test Assets**: Sample PKM/HSC/VOC files included
+- **HSC Player**: Glamorous Ray (1994)
 
 ## 🔗 Links
 
