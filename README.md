@@ -143,7 +143,7 @@ Use [GrafX2](http://grafx2.chez.com/) the DOS pixel art editor (Windows/Linux/Ma
 2. Save as PKM format (RLE-compressed)
 
 ### VOC Sound Effects
-Use **Audacity** (Windows/Linux/Mac):
+Use [Audacity](https://www.audacityteam.org/) (Windows/Linux/Mac):
 1. Import audio (WAV, MP3, etc.)
 2. **Tracks → Mix → Mix Stereo Down to Mono**
 3. **Tracks → Resample → 11025 Hz** (or 22050 Hz)
