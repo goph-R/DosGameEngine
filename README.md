@@ -138,7 +138,7 @@ D:\ENGINE\
 ## 🎨 Creating Assets
 
 ### PKM Images
-Use [GrafX2](http://grafx2.chez.com/) (DOS pixel art editor):
+Use [GrafX2](http://grafx2.chez.com/) the DOS pixel art editor (Windows/Linux/Mac):
 1. Draw in 320×200 mode with 256 colors
 2. Save as PKM format (RLE-compressed)
 
@@ -154,8 +154,8 @@ Use **Audacity** (Windows/Linux/Mac):
 
 ### HSC Music
 Use one of the following:
-1. [HSC-tracker](https://demozoo.org/productions/293837/)
-2. [Adlib Tracker II](https://adlibtracker.net/)
+1. [Adlib Tracker II](https://adlibtracker.net/) - More modern approach (Windows/Linux)
+2. [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC tracker (only DOS)
 
 ## ⚠️ Critical Cleanup Rules
 
