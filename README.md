@@ -162,8 +162,9 @@ Use **Audacity** (Windows/Linux/Mac):
    - Encoding: "Unsigned 8-bit PCM"
 
 ### HSC Music
-1. [HSC-tracker](https://demozoo.org/productions/293837/) or
-2. [Adlib Tracker II](https://adlibtracker.net/).
+Use one of the following:
+1. [HSC-tracker](https://demozoo.org/productions/293837/)
+2. [Adlib Tracker II](https://adlibtracker.net/)
 
 ## ⚠️ Critical Cleanup Rules
 
