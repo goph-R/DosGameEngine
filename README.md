@@ -6,15 +6,6 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-## 📊 Technical Specs
-
-- **Target Platform**: DOS real mode (16-bit x86)
-- **Memory Model**: 640KB conventional + XMS extended
-- **Graphics**: VGA Mode 13h (320×200, 256 colors, 70 Hz)
-- **Audio**: Adlib OPL2 (music) + Sound Blaster DMA (samples)
-- **Interrupts Used**: IRQ0 (music), IRQ1 (keyboard), IRQ5/7 (audio), IRQ8 (timer)
-- **Max Segment Size**: 64KB (real mode constraint)
-
 ## ✨ Features
 
 ### 🎨 Graphics
