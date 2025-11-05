@@ -6,13 +6,22 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+## 📊 Technical Specs
+
+- **Target Platform**: DOS real mode (16-bit x86)
+- **Memory Model**: 640KB conventional + XMS extended
+- **Graphics**: VGA Mode 13h (320×200, 256 colors, 70 Hz)
+- **Audio**: Adlib OPL2 (music) + Sound Blaster DMA (samples)
+- **Interrupts Used**: INT 9h (keyboard), IRQ0 (music), IRQ8 (timer), IRQ5/7 (audio)
+- **Max Segment Size**: 64KB (real mode constraint)
+
 ## ✨ Features
 
 ### 🎨 Graphics
 - **VGA Mode 13h**: 320×200 pixels, 256 colors
 - **PKM image loader**: RLE-compressed format from GrafX2
 - **Double-buffering**: Flicker-free rendering with VSync support
-- **Sprite system**: GetImage/PutImage with transparency [WIP]
+- **Sprite system**: GetImage/PutImage with transparency (Work in progress)
 - **Palette support**: Direct VGA DAC programming (0-63 RGB)
 
 ### 🎵 Audio
@@ -153,7 +162,8 @@ Use **Audacity** (Windows/Linux/Mac):
    - Encoding: "Unsigned 8-bit PCM"
 
 ### HSC Music
-Use [HSC-tracker](https://demozoo.org/productions/293837/) or [Adlib Tracker II](https://adlibtracker.net/).
+1. [HSC-tracker](https://demozoo.org/productions/293837/) or
+2. [Adlib Tracker II](https://adlibtracker.net/).
 
 ## ⚠️ Critical Cleanup Rules
 
@@ -183,15 +193,6 @@ CloseVGA;         { Restore text mode }
 | Sound cuts off immediately | Use RTCTimer instead of PIT Timer 0 for timing |
 | Screen stays in graphics mode | Missing `CloseVGA` call |
 | Crackling audio | DMA buffer crossing 64KB boundary (auto-fixed in SBDSP) |
-
-## 📊 Technical Specs
-
-- **Target Platform**: DOS real mode (16-bit x86)
-- **Memory Model**: 640KB conventional + XMS extended
-- **Graphics**: VGA Mode 13h (320×200, 256 colors, 70 Hz)
-- **Audio**: Adlib OPL2 (music) + Sound Blaster DMA (samples)
-- **Interrupts Used**: INT 9h (keyboard), IRQ0 (music), IRQ8 (timer), IRQ5/7 (audio)
-- **Max Segment Size**: 64KB (real mode constraint)
 
 ## 🤝 Contributing
 
