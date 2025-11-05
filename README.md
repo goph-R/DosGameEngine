@@ -12,7 +12,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 - **Memory Model**: 640KB conventional + XMS extended
 - **Graphics**: VGA Mode 13h (320×200, 256 colors, 70 Hz)
 - **Audio**: Adlib OPL2 (music) + Sound Blaster DMA (samples)
-- **Interrupts Used**: INT 9h (keyboard), IRQ0 (music), IRQ8 (timer), IRQ5/7 (audio)
+- **Interrupts Used**: IRQ0 (music), IRQ1 (keyboard), IRQ5/7 (audio), IRQ8 (timer)
 - **Max Segment Size**: 64KB (real mode constraint)
 
 ## ✨ Features
@@ -173,7 +173,7 @@ Always clean up interrupt handlers before exit, or the system will crash:
 ```pascal
 { Correct cleanup order }
 DoneRTC;          { Unhook RTC timer (IRQ8) }
-DoneKeyboard;     { Unhook keyboard (INT 9h) }
+DoneKeyboard;     { Unhook keyboard (IRQ1, INT 9h) }
 Music.Done;       { Unhook music timer (IRQ0) }
 UninstallHandler; { Unhook Sound Blaster (IRQ5/7) }
 CloseVGA;         { Restore text mode }
@@ -195,10 +195,6 @@ CloseVGA;         { Restore text mode }
 | Screen stays in graphics mode | Missing `CloseVGA` call |
 | Crackling audio | DMA buffer crossing 64KB boundary (auto-fixed in SBDSP) |
 
-## 🤝 Contributing
-
-Contributions welcome! This engine aims to preserve 1990s DOS demoscene programming techniques while remaining hackable and educational.
-
 ## 📜 Credits
 
 - **SBDSP**: Romesh Prakashpalan (1995)
@@ -215,6 +211,11 @@ Contributions welcome! This engine aims to preserve 1990s DOS demoscene programm
 - [Audacity](https://www.audacityteam.org/) - Audio editor for VOC creation
 - [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC music tracker
 - [Adlib Tracker II](https://adlibtracker.net/) - A more modern tracker for HSC creation
+
+## 🤝 Contributing
+
+Contributions welcome! This engine aims to preserve 1990s DOS demoscene programming techniques while remaining hackable and educational.
+
 ---
 
 **Made with 💾 for retro DOS enthusiasts**
