@@ -65,7 +65,7 @@ IMGTEST.EXE
 - **Test programs**: Example code demonstrating all features
 - **Automated builds**: Batch files handle dependency compilation
 
-### Building from Source
+## 🧱 Building from Source
 
 **Automated (recommended):**
 ```bash
