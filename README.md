@@ -6,6 +6,33 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+## 🚀 Quick Start
+
+### Prerequisites
+- [Turbo Pascal 7.0](https://winworldpc.com/product/turbo-pascal/7x) (TPC.EXE)
+- [DOSBox-X](https://dosbox-x.com/) or real DOS/FreeDOS
+- HIMEM.SYS loaded (for XMS extended memory support, default in DOSBox)
+
+### First Run
+```bash
+# 1. Run setup utility to configure sound card
+cd SETUP
+CSETUP.BAT
+SETUP.EXE
+
+# 2. Copy the saved CONFIG.INI to the TESTS folder
+copy CONFIG.INI ..\TESTS
+
+# 3. Try the sprite animation demo
+cd ..\TESTS
+CIMGTEST.BAT
+IMGTEST.EXE
+```
+
+**Controls:**
+- **ESC**: Exit demo
+- **E**: Play explosion sound effect
+
 ## ✨ Features
 
 ### 🎨 Graphics
@@ -37,33 +64,6 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 - **Text UI library**: Menu system with direct video memory rendering
 - **Test programs**: Example code demonstrating all features
 - **Automated builds**: Batch files handle dependency compilation
-
-## 🚀 Quick Start
-
-### Prerequisites
-- [Turbo Pascal 7.0](https://winworldpc.com/product/turbo-pascal/7x) (TPC.EXE)
-- [DOSBox-X](https://dosbox-x.com/) or real DOS/FreeDOS
-- HIMEM.SYS loaded (for XMS extended memory support, default in DOSBox)
-
-### First Run
-```bash
-# 1. Run setup utility to configure sound card
-cd SETUP
-CSETUP.BAT
-SETUP.EXE
-
-# 2. Copy the saved CONFIG.INI to the TESTS folder
-copy CONFIG.INI ..\TESTS
-
-# 3. Try the sprite animation demo
-cd ..\TESTS
-CIMGTEST.BAT
-IMGTEST.EXE
-```
-
-**Controls:**
-- **ESC**: Exit demo
-- **E**: Play explosion sound effect
 
 ### Building from Source
 
