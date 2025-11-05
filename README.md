@@ -192,15 +192,6 @@ CloseVGA;         { Restore text mode }
 - **XMS Driver**: KIV without Co (1992)
 - **HSC Player**: Glamorous Ray (1994)
 
-## 🔗 Links
-
-- [DOSBox-X](https://dosbox-x.com/) - Recommended DOS emulator
-- [GrafX2](http://grafx2.chez.com/) - DOS pixel art editor
-- [Turbo Pascal 7.0](https://en.wikipedia.org/wiki/Turbo_Pascal) - Classic Pascal compiler
-- [Audacity](https://www.audacityteam.org/) - Audio editor for VOC creation
-- [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC music tracker
-- [Adlib Tracker II](https://adlibtracker.net/) - A more modern tracker for HSC creation
-
 ## 🤝 Contributing
 
 Contributions welcome! This engine aims to preserve 1990s DOS demoscene programming techniques while remaining hackable and educational.
