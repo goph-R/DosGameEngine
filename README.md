@@ -15,7 +15,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 
 ### First Run
 ```bash
-# 1. Run setup utility to configure sound card
+# 1. Compile & run setup utility to configure sound card
 cd SETUP
 CSETUP.BAT
 SETUP.EXE
@@ -23,7 +23,7 @@ SETUP.EXE
 # 2. Copy the saved CONFIG.INI to the TESTS folder
 copy CONFIG.INI ..\TESTS
 
-# 3. Try the sprite animation demo
+# 3. Compile & try the sprite animation demo
 cd ..\TESTS
 CIMGTEST.BAT
 IMGTEST.EXE
