@@ -134,9 +134,8 @@ begin
 
   dummy := ReadRTC($0C);                            { arm/clear pending }
 
-  { Unmask IRQ8 (slave bit0) and IRQ2 (master bit2) }
+  { Unmask IRQ8 (slave bit0) - IRQ2 cascade should already be unmasked by BIOS }
   OutPortB(PIC2_OCW1, InPortB(PIC2_OCW1) and not $01);
-  OutPortB(PIC1_OCW1, InPortB(PIC1_OCW1) and not $04);
 
   RTC_Ticks := 0;
   EnableInts;                                       { STI }
@@ -147,9 +146,8 @@ var regB: Byte;
 begin
   DisableInts;
 
-  { Mask IRQ8 and IRQ2 }
+  { Mask IRQ8 only - NEVER mask IRQ2 cascade or slave PIC (mouse, etc.) will break! }
   OutPortB(PIC2_OCW1, InPortB(PIC2_OCW1) or $01);
-  OutPortB(PIC1_OCW1, InPortB(PIC1_OCW1) or $04);
 
   { Disable periodic interrupt }
   regB := ReadRTC($0B);

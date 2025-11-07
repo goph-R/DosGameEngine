@@ -43,6 +43,39 @@ var
   Bank: TSoundBank;
   LastBIOSTicks: LongInt;
   Rect: TRectangle;
+  OldExitProc: Pointer;
+  InterruptsUnhooked: Boolean;
+
+{ Exit procedure - CRITICAL for cleanup on Ctrl+C/Ctrl+Break }
+{$F+}
+procedure CleanupOnExit;
+begin
+  ExitProc := OldExitProc;  { Restore previous exit proc }
+
+  { Only unhook if not already done (prevent double cleanup) }
+  if InterruptsUnhooked then
+    Exit;
+
+  { CRITICAL: Unhook ALL interrupt handlers FIRST before any cleanup or I/O }
+  { This prevents interrupt vectors from pointing to deallocated memory }
+
+  { 1. Stop music (IRQ0 - timer interrupt) }
+  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
+    Music.Done;
+
+  { 2. Stop sound (IRQ5/7 - Sound Blaster interrupt) }
+  if GameConfig.SoundCard = SoundCard_SoundBlaster then
+  begin
+    Bank.Done;
+    UninstallHandler;
+  end;
+
+  { 3. Stop RTC timer (IRQ8 - RTC periodic interrupt) }
+  DoneRTC;
+
+  InterruptsUnhooked := True;
+end;
+{$F-}
 
 function GetHighResTime: Real;
 begin
@@ -51,6 +84,13 @@ end;
 
 begin
   ClrScr;
+
+  { Initialize cleanup flag }
+  InterruptsUnhooked := False;
+
+  { Install exit procedure FIRST - ensures cleanup on Ctrl+C/Ctrl+Break }
+  OldExitProc := ExitProc;
+  ExitProc := @CleanupOnExit;
 
   InitRTC(1024);
 
@@ -268,20 +308,7 @@ begin
 
   { CRITICAL: Unhook ALL interrupt handlers FIRST before any cleanup or I/O }
   { This prevents interrupt vectors from pointing to deallocated memory }
-
-  { 1. Stop music (IRQ0 - timer interrupt) }
-  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
-    Music.Done;
-
-  { 2. Stop sound (IRQ5/7 - Sound Blaster interrupt) }
-  if GameConfig.SoundCard = SoundCard_SoundBlaster then
-  begin
-    Bank.Done;
-    UninstallHandler;
-  end;
-
-  { 3. Stop RTC timer (IRQ8 - RTC periodic interrupt) }
-  DoneRTC;
+  CleanupOnExit;
 
   { Now it's safe to free resources and do I/O }
   FreeImage(Sprite1);
