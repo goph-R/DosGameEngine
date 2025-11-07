@@ -147,6 +147,15 @@ SETUP.EXE      - Configure sound card settings
 - `WaitForVSync`: Sync to vertical blanking interval (prevents tearing)
 - All rendering uses double-buffering pattern for flicker-free updates
 
+**VGAPRINT.PAS** - Bitmap font text renderer for Mode 13h (2025)
+- Renders text overlays on framebuffers using embedded 8x8 bitmap font
+- `PrintText(x, y, text, color, framebuffer)`: Draw text string at specified position
+- Supports printable ASCII characters (32-127)
+- Font data embedded directly in unit (no external files needed)
+- Automatic clipping at screen boundaries (320x200)
+- Non-printable characters replaced with spaces
+- **USE CASE**: FPS counters, debug text, HUD overlays, game UI text (see IMGTEST.PAS)
+
 **PLAYHSC.PAS** - HSC music player wrapper (1994, by GLAMOROUS RAY)
 - `HSC_obj` object type for music playback
 - Links to external `HSCOBJ.OBJ` (assembly player core)

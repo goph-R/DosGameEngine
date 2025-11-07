@@ -39,7 +39,8 @@ IMGTEST.EXE
 - **VGA Mode 13h**: 320×200 pixels, 256 colors
 - **PKM image loader**: RLE-compressed format from GrafX2
 - **Double-buffering**: Flicker-free rendering with VSync support
-- **Sprite system**: GetImage/PutImage with transparency (Work in progress)
+- **Sprite system**: GetImage/PutImage with transparency and flipping
+- **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
 - **Palette support**: Direct VGA DAC programming (0-63 RGB)
 
 ### 🎵 Audio
@@ -93,6 +94,7 @@ tpc -U..\UNITS VGATEST.PAS
 D:\ENGINE\
 ├── UNITS\          Core engine units
 │   ├── VGA.PAS         - Mode 13h graphics driver
+│   ├── VGAPRINT.PAS    - 8x8 bitmap font text renderer
 │   ├── PKMLOAD.PAS     - PKM image loader
 │   ├── SBDSP.PAS       - Sound Blaster driver
 │   ├── SNDBANK.PAS     - XMS sound bank manager
