@@ -165,6 +165,7 @@ SETUP.EXE      - Configure sound card settings
 - `RTC_Ticks`: Global tick counter (increments at configured frequency)
 - **IRQ8 ADVANTAGE**: Completely separate from PIT Timer 0 (IRQ0) - no conflicts with HSC music player or BIOS timer
 - **CRITICAL**: Always call `DoneRTC` before exit to unhook interrupt
+- **PIC MASKING**: Only masks IRQ8 when cleaning up - NEVER masks IRQ2 cascade (would disable entire slave PIC)
 - **USE CASE**: Frame-rate independent game loops, delta timing, animation (see IMGTEST.PAS for example)
 
 **PKMLOAD.PAS** - PKM image format loader
@@ -469,21 +470,23 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 1. **Music interrupts**: Failing to call `HSC_obj.Done` will leave timer interrupt hooked, causing system hang on program exit
 2. **Keyboard interrupts**: Failing to call `DoneKeyboard` will leave INT 9h hooked, causing system hang on program exit
 3. **RTC timer interrupts**: Failing to call `DoneRTC` will leave IRQ8 hooked, causing DOSBox-X crash when trying to run other programs after exit
-4. **Sound Blaster cleanup**: Always call `UninstallHandler` and `FreeVOCBuffer` before exit to unhook IRQ and free DMA buffer
-5. **Sound buffer management**: Don't free VOC buffers while `Playing` is True - causes DMA to read freed memory (crackling/shortened sound)
-6. **Music + Sound conflicts**: When HSC music plays, don't wait in tight `while Playing` loop - causes freeze. Let sound play in background.
-7. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
-8. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
-9. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
-10. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically by SBDSP)
-11. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
-12. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
-13. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
-14. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
-15. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
-16. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
-17. ~~**DOSBox-X sound cutoff mystery**~~: **✅ SOLVED** - The infamous sound cutoff bug was caused by **PIT Timer 0 / IRQ0 interrupt conflicts**. When HSC music player hooks IRQ0 for polling, reading PIT Timer 0 counters creates race conditions and nested interrupt issues that disrupt Sound Blaster DMA timing. **Solution**: Use **RTCTimer.PAS** (RTC IRQ8 on slave PIC) for high-resolution timing instead of reading PIT Timer 0. IRQ8 is completely separate from IRQ0, eliminating all conflicts. The "dummy variable workaround" was masking a timing-dependent bug by changing stack layout - switching to RTC fixed the root cause. See IMGTEST.PAS for the corrected implementation.
-18. **PIT Timer 0 / IRQ0 conflicts**: Never share PIT Timer 0 with interrupt-driven systems like HSC music player. Reading PIT counters or hooking IRQ0 while HSC is active causes interrupt conflicts, timing glitches, stack corruption, and sound cutoff. **Always use RTCTimer.PAS (IRQ8) for high-resolution timing** - it's on the slave PIC and completely isolated from music/BIOS timers.
+4. **IRQ2 cascade masking**: NEVER mask IRQ2 (bit 2 of master PIC) - it's the cascade from slave PIC to master. Masking IRQ2 disables ALL slave PIC interrupts (IRQ8-15) including PS/2 mouse (IRQ12), causing erratic mouse behavior in DOSBox-X and keyboard issues in 86Box. Only mask the specific IRQ you're cleaning up (e.g., IRQ8 for RTC timer)
+5. **Ctrl+C/Ctrl+Break cleanup**: Install an ExitProc handler to ensure interrupts are unhooked even on abnormal program termination, or interrupt vectors will point to freed memory
+6. **Sound Blaster cleanup**: Always call `UninstallHandler` and `FreeVOCBuffer` before exit to unhook IRQ and free DMA buffer
+7. **Sound buffer management**: Don't free VOC buffers while `Playing` is True - causes DMA to read freed memory (crackling/shortened sound)
+8. **Music + Sound conflicts**: When HSC music plays, don't wait in tight `while Playing` loop - causes freeze. Let sound play in background.
+9. **VGA mode cleanup**: Always call `CloseVGA` before exit or terminal will stay in graphics mode
+10. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
+11. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
+12. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically by SBDSP)
+13. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
+14. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
+15. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
+16. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
+17. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
+18. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
+19. ~~**DOSBox-X sound cutoff mystery**~~: **✅ SOLVED** - The infamous sound cutoff bug was caused by **PIT Timer 0 / IRQ0 interrupt conflicts**. When HSC music player hooks IRQ0 for polling, reading PIT Timer 0 counters creates race conditions and nested interrupt issues that disrupt Sound Blaster DMA timing. **Solution**: Use **RTCTimer.PAS** (RTC IRQ8 on slave PIC) for high-resolution timing instead of reading PIT Timer 0. IRQ8 is completely separate from IRQ0, eliminating all conflicts. The "dummy variable workaround" was masking a timing-dependent bug by changing stack layout - switching to RTC fixed the root cause. See IMGTEST.PAS for the corrected implementation.
+20. **PIT Timer 0 / IRQ0 conflicts**: Never share PIT Timer 0 with interrupt-driven systems like HSC music player. Reading PIT counters or hooking IRQ0 while HSC is active causes interrupt conflicts, timing glitches, stack corruption, and sound cutoff. **Always use RTCTimer.PAS (IRQ8) for high-resolution timing** - it's on the slave PIC and completely isolated from music/BIOS timers.
 
 ## Technical Constraints
 
