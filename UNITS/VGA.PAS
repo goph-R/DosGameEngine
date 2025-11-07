@@ -44,6 +44,9 @@ procedure GetImage(var Image: TImage; X, Y, Width, Height: Word; FrameBuffer: PF
 procedure PutImage(var Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer);
 procedure PutImageRect(var Source: TImage; var SourceRect: TRectangle;
                        X, Y: Integer; Transparent: Boolean; FrameBuffer: PFrameBuffer);
+procedure PutFlippedImage(var Image: TImage; X, Y: Word; FlipX, FlipY, Transparent: Boolean; FrameBuffer: PFrameBuffer);
+procedure PutFlippedImageRect(var Source: TImage; var SourceRect: TRectangle;
+                              X, Y: Integer; FlipX, FlipY, Transparent: Boolean; FrameBuffer: PFrameBuffer);
 procedure FreeImage(var Image: TImage);
 procedure ClearImage(var Image: TImage);
 
@@ -211,107 +214,35 @@ begin
   end;
 end;
 
-procedure PutImage(var Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer); assembler;
-{ Optimized assembly version - much faster than Pascal loops }
-asm
-  push ds
-  push es
-
-  { Check if Y >= 200, exit if so }
-  mov ax, Y
-  cmp ax, 200
-  jae @Done
-
-  { Load Image structure address }
-  les di, Image
-
-  { Calculate number of rows to draw (min of Image.Height and 200 - Y) }
-  mov cx, 200
-  sub cx, Y           { CX = 200 - Y = max rows we can draw }
-  mov dx, es:[di+2]   { DX = Image.Height }
-  cmp dx, cx
-  jbe @HeightOK
-  mov dx, cx          { DX = min(Image.Height, 200 - Y) }
-@HeightOK:
-  or dx, dx
-  jz @Done            { Exit if no rows to draw }
-
-  { Calculate bytes per row to draw (min of Image.Width and 320 - X) }
-  mov ax, 320
-  sub ax, X           { AX = 320 - X = max pixels we can draw per row }
-  mov cx, es:[di]     { CX = Image.Width }
-  mov bx, cx          { BX = Image.Width (save for later) }
-  cmp cx, ax
-  jbe @WidthOK
-  mov cx, ax          { CX = min(Image.Width, 320 - X) }
-@WidthOK:
-  jcxz @Done          { Exit if no pixels to draw }
-
-  { Load source pointer from Image.Data }
-  lds si, es:[di+4]   { DS:SI = Image.Data }
-
-  { Calculate destination starting address }
-  les di, FrameBuffer
-  mov ax, Y
-  push dx             { Save row count }
-  mov dx, 320
-  mul dx              { DX:AX = Y * 320 }
-  add ax, X           { AX = Y * 320 + X }
-  add di, ax          { ES:DI = FrameBuffer + offset }
-  pop dx              { Restore row count }
-
-  { Check transparent flag }
-  cmp byte ptr Transparent, 0
-  jne @TransparentLoop
-
-  { Non-transparent blit - fast REP MOVSB for each row }
-@FastLoop:
-  push cx
-  cld
-  rep movsb           { Copy CX bytes from DS:SI to ES:DI }
-  pop cx
-
-  { Advance to next row }
-  add di, 320
-  sub di, cx          { DI += 320 - pixels_drawn }
-  add si, bx
-  sub si, cx          { SI += Image.Width - pixels_drawn }
-
-  dec dx
-  jnz @FastLoop
-  jmp @Done
-
-  { Transparent blit - check each pixel }
-@TransparentLoop:
-  push cx             { Save pixels per row }
-
-@PixelLoop:
-  lodsb               { AL = [DS:SI++] }
-  or al, al
-  jz @Skip            { Skip if pixel is 0 }
-  mov es:[di], al     { Write pixel }
-@Skip:
-  inc di
-  loop @PixelLoop
-
-  { Advance to next row }
-  pop cx              { Restore pixels per row }
-  add di, 320
-  sub di, cx          { DI += 320 - pixels_drawn }
-  add si, bx
-  sub si, cx          { SI += Image.Width - pixels_drawn }
-
-  dec dx
-  jnz @TransparentLoop
-
-@Done:
-  pop es
-  pop ds
+procedure PutImage(var Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer);
+begin
+  PutFlippedImage(Image, X, Y, False, False, Transparent, FrameBuffer);
 end;
 
 procedure PutImageRect(var Source: TImage; var SourceRect: TRectangle; X, Y: Integer;
-                       Transparent: Boolean; FrameBuffer: PFrameBuffer); assembler;
-{ Optimized assembly version - blits a rectangular region from source image }
+                       Transparent: Boolean; FrameBuffer: PFrameBuffer);
+begin
+  PutFlippedImageRect(Source, SourceRect, X, Y, False, False, Transparent, FrameBuffer);
+end;
+
+procedure PutFlippedImage(var Image: TImage; X, Y: Word; FlipX, FlipY, Transparent: Boolean; FrameBuffer: PFrameBuffer);
+var
+  FullRect: TRectangle;
+begin
+  { Set up rectangle covering entire image }
+  FullRect.X := 0;
+  FullRect.Y := 0;
+  FullRect.Width := Image.Width;
+  FullRect.Height := Image.Height;
+
+  { Delegate to PutFlippedImageRect }
+  PutFlippedImageRect(Image, FullRect, X, Y, FlipX, FlipY, Transparent, FrameBuffer);
+end;
+
+procedure PutFlippedImageRect(var Source: TImage; var SourceRect: TRectangle;
+                              X, Y: Integer; FlipX, FlipY, Transparent: Boolean;
+                              FrameBuffer: PFrameBuffer); assembler;
+{ Optimized assembly version with 8 specialized code paths for flip combinations }
 asm
   push ds
   push es
@@ -345,15 +276,37 @@ asm
 @WidthOK:
   jcxz @Done            { Exit if no pixels to draw }
 
+  { Save clipped width and height on stack }
+  push cx               { Clipped width }
+  push dx               { Clipped height }
+
   { Load Source image structure }
   les di, Source
   mov bx, es:[di]       { BX = Source.Width (for stride calculation) }
 
-  { Calculate source starting offset: SourceRect.Y * Source.Width + SourceRect.X }
+  { Calculate source starting offset based on FlipY }
   les di, SourceRect
+  cmp byte ptr FlipY, 0
+  je @NoFlipY_Offset
+
+  { FlipY: Start from bottom row }
   mov ax, es:[di+2]     { AX = SourceRect.Y }
+  add ax, es:[di+6]     { AX = SourceRect.Y + SourceRect.Height }
+  dec ax                { AX = last row }
+  jmp @CalcOffset
+
+@NoFlipY_Offset:
+  { Normal: Start from top row }
+  mov ax, es:[di+2]     { AX = SourceRect.Y }
+
+@CalcOffset:
+  pop dx                { Restore clipped height }
+  pop cx                { Restore clipped width }
+  push cx               { Save again }
+  push dx
   push dx               { Save row count }
-  mul bx                { DX:AX = SourceRect.Y * Source.Width }
+  mul bx                { DX:AX = Row * Source.Width }
+  les di, SourceRect
   add ax, es:[di]       { AX += SourceRect.X }
   mov si, ax            { SI = source offset }
   pop dx                { Restore row count }
@@ -365,61 +318,199 @@ asm
   add si, ax            { DS:SI = Source.Data + offset }
   pop ax                { Discard temp DS }
 
+  { If FlipX, adjust SI to end of row }
+  cmp byte ptr FlipX, 0
+  je @NoFlipX_SrcAdjust
+  pop dx                { Get clipped height }
+  pop cx                { Get clipped width }
+  add si, cx            { SI now at end of row }
+  dec si                { SI at last pixel of row }
+  push cx
+  push dx
+
+@NoFlipX_SrcAdjust:
   { Calculate destination starting address }
   les di, FrameBuffer
   mov ax, Y
-  push dx               { Save row count }
+  pop dx                { Restore clipped height }
+  pop cx                { Restore clipped width }
   push cx               { Save pixels per row }
+  push dx               { Save row count }
+  push cx
   mov cx, 320
   mul cx                { DX:AX = Y * 320 }
-  pop cx                { Restore pixels per row }
+  pop cx
   add ax, X             { AX = Y * 320 + X }
   add di, ax            { ES:DI = FrameBuffer + offset }
   pop dx                { Restore row count }
+  pop cx                { Restore pixels per row }
 
-  { Check transparent flag }
-  cmp byte ptr Transparent, 0
-  jne @TransparentLoop
+  { Determine code path: FlipY(bit2) FlipX(bit1) Transparent(bit0) }
+  xor ah, ah
+  mov al, byte ptr FlipY
+  shl al, 1
+  or al, byte ptr FlipX
+  shl al, 1
+  or al, byte ptr Transparent
 
-  { Non-transparent blit - fast REP MOVSB for each row }
-@FastLoop:
+  cmp al, 0
+  je @Path0_NormalOpaque
+  cmp al, 1
+  je @Path1_NormalTransparent
+  cmp al, 2
+  je @Path2_FlipXOpaque
+  cmp al, 3
+  je @Path3_FlipXTransparent
+  cmp al, 4
+  je @Path4_FlipYOpaque
+  cmp al, 5
+  je @Path5_FlipYTransparent
+  cmp al, 6
+  je @Path6_FlipXYOpaque
+  jmp @Path7_FlipXYTransparent
+
+{ ========== Path 0: Normal Opaque (REP MOVSB) ========== }
+@Path0_NormalOpaque:
   push cx
   cld
-  rep movsb             { Copy CX bytes from DS:SI to ES:DI }
+  rep movsb
   pop cx
-
-  { Advance to next row }
   add di, 320
-  sub di, cx            { DI += 320 - pixels_drawn }
+  sub di, cx
   add si, bx
-  sub si, cx            { SI += Source.Width - pixels_drawn }
-
+  sub si, cx
   dec dx
-  jnz @FastLoop
+  jnz @Path0_NormalOpaque
   jmp @Done
 
-  { Transparent blit - check each pixel }
-@TransparentLoop:
-  push cx               { Save pixels per row }
-
-@PixelLoop:
-  lodsb                 { AL = [DS:SI++] }
+{ ========== Path 1: Normal Transparent ========== }
+@Path1_NormalTransparent:
+  push cx
+@Path1_PixelLoop:
+  lodsb
   or al, al
-  jz @Skip              { Skip if pixel is 0 }
-  mov es:[di], al       { Write pixel }
-@Skip:
+  jz @Path1_Skip
+  mov es:[di], al
+@Path1_Skip:
   inc di
-  loop @PixelLoop
-
-  { Advance to next row }
-  pop cx                { Restore pixels per row }
+  loop @Path1_PixelLoop
+  pop cx
   add di, 320
-  sub di, cx            { DI += 320 - pixels_drawn }
+  sub di, cx
   add si, bx
-  sub si, cx            { SI += Source.Width - pixels_drawn }
-
+  sub si, cx
   dec dx
-  jnz @TransparentLoop
+  jnz @Path1_NormalTransparent
+  jmp @Done
+
+{ ========== Path 2: FlipX Opaque ========== }
+@Path2_FlipXOpaque:
+  push cx
+@Path2_PixelLoop:
+  mov al, [si]
+  stosb
+  dec si
+  loop @Path2_PixelLoop
+  pop cx
+  add di, 320
+  sub di, cx
+  add si, bx
+  add si, cx
+  dec dx
+  jnz @Path2_FlipXOpaque
+  jmp @Done
+
+{ ========== Path 3: FlipX Transparent ========== }
+@Path3_FlipXTransparent:
+  push cx
+@Path3_PixelLoop:
+  mov al, [si]
+  or al, al
+  jz @Path3_Skip
+  mov es:[di], al
+@Path3_Skip:
+  inc di
+  dec si
+  loop @Path3_PixelLoop
+  pop cx
+  add di, 320
+  sub di, cx
+  add si, bx
+  add si, cx
+  dec dx
+  jnz @Path3_FlipXTransparent
+  jmp @Done
+
+{ ========== Path 4: FlipY Opaque ========== }
+@Path4_FlipYOpaque:
+  push cx
+  cld
+  rep movsb
+  pop cx
+  add di, 320
+  sub di, cx
+  sub si, bx
+  sub si, cx
+  dec dx
+  jnz @Path4_FlipYOpaque
+  jmp @Done
+
+{ ========== Path 5: FlipY Transparent ========== }
+@Path5_FlipYTransparent:
+  push cx
+@Path5_PixelLoop:
+  lodsb
+  or al, al
+  jz @Path5_Skip
+  mov es:[di], al
+@Path5_Skip:
+  inc di
+  loop @Path5_PixelLoop
+  pop cx
+  add di, 320
+  sub di, cx
+  sub si, bx
+  sub si, cx
+  dec dx
+  jnz @Path5_FlipYTransparent
+  jmp @Done
+
+{ ========== Path 6: FlipX+FlipY Opaque ========== }
+@Path6_FlipXYOpaque:
+  push cx
+@Path6_PixelLoop:
+  mov al, [si]
+  stosb
+  dec si
+  loop @Path6_PixelLoop
+  pop cx
+  add di, 320
+  sub di, cx
+  sub si, bx
+  add si, cx
+  dec dx
+  jnz @Path6_FlipXYOpaque
+  jmp @Done
+
+{ ========== Path 7: FlipX+FlipY Transparent ========== }
+@Path7_FlipXYTransparent:
+  push cx
+@Path7_PixelLoop:
+  mov al, [si]
+  or al, al
+  jz @Path7_Skip
+  mov es:[di], al
+@Path7_Skip:
+  inc di
+  dec si
+  loop @Path7_PixelLoop
+  pop cx
+  add di, 320
+  sub di, cx
+  sub si, bx
+  add si, cx
+  dec dx
+  jnz @Path7_FlipXYTransparent
 
 @Done:
   pop es
