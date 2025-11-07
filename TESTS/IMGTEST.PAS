@@ -266,7 +266,24 @@ begin
 
   end;
 
-  { Clean up }
+  { CRITICAL: Unhook ALL interrupt handlers FIRST before any cleanup or I/O }
+  { This prevents interrupt vectors from pointing to deallocated memory }
+
+  { 1. Stop music (IRQ0 - timer interrupt) }
+  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
+    Music.Done;
+
+  { 2. Stop sound (IRQ5/7 - Sound Blaster interrupt) }
+  if GameConfig.SoundCard = SoundCard_SoundBlaster then
+  begin
+    Bank.Done;
+    UninstallHandler;
+  end;
+
+  { 3. Stop RTC timer (IRQ8 - RTC periodic interrupt) }
+  DoneRTC;
+
+  { Now it's safe to free resources and do I/O }
   FreeImage(Sprite1);
   FreeImage(BackgroundImage);
 
@@ -274,9 +291,6 @@ begin
   FreeFrameBuffer(FrontBuffer);
 
   CloseVGA;
-
-  { CRITICAL: Unhook RTC interrupt before exit }
-  DoneRTC;
 
   WriteLn('Image test completed!');
   WriteLn('');
@@ -299,16 +313,5 @@ begin
   WriteLn('  nomusic - Disable background music');
   WriteLn('');
   WriteLn('Press E to play explosion sound effect (if Sound Blaster enabled)');
-  
-  if GameConfig.SoundCard = SoundCard_SoundBlaster then
-  begin
-    Bank.Done;
-    UninstallHandler;
-  end;
-
-  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
-  begin
-    Music.Done;    
-  end;
 
 end.
