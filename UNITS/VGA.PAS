@@ -313,10 +313,9 @@ asm
 
   { Load source data pointer and add offset }
   les di, Source
-  push ds
-  lds ax, es:[di+4]     { DS:AX = Source.Data }
+  mov ax, si            { Save calculated offset in AX }
+  lds si, es:[di+4]     { DS:SI = Source.Data base pointer }
   add si, ax            { DS:SI = Source.Data + offset }
-  pop ax                { Discard temp DS }
 
   { If FlipX, adjust SI to end of row }
   cmp byte ptr FlipX, 0
