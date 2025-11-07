@@ -8,6 +8,13 @@ program ImgTest;
 uses
   VGA, VGAPrint, PkmLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer;
 
+type
+  TTestSprite = record
+    X, Y: Real;
+    VX, VY: Real;
+    FlipX, FlipY: Boolean;
+  end;
+
 var
   FrontBuffer, BackBuffer, ScreenBuffer: PFrameBuffer;
   Palette: TPalette;
@@ -25,6 +32,9 @@ var
   Running: Boolean;
   Music: HSC_Obj;
   GameConfig: TConfig;
+
+  { Test sprites for clipping demonstration }
+  TestSprites: array[1..4] of TTestSprite;
 
 var
   ElapsedTime: Real;
@@ -146,6 +156,39 @@ begin
   VX := 80.0;   { 80 pixels per second }
   VY := 60.0;   { 60 pixels per second }
 
+  { Initialize test sprites with different trajectories and flip modes }
+  { Sprite 1: Top-left, moving down-right, no flip }
+  TestSprites[1].X := -32.0;
+  TestSprites[1].Y := -32.0;
+  TestSprites[1].VX := 50.0;
+  TestSprites[1].VY := 40.0;
+  TestSprites[1].FlipX := False;
+  TestSprites[1].FlipY := False;
+
+  { Sprite 2: Top-right, moving down-left, FlipX }
+  TestSprites[2].X := 320.0;
+  TestSprites[2].Y := -32.0;
+  TestSprites[2].VX := -45.0;
+  TestSprites[2].VY := 35.0;
+  TestSprites[2].FlipX := True;
+  TestSprites[2].FlipY := False;
+
+  { Sprite 3: Bottom-left, moving up-right, FlipY }
+  TestSprites[3].X := -32.0;
+  TestSprites[3].Y := 200.0;
+  TestSprites[3].VX := 55.0;
+  TestSprites[3].VY := -45.0;
+  TestSprites[3].FlipX := False;
+  TestSprites[3].FlipY := True;
+
+  { Sprite 4: Bottom-right, moving up-left, FlipX+FlipY }
+  TestSprites[4].X := 320.0;
+  TestSprites[4].Y := 200.0;
+  TestSprites[4].VX := -60.0;
+  TestSprites[4].VY := -50.0;
+  TestSprites[4].FlipX := True;
+  TestSprites[4].FlipY := True;
+
   ElapsedTime := 0;
   Frame := 0;
   Running := True;
@@ -158,11 +201,19 @@ begin
       Music.Poll;
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
-    PutImage(Sprite1, Trunc(X), Trunc(Y), True, FrontBuffer);
-    {PutFlippedImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64,
-      True, False, True, FrontBuffer);}
+
+    { Draw all test sprites - they will clip properly at screen edges }
+    for i := 1 to 4 do
+    begin
+      PutFlippedImage(Sprite1, Trunc(TestSprites[i].X), Trunc(TestSprites[i].Y),
+                      TestSprites[i].FlipX, TestSprites[i].FlipY, True, FrontBuffer);
+    end;
+
     Str(FPS, FPSStr);
-    PrintText(5, 5, 'FPS: ' + FPSStr, 15, FrontBuffer);    
+    PrintText(5, 5, 'FPS: ' + FPSStr, 15, FrontBuffer);
+    PrintText(5, 15, 'Clipping Test', 14, FrontBuffer);
+    PrintText(5, 25, '4 sprites with', 14, FrontBuffer);
+    PrintText(5, 35, 'different flips', 14, FrontBuffer);
 
     { Wait for vertical sync to prevent tearing }
     if UseVSync then
@@ -189,24 +240,17 @@ begin
     else if DeltaTime > 0.5 then
       DeltaTime := 0.5;   { Prevent huge delta times }
 
-    { Update sprite position using delta time }
-    X := X + VX * DeltaTime;
-    Y := Y + VY * DeltaTime;
+    { Update all test sprite positions }
+    for i := 1 to 4 do
+    begin
+      TestSprites[i].X := TestSprites[i].X + TestSprites[i].VX * DeltaTime;
+      TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTime;
 
-    { Bounce off edges }
-    if (X <= 0) or (X >= 340 - Sprite1.Width) then
-    begin
-      VX := -VX;
-      { Clamp position to prevent getting stuck }
-      if X < 0 then X := 0;
-      if X > 340 - Sprite1.Width then X := 340 - Sprite1.Width;
-    end;
-    if (Y <= 0) or (Y >= 200 - Sprite1.Height) then
-    begin
-      VY := -VY;
-      { Clamp position to prevent getting stuck }
-      if Y < 0 then Y := 0;
-      if Y > 200 - Sprite1.Height then Y := 200 - Sprite1.Height;
+      { Bounce off edges - allow sprites to go partially off-screen for clipping test }
+      if (TestSprites[i].X <= -32) or (TestSprites[i].X >= 320) then
+        TestSprites[i].VX := -TestSprites[i].VX;
+      if (TestSprites[i].Y <= -32) or (TestSprites[i].Y >= 200) then
+        TestSprites[i].VY := -TestSprites[i].VY;
     end;
 
     Inc(Frame);
@@ -237,15 +281,24 @@ begin
   WriteLn('Image test completed!');
   WriteLn('');
   WriteLn('Summary:');
-  WriteLn('- Timer: RTC based');
-  WriteLn('- GetImage: Captured sprite regions from screen buffer');
-  WriteLn('- Animation: Frame-rate independent movement using delta time');
-  WriteLn('  Velocity: 80 pixels/sec horizontal, 60 pixels/sec vertical');
+  WriteLn('- Clipping Test: 4 sprites bouncing off all screen edges');
+  WriteLn('  * Sprite 1: No flip (normal rendering)');
+  WriteLn('  * Sprite 2: FlipX (horizontal flip)');
+  WriteLn('  * Sprite 3: FlipY (vertical flip)');
+  WriteLn('  * Sprite 4: FlipX+FlipY (both flips)');
+  WriteLn('- Timer: RTC based (IRQ8 high-resolution timing)');
+  WriteLn('- Animation: Frame-rate independent using delta time');
   WriteLn('- Text overlay: Real-time FPS counter with embedded 8x8 font');
   WriteLn('- Double-buffering: Off-screen rendering with RenderFrameBuffer');
   WriteLn('');
-  WriteLn('Usage: IMGTEST [novsync]');
+  WriteLn('Clipping: Sprites properly clip at negative X/Y coordinates');
+  WriteLn('  and at right/bottom edges (320x200 screen boundaries).');
+  WriteLn('');
+  WriteLn('Usage: IMGTEST [novsync] [nomusic]');
   WriteLn('  novsync - Disable VSync for maximum framerate (with tearing)');
+  WriteLn('  nomusic - Disable background music');
+  WriteLn('');
+  WriteLn('Press E to play explosion sound effect (if Sound Blaster enabled)');
   
   if GameConfig.SoundCard = SoundCard_SoundBlaster then
   begin

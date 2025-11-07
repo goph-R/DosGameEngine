@@ -56,7 +56,7 @@ var
   OldMode: byte;
 
 procedure InitVGA; assembler;
-asm
+ asm
   mov ax, 0f00h
   int 10h
   mov OldMode, al
@@ -66,7 +66,7 @@ asm
 end;
 
 procedure CloseVGA; assembler;
-asm
+ asm
   mov ah, 00h
   mov al, OldMode
   int 10h
@@ -90,7 +90,7 @@ end;
 
 procedure ClearFrameBuffer(FrameBuffer: PFrameBuffer); assembler;
 { Fast assembly clear using REP STOSW }
-asm
+ asm
   les di, FrameBuffer
   xor ax, ax          { AX = 0 (value to fill) }
   mov cx, 32000       { 64000 bytes / 2 = 32000 words }
@@ -101,7 +101,7 @@ end;
 procedure CopyFrameBuffer(Source, Dest: PFrameBuffer); assembler;
 { Fast assembly copy using REP MOVSW }
 { Copies 64000 bytes from Source to Dest }
-asm
+ asm
   push ds             { Save Pascal's DS }
   lds si, Source      { DS:SI = Source buffer }
   les di, Dest        { ES:DI = Dest buffer }
@@ -118,7 +118,7 @@ begin
 end;
 
 procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer); assembler;
-asm
+ asm
   mov bx, ds              { save Pascal's DS }
   mov ax, $a000
   mov es, ax
@@ -131,7 +131,7 @@ asm
 end;
 
 procedure SetPalette(const Palette: TPalette); assembler;
-asm
+ asm
   push ds
   lds si, Palette
   xor bx, bx
@@ -180,7 +180,7 @@ end;
 
 procedure WaitForVSync; assembler;
 { Wait for vertical retrace to prevent screen tearing }
-asm
+ asm
   mov dx, 03DAh     { VGA Input Status Register 1 }
 @wait1:
   in al, dx
@@ -241,67 +241,125 @@ end;
 
 procedure PutFlippedImageRect(var Source: TImage; var SourceRect: TRectangle;
                               X, Y: Integer; FlipX, FlipY, Transparent: Boolean;
-                              FrameBuffer: PFrameBuffer); assembler;
+                              FrameBuffer: PFrameBuffer);
 { Optimized assembly version with 8 specialized code paths for flip combinations }
-asm
+{ Pascal pre-calculations handle proper clipping for all four edges }
+var
+  ClippedRect: TRectangle;
+  ClippedX, ClippedY: Integer;
+  ClipAmount: Integer;
+begin
+  { Early exit checks - completely off screen }
+  if (X >= 320) or (Y >= 200) or
+     (X + Integer(SourceRect.Width) <= 0) or
+     (Y + Integer(SourceRect.Height) <= 0) then
+    Exit;
+
+  { Initialize clipped values with original parameters }
+  ClippedRect := SourceRect;
+  ClippedX := X;
+  ClippedY := Y;
+
+  { Clip left edge (screen X < 0) }
+  if X < 0 then
+  begin
+    ClipAmount := -X;
+    ClippedX := 0;
+
+    if FlipX then
+      { FlipX: reading right-to-left, so reduce width (clips from right of source) }
+      ClippedRect.Width := ClippedRect.Width - ClipAmount
+    else
+      { Normal: reading left-to-right, so skip from left of source }
+      begin
+        Inc(ClippedRect.X, ClipAmount);
+        Dec(ClippedRect.Width, ClipAmount);
+      end;
+  end;
+
+  { Clip top edge (screen Y < 0) }
+  if Y < 0 then
+  begin
+    ClipAmount := -Y;
+    ClippedY := 0;
+
+    if FlipY then
+      { FlipY: reading bottom-to-top, so reduce height (clips from bottom of source) }
+      ClippedRect.Height := ClippedRect.Height - ClipAmount
+    else
+      { Normal: reading top-to-bottom, so skip from top of source }
+      begin
+        Inc(ClippedRect.Y, ClipAmount);
+        Dec(ClippedRect.Height, ClipAmount);
+      end;
+  end;
+
+  { Clip right edge (screen X + Width > 320) }
+  if ClippedX + Integer(ClippedRect.Width) > 320 then
+  begin
+    ClipAmount := ClippedX + Integer(ClippedRect.Width) - 320;
+
+    if FlipX then
+      { FlipX: reading right-to-left, so skip from left of source }
+      begin
+        Inc(ClippedRect.X, ClipAmount);
+        Dec(ClippedRect.Width, ClipAmount);
+      end
+    else
+      { Normal: reading left-to-right, so reduce width (clips from right of source) }
+      ClippedRect.Width := ClippedRect.Width - ClipAmount;
+  end;
+
+  { Clip bottom edge (screen Y + Height > 200) }
+  if ClippedY + Integer(ClippedRect.Height) > 200 then
+  begin
+    ClipAmount := ClippedY + Integer(ClippedRect.Height) - 200;
+
+    if FlipY then
+      { FlipY: reading bottom-to-top, so skip from top of source }
+      begin
+        Inc(ClippedRect.Y, ClipAmount);
+        Dec(ClippedRect.Height, ClipAmount);
+      end
+    else
+      { Normal: reading top-to-bottom, so reduce height (clips from bottom of source) }
+      ClippedRect.Height := ClippedRect.Height - ClipAmount;
+  end;
+
+  { Final validation - nothing left to draw }
+  if (ClippedRect.Width = 0) or (ClippedRect.Height = 0) then
+    Exit;
+
+  { Assembly code using clipped parameters }
+  asm
   push ds
   push es
 
-  { Check if Y >= 200, exit if so }
-  mov ax, Y
-  cmp ax, 200
-  jge @Done
-
-  { Load SourceRect structure to get dimensions }
-  les di, SourceRect
-  mov cx, es:[di+4]     { CX = SourceRect.Width }
-  mov dx, es:[di+6]     { DX = SourceRect.Height }
-
-  { Calculate rows to draw: min(SourceRect.Height, 200 - Y) }
-  mov ax, 200
-  sub ax, Y             { AX = 200 - Y = max rows we can draw }
-  cmp dx, ax
-  jbe @HeightOK
-  mov dx, ax            { DX = min(SourceRect.Height, 200 - Y) }
-@HeightOK:
-  or dx, dx
-  jz @Done              { Exit if no rows to draw }
+  { Load clipped rectangle dimensions directly from local variables }
+  mov cx, ClippedRect.Width   { CX = ClippedRect.Width }
+  mov dx, ClippedRect.Height  { DX = ClippedRect.Height }
 
   { Save clipped width and height on stack }
   push cx               { Clipped width }
   push dx               { Clipped height }
 
-  { Calculate pixels per row: min(SourceRect.Width, 320 - X) }
-  mov ax, 320
-  sub ax, X             { AX = 320 - X = max pixels we can draw per row }
-  cmp cx, ax
-  jbe @WidthOK
-  mov cx, ax            { CX = min(SourceRect.Width, 320 - X) }
-@WidthOK:
-  or cx, cx
-  jnz @Continue         { Continue if there are pixels to draw }
-  pop dx               
-  pop cx
-  jmp @Done
-@Continue:
   { Load Source image structure }
   les di, Source
   mov bx, es:[di]       { BX = Source.Width (for stride calculation) }
 
   { Calculate source starting offset based on FlipY }
-  les di, SourceRect
   cmp byte ptr FlipY, 0
   je @NoFlipY_Offset
 
   { FlipY: Start from bottom row }
-  mov ax, es:[di+2]     { AX = SourceRect.Y }
-  add ax, es:[di+6]     { AX = SourceRect.Y + SourceRect.Height }
-  dec ax                { AX = last row }
+  mov ax, ClippedRect.Y       { AX = ClippedRect.Y }
+  add ax, ClippedRect.Height  { AX = ClippedRect.Y + ClippedRect.Height }
+  dec ax                      { AX = last row }
   jmp @CalcOffset
 
 @NoFlipY_Offset:
   { Normal: Start from top row }
-  mov ax, es:[di+2]     { AX = SourceRect.Y }
+  mov ax, ClippedRect.Y       { AX = ClippedRect.Y }
 
 @CalcOffset:
   pop dx                { Restore clipped height }
@@ -310,8 +368,7 @@ asm
   push dx
   push dx               { Save row count }
   mul bx                { DX:AX = Row * Source.Width }
-  les di, SourceRect
-  add ax, es:[di]       { AX += SourceRect.X }
+  add ax, ClippedRect.X { AX += ClippedRect.X }
   mov si, ax            { SI = source offset }
   pop dx                { Restore row count }
 
@@ -334,16 +391,16 @@ asm
 @NoFlipX_SrcAdjust:
   { Calculate destination starting address }
   les di, FrameBuffer
-  mov ax, Y
+  mov ax, ClippedY
   pop dx                { Restore clipped height }
   pop cx                { Restore clipped width }
   push cx               { Save pixels per row }
   push dx               { Save row count }
   push cx
   mov cx, 320
-  mul cx                { DX:AX = Y * 320 }
+  mul cx                { DX:AX = ClippedY * 320 }
   pop cx
-  add ax, X             { AX = Y * 320 + X }
+  add ax, ClippedX      { AX = ClippedY * 320 + ClippedX }
   add di, ax            { ES:DI = FrameBuffer + offset }
   pop dx                { Restore row count }
   pop cx                { Restore pixels per row }
@@ -518,6 +575,7 @@ asm
 @Done:
   pop es
   pop ds
+  end;
 end;
 
 procedure FreeImage(var Image: TImage);
