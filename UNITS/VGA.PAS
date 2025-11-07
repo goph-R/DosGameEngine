@@ -278,6 +278,7 @@ asm
   jbe @WidthOK
   mov cx, ax            { CX = min(SourceRect.Width, 320 - X) }
 @WidthOK:
+  or cx, cx
   jnz @Continue         { Continue if there are pixels to draw }
   pop dx               
   pop cx

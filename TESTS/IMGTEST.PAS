@@ -159,8 +159,8 @@ begin
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
     PutImage(Sprite1, Trunc(X), Trunc(Y), True, FrontBuffer);
-    PutFlippedImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64,
-                        True, False, True, FrontBuffer);
+    {PutFlippedImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64,
+      True, False, True, FrontBuffer);}
     Str(FPS, FPSStr);
     PrintText(5, 5, 'FPS: ' + FPSStr, 15, FrontBuffer);    
 
@@ -194,12 +194,12 @@ begin
     Y := Y + VY * DeltaTime;
 
     { Bounce off edges }
-    if (X <= 0) or (X >= 320 - Sprite1.Width) then
+    if (X <= 0) or (X >= 340 - Sprite1.Width) then
     begin
       VX := -VX;
       { Clamp position to prevent getting stuck }
       if X < 0 then X := 0;
-      if X > 320 - Sprite1.Width then X := 320 - Sprite1.Width;
+      if X > 340 - Sprite1.Width then X := 340 - Sprite1.Width;
     end;
     if (Y <= 0) or (Y >= 200 - Sprite1.Height) then
     begin
