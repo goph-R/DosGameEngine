@@ -278,8 +278,11 @@ asm
   jbe @WidthOK
   mov cx, ax            { CX = min(SourceRect.Width, 320 - X) }
 @WidthOK:
-  jcxz @DoneEarly       { Exit if no pixels to draw }
-
+  jnz @Continue         { Continue if there are pixels to draw }
+  pop dx               
+  pop cx
+  jmp @Done
+@Continue:
   { Load Source image structure }
   les di, Source
   mov bx, es:[di]       { BX = Source.Width (for stride calculation) }
@@ -510,10 +513,6 @@ asm
   add si, cx
   dec dx
   jnz @Path7_FlipXYTransparent
-
-@DoneEarly:
-  pop dx                { Clean up clipped height }
-  pop cx                { Clean up clipped width }
 
 @Done:
   pop es

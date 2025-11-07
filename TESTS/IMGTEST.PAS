@@ -159,7 +159,8 @@ begin
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
     PutImage(Sprite1, Trunc(X), Trunc(Y), True, FrontBuffer);
-    PutImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64, True, FrontBuffer);
+    PutFlippedImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64,
+                        True, False, True, FrontBuffer);
     Str(FPS, FPSStr);
     PrintText(5, 5, 'FPS: ' + FPSStr, 15, FrontBuffer);    
 
