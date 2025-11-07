@@ -15,13 +15,16 @@ type
     PH_size: Word;
   end;
 
-function LoadPKM(const FileName: string; ImageBuffer: PFrameBuffer; 
+function LoadPKM(const FileName: string; var Image: TImage;
                  var Palette: TPalette): Boolean;
 
 implementation
 
-function LoadPKM(const FileName: string; ImageBuffer: PFrameBuffer; 
+function LoadPKM(const FileName: string; var Image: TImage;
                  var Palette: TPalette): Boolean;
+type
+  PByteArray = ^TByteArray;
+  TByteArray = array[0..65520] of Byte;
 var
   F: File;
   Header: TPKMHeader;
@@ -37,8 +40,14 @@ var
   i: Integer;
   FileSizeBytes: LongInt;
   TempByte: Byte;
+  ImageBuffer: PByteArray;
 begin
   LoadPKM := False;
+
+  { Initialize Image structure }
+  Image.Width := 0;
+  Image.Height := 0;
+  Image.Data := nil;
   
   { Open file }
   Assign(F, FileName);
@@ -75,13 +84,20 @@ begin
   BlockRead(F, Header.Width, 2, BytesRead);
   BlockRead(F, Header.Height, 2, BytesRead);
   
-  { Verify dimensions }
-  if (Header.Width <> 320) or (Header.Height <> 200) then
+  { Verify dimensions are valid and within 64K limit }
+  if (Header.Width = 0) or (Header.Height = 0) then
   begin
     Close(F);
     Exit;
   end;
-  
+
+  Image_size := LongInt(Header.Width) * LongInt(Header.Height);
+  if Image_size > 65520 then  { Maximum GetMem block size in real mode }
+  begin
+    Close(F);
+    Exit;
+  end;
+
   { Read palette (768 bytes = 256 colors * 3 components) }
   BlockRead(F, Palette, 768, BytesRead);
   if BytesRead <> 768 then
@@ -89,7 +105,7 @@ begin
     Close(F);
     Exit;
   end;
-  
+
   { Read post-header size }
   BlockRead(F, Header.PH_size, 2, BytesRead);
   if BytesRead <> 2 then
@@ -97,7 +113,7 @@ begin
     Close(F);
     Exit;
   end;
-  
+
   { Skip post-header data if present }
   if Header.PH_size > 0 then
   begin
@@ -112,8 +128,13 @@ begin
     end;
   end;
   
-  { Calculate sizes }
-  Image_size := LongInt(Header.Width) * LongInt(Header.Height);
+  { Set image dimensions and allocate memory }
+  Image.Width := Header.Width;
+  Image.Height := Header.Height;
+  GetMem(Image.Data, Image_size);
+  ImageBuffer := Image.Data;  
+
+  { Calculate data size }
   Data_size := FileSizeBytes - (780 + Header.PH_size);
   
   Packed_data_counter := 0;

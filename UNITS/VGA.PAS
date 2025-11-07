@@ -20,6 +20,13 @@ type
     Data: Pointer;
   end;
 
+  TRectangle = record
+    X: Integer;
+    Y: Integer;
+    Width: Word;
+    Height: Word;
+  end;
+
 procedure InitVGA;
 procedure CloseVGA;
 function CreateFrameBuffer: PFrameBuffer;  { Allocates off-screen buffer for double-buffering }
@@ -37,7 +44,9 @@ procedure PrintText(x, y: Integer; s: string; Color: Byte; FrameBuffer: PFrameBu
 
 { Image operations }
 procedure GetImage(var Image: TImage; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
-procedure PutImage(Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer);
+procedure PutImage(var Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer);
+procedure PutImageRect(var Source: TImage; var SourceRect: TRectangle;
+                       X, Y: Integer; Transparent: Boolean; FrameBuffer: PFrameBuffer);
 procedure FreeImage(var Image: TImage);
 procedure ClearImage(var Image: TImage);
 
@@ -448,7 +457,7 @@ begin
   end;
 end;
 
-procedure PutImage(Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer); assembler;
+procedure PutImage(var Image: TImage; X, Y: Word; Transparent: Boolean; FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly version - much faster than Pascal loops }
 asm
   push ds
@@ -537,6 +546,123 @@ asm
   sub di, cx          { DI += 320 - pixels_drawn }
   add si, bx
   sub si, cx          { SI += Image.Width - pixels_drawn }
+
+  dec dx
+  jnz @TransparentLoop
+
+@Done:
+  pop es
+  pop ds
+end;
+
+procedure PutImageRect(var Source: TImage; var SourceRect: TRectangle; X, Y: Integer;
+                       Transparent: Boolean; FrameBuffer: PFrameBuffer); assembler;
+{ Optimized assembly version - blits a rectangular region from source image }
+asm
+  push ds
+  push es
+
+  { Check if Y >= 200, exit if so }
+  mov ax, Y
+  cmp ax, 200
+  jge @Done
+
+  { Load SourceRect structure to get dimensions }
+  les di, SourceRect
+  mov cx, es:[di+4]     { CX = SourceRect.Width }
+  mov dx, es:[di+6]     { DX = SourceRect.Height }
+
+  { Calculate rows to draw: min(SourceRect.Height, 200 - Y) }
+  mov ax, 200
+  sub ax, Y             { AX = 200 - Y = max rows we can draw }
+  cmp dx, ax
+  jbe @HeightOK
+  mov dx, ax            { DX = min(SourceRect.Height, 200 - Y) }
+@HeightOK:
+  or dx, dx
+  jz @Done              { Exit if no rows to draw }
+
+  { Calculate pixels per row: min(SourceRect.Width, 320 - X) }
+  mov ax, 320
+  sub ax, X             { AX = 320 - X = max pixels we can draw per row }
+  cmp cx, ax
+  jbe @WidthOK
+  mov cx, ax            { CX = min(SourceRect.Width, 320 - X) }
+@WidthOK:
+  jcxz @Done            { Exit if no pixels to draw }
+
+  { Load Source image structure }
+  les di, Source
+  mov bx, es:[di]       { BX = Source.Width (for stride calculation) }
+
+  { Calculate source starting offset: SourceRect.Y * Source.Width + SourceRect.X }
+  les di, SourceRect
+  mov ax, es:[di+2]     { AX = SourceRect.Y }
+  push dx               { Save row count }
+  mul bx                { DX:AX = SourceRect.Y * Source.Width }
+  add ax, es:[di]       { AX += SourceRect.X }
+  mov si, ax            { SI = source offset }
+  pop dx                { Restore row count }
+
+  { Load source data pointer and add offset }
+  les di, Source
+  push ds
+  lds ax, es:[di+4]     { DS:AX = Source.Data }
+  add si, ax            { DS:SI = Source.Data + offset }
+  pop ax                { Discard temp DS }
+
+  { Calculate destination starting address }
+  les di, FrameBuffer
+  mov ax, Y
+  push dx               { Save row count }
+  push cx               { Save pixels per row }
+  mov cx, 320
+  mul cx                { DX:AX = Y * 320 }
+  pop cx                { Restore pixels per row }
+  add ax, X             { AX = Y * 320 + X }
+  add di, ax            { ES:DI = FrameBuffer + offset }
+  pop dx                { Restore row count }
+
+  { Check transparent flag }
+  cmp byte ptr Transparent, 0
+  jne @TransparentLoop
+
+  { Non-transparent blit - fast REP MOVSB for each row }
+@FastLoop:
+  push cx
+  cld
+  rep movsb             { Copy CX bytes from DS:SI to ES:DI }
+  pop cx
+
+  { Advance to next row }
+  add di, 320
+  sub di, cx            { DI += 320 - pixels_drawn }
+  add si, bx
+  sub si, cx            { SI += Source.Width - pixels_drawn }
+
+  dec dx
+  jnz @FastLoop
+  jmp @Done
+
+  { Transparent blit - check each pixel }
+@TransparentLoop:
+  push cx               { Save pixels per row }
+
+@PixelLoop:
+  lodsb                 { AL = [DS:SI++] }
+  or al, al
+  jz @Skip              { Skip if pixel is 0 }
+  mov es:[di], al       { Write pixel }
+@Skip:
+  inc di
+  loop @PixelLoop
+
+  { Advance to next row }
+  pop cx                { Restore pixels per row }
+  add di, 320
+  sub di, cx            { DI += 320 - pixels_drawn }
+  add si, bx
+  sub si, cx            { SI += Source.Width - pixels_drawn }
 
   dec dx
   jnz @TransparentLoop

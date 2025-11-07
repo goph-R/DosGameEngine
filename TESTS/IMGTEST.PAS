@@ -11,6 +11,7 @@ uses
 var
   FrontBuffer, BackBuffer, ScreenBuffer: PFrameBuffer;
   Palette: TPalette;
+  BackgroundImage: TImage;
   Sprite1, Sprite2: TImage;
   X, Y: Real;
   VX, VY: Real;  { Velocity in pixels/second }
@@ -31,12 +32,7 @@ var
   ExplosionID: Integer;
   Bank: TSoundBank;
   LastBIOSTicks: LongInt;
-
-function GetBIOSTicks: LongInt;
-{ Read BIOS timer tick counter at 0040:006C (increments at 18.2065 Hz) }
-begin
-  GetBIOSTicks := MemL[$0040:$006C];
-end;
+  Rect: TRectangle;
 
 function GetHighResTime: Real;
 begin
@@ -122,24 +118,28 @@ begin
   end;
 
 
-  { Initialize VGA Mode 13h }
-  InitVGA;
-
-  { Get direct pointer to VGA screen memory }
-  BackBuffer := CreateFrameBuffer;
-  FrontBuffer := CreateFrameBuffer;
-
-  { Load test image and palette directly to screen }
-  if not LoadPKM('..\DATA\TEST.PKM', BackBuffer, Palette) then
+  { Load test image and palette }
+  if not LoadPKM('..\DATA\TEST.PKM', BackgroundImage, Palette) then
   begin
-    CloseVGA;
     WriteLn('Error: Could not load TEST.PKM');
     Halt(1);
   end;
 
+  { Initialize VGA Mode 13h }
+  InitVGA;
   SetPalette(Palette);
 
+  { Create buffers and render background }
+  BackBuffer := CreateFrameBuffer;
+  FrontBuffer := CreateFrameBuffer;
+  PutImage(BackgroundImage, 0, 0, False, BackBuffer);
+
+  { Extract sprite from background }
   GetImage(Sprite1, 10, 10, 64, 64, BackBuffer);
+  Rect.X := 10;
+  Rect.Y := 10;
+  Rect.Width := 64;
+  Rect.Height := 64; 
 
   X := 160.0;
   Y := 100.0;
@@ -159,6 +159,7 @@ begin
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
     PutImage(Sprite1, Trunc(X), Trunc(Y), True, FrontBuffer);
+    PutImageRect(BackgroundImage, Rect, 320 - Trunc(X) - 64, 200 - Trunc(Y) - 64, True, FrontBuffer);
     Str(FPS, FPSStr);
     PrintText(5, 5, 'FPS: ' + FPSStr, 15, FrontBuffer);    
 
@@ -222,6 +223,7 @@ begin
 
   { Clean up }
   FreeImage(Sprite1);
+  FreeImage(BackgroundImage);
 
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(FrontBuffer);
