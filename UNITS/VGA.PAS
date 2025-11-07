@@ -267,6 +267,10 @@ asm
   or dx, dx
   jz @Done              { Exit if no rows to draw }
 
+  { Save clipped width and height on stack }
+  push cx               { Clipped width }
+  push dx               { Clipped height }
+
   { Calculate pixels per row: min(SourceRect.Width, 320 - X) }
   mov ax, 320
   sub ax, X             { AX = 320 - X = max pixels we can draw per row }
@@ -274,11 +278,7 @@ asm
   jbe @WidthOK
   mov cx, ax            { CX = min(SourceRect.Width, 320 - X) }
 @WidthOK:
-  jcxz @Done            { Exit if no pixels to draw }
-
-  { Save clipped width and height on stack }
-  push cx               { Clipped width }
-  push dx               { Clipped height }
+  jcxz @DoneEarly       { Exit if no pixels to draw }
 
   { Load Source image structure }
   les di, Source
@@ -510,6 +510,10 @@ asm
   add si, cx
   dec dx
   jnz @Path7_FlipXYTransparent
+
+@DoneEarly:
+  pop dx                { Clean up clipped height }
+  pop cx                { Clean up clipped width }
 
 @Done:
   pop es
