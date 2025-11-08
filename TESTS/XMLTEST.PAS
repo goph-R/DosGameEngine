@@ -65,10 +65,13 @@ begin
       Write(' type="', XMLAttr(Node, 'type'), '"');
 
     { Show text content }
-    if Node^.Text <> '' then
-      Write(' - "', Node^.Text, '"')
-    else if Node^.TextBuf <> nil then
-      Write(' - [', Node^.TextLen, ' bytes]');
+    if Node^.TextBuf <> nil then
+    begin
+      if Node^.TextLen <= 50 then
+        Write(' - "', XMLGetText(Node), '"')
+      else
+        Write(' - [', Node^.TextLen, ' bytes]');
+    end;
 
     WriteLn;
 
@@ -94,9 +97,9 @@ begin
 
     { Check text storage type }
     if Node^.TextBuf <> nil then
-      WriteLn('  Text stored in buffer: ', Node^.TextLen, ' bytes (>255)')
-    else if Node^.Text <> '' then
-      WriteLn('  Text stored in string: ', Length(Node^.Text), ' bytes (<=255)');
+      WriteLn('  Text stored in buffer: ', Node^.TextLen, ' bytes')
+    else
+      WriteLn('  No text content');
 
     { Parse numeric array }
     if XMLReadWordArray(Node, Values, Count) then

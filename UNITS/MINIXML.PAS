@@ -6,8 +6,10 @@ uses
   StrMap;
 
 const
-  MAX_ATTRS   = 8;   { per node, keep modest for TP7 memory }
-  MAX_CHILDREN_HINT = 0; { not used, kept for clarity }
+  XML_MaxNameLength = 20;  { Maximum element/attribute name length }
+  XML_MaxAttrsCount = 8;   { Maximum attributes per node }
+  MAX_ATTRS = XML_MaxAttrsCount; { Backward compatibility }
+  MAX_CHILDREN_HINT = 0;   { Not used, kept for clarity }
 
 type
   PShortString = ^string;
@@ -20,12 +22,9 @@ type
 
   PXMLNode = ^TXMLNode;
   TXMLNode = record
-    Name    : string;
+    Name    : string[XML_MaxNameLength];
 
-    { small text (<=255) kept for convenience) }
-    Text    : string;
-
-    { NEW: large text buffer (used when total text would exceed 255) }
+    { Text content buffer (all text stored here) }
     TextBuf : Pointer;   { points to a byte buffer }
     TextLen : Word;      { number of bytes in TextBuf }
     TextCap : Word;      { allocated capacity in bytes }
@@ -49,6 +48,7 @@ procedure XMLFreeTree(Node: PXMLNode);
 { Query helpers }
 function XMLAttr(const Node: PXMLNode; const Name: string): string;
 function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
+function XMLGetText(const Node: PXMLNode): string;
 function XMLFirstChild(const Node: PXMLNode; const Name: string): PXMLNode;
 function XMLNextSibling(const Node: PXMLNode; const Name: string): PXMLNode;
 function XMLCountChildren(const Node: PXMLNode; const Name: string): Integer;
@@ -142,7 +142,6 @@ end;
 procedure XMLInitNode(var N: TXMLNode);
 begin
   N.Name := '';
-  N.Text := '';
 
   N.TextBuf := nil;
   N.TextLen := 0;
@@ -243,6 +242,35 @@ function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
 begin
   if Node = nil then XMLHasAttr := False
   else XMLHasAttr := MapContains(Node^.AttrMap, Name);
+end;
+
+function XMLGetText(const Node: PXMLNode): string;
+var
+  Len: Word;
+  P: ^Byte;
+  i: Integer;
+  Result: string;
+begin
+  Result := '';
+  if (Node = nil) or (Node^.TextBuf = nil) or (Node^.TextLen = 0) then
+  begin
+    XMLGetText := '';
+    Exit;
+  end;
+
+  { Clamp to string max length (255) }
+  Len := Node^.TextLen;
+  if Len > 255 then Len := 255;
+
+  Result[0] := Char(Len);
+  P := Node^.TextBuf;
+  for i := 1 to Len do
+  begin
+    Result[i] := Char(P^);
+    Inc(P);
+  end;
+
+  XMLGetText := Result;
 end;
 
 function XMLFirstChild(const Node: PXMLNode; const Name: string): PXMLNode;
@@ -543,12 +571,11 @@ end;
 
 function ParseElement(var B: TBuf; Parent: PXMLNode): PXMLNode;
 var
-  name, endname, txt: string;
+  name, endname: string;
   node, child: PXMLNode;
   c: Char;
   sStart: Integer;
   segLen: Word;
-  part: string;
 begin
   ParseElement := nil;
 
@@ -641,22 +668,8 @@ begin
       segLen := B.Pos - sStart;
       if segLen = 0 then Continue;
 
-      { If we haven't switched to big buffer yet, try to keep small text (<255) }
-      if (node^.TextBuf = nil) and (Length(node^.Text) + segLen <= 255) then
-      begin
-        part := BCopy(B, sStart, segLen);
-        part := TrimStr(part);
-        if part <> '' then
-        begin
-          if node^.Text = '' then node^.Text := part
-          else node^.Text := node^.Text + ' ' + part;
-        end;
-      end
-      else
-      begin
-        { Switch / append into big buffer (no trimming/collapsing) }
-        AppendSliceToBufNode(node, B.Data, sStart, segLen);
-      end;
+      { Append all text to buffer }
+      AppendSliceToBufNode(node, B.Data, sStart, segLen);
     end;
 
   until BEOF(B);
@@ -756,26 +769,15 @@ var
 
   function GetSrc(var P: Pointer; var L: Word): Boolean;
   begin
-    if (Node = nil) then begin GetSrc := False; Exit; end;
-
-    if Node^.TextBuf <> nil then
+    if (Node = nil) or (Node^.TextBuf = nil) or (Node^.TextLen = 0) then
     begin
-      P := Node^.TextBuf;
-      L := Node^.TextLen;
-      GetSrc := True;
+      GetSrc := False;
       Exit;
     end;
 
-    { fallback: small Text (<=255) }
-    if Length(Node^.Text) > 0 then
-    begin
-      P := @Node^.Text[1];
-      L := Length(Node^.Text);
-      GetSrc := True;
-      Exit;
-    end;
-
-    GetSrc := False;
+    P := Node^.TextBuf;
+    L := Node^.TextLen;
+    GetSrc := True;
   end;
 
   function IsDigit(ch: Char): Boolean;
