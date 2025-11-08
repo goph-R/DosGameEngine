@@ -37,13 +37,12 @@ begin
   end;
 
   { Display text content if present }
-  if Root^.Text <> '' then
+  if Root^.TextBuf <> nil then
   begin
-    WriteLn('  Text (first 80 chars): ', Copy(Root^.Text, 1, 80));
-  end
-  else if Root^.TextBuf <> nil then
-  begin
-    WriteLn('  Text length (in buffer): ', Root^.TextLen, ' bytes');
+    if Root^.TextLen <= 80 then
+      WriteLn('  Text: ', XMLGetText(Root))
+    else
+      WriteLn('  Text length (in buffer): ', Root^.TextLen, ' bytes');
   end;
 
   WriteLn;

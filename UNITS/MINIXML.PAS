@@ -19,6 +19,8 @@ type
 
 type
   PPShortString = ^PShortString;
+  TPShortStringArray = array[0..7] of PShortString;  { Max XML_MaxAttrsCount }
+  PPShortStringArray = ^TPShortStringArray;
 
   PXMLNode = ^TXMLNode;
   TXMLNode = record
@@ -176,8 +178,9 @@ end;
 procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
 var
   idx, NewCap, i: Integer;
-  NewKeys, NewValues: PPShortString;
+  NewKeys, NewValues: PPShortStringArray;
   pKey, pVal: PShortString;
+  OldKeys, OldValues: PPShortStringArray;
 begin
   if (Node = nil) or (Node^.AttrCount >= MAX_ATTRS) then Exit;
 
@@ -197,17 +200,19 @@ begin
     { Copy existing pointers }
     if Node^.AttrCap > 0 then
     begin
+      OldKeys := PPShortStringArray(Node^.AttrKeys);
+      OldValues := PPShortStringArray(Node^.AttrValues);
       for i := 0 to Node^.AttrCount - 1 do
       begin
-        NewKeys^[i] := Node^.AttrKeys^[i];
-        NewValues^[i] := Node^.AttrValues^[i];
+        NewKeys^[i] := OldKeys^[i];
+        NewValues^[i] := OldValues^[i];
       end;
       FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
       FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
     end;
 
-    Node^.AttrKeys := NewKeys;
-    Node^.AttrValues := NewValues;
+    Node^.AttrKeys := PPShortString(NewKeys);
+    Node^.AttrValues := PPShortString(NewValues);
     Node^.AttrCap := NewCap;
   end;
 
@@ -218,8 +223,8 @@ begin
   pKey^ := Key;
   pVal^ := Value;
 
-  Node^.AttrKeys^[idx] := pKey;
-  Node^.AttrValues^[idx] := pVal;
+  PPShortStringArray(Node^.AttrKeys)^[idx] := pKey;
+  PPShortStringArray(Node^.AttrValues)^[idx] := pVal;
 
   MapPut(Node^.AttrMap, Key, Pointer(pVal));
 
@@ -343,8 +348,8 @@ begin
   begin
     for i := 0 to Node^.AttrCount - 1 do
     begin
-      Dispose(Node^.AttrKeys^[i]);
-      Dispose(Node^.AttrValues^[i]);
+      Dispose(PPShortStringArray(Node^.AttrKeys)^[i]);
+      Dispose(PPShortStringArray(Node^.AttrValues)^[i]);
     end;
     FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
     FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
