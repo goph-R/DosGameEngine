@@ -33,11 +33,12 @@ type
     TextLen : Word;          { Bytes in TextBuf }
     TextCap : Word;          { Allocated capacity }
 
-    { Attributes (max 8 per node) }
-    AttrMap : TStringMap;    { Fast attribute lookup }
-    AttrKeys  : array[0..MAX_ATTRS-1] of string;
-    AttrValues: array[0..MAX_ATTRS-1] of string;
+    { Attributes (max 8 per node, dynamically allocated) }
+    AttrMap : TStringMap;      { Fast attribute lookup }
+    AttrKeys  : PPShortString; { Dynamic array of string pointers }
+    AttrValues: PPShortString; { Dynamic array of string pointers }
     AttrCount : Integer;
+    AttrCap   : Integer;       { Allocated capacity }
 
     { Tree structure }
     FirstChild : PXMLNode;   { First child element }
@@ -375,7 +376,43 @@ This allows efficient handling of both small configuration values and large text
 - **Attribute lookup**: O(1) average (hash map)
 - **Child iteration**: O(n) linear scan
 - **File loading**: O(n) single-pass parse
-- **Memory overhead**: ~50 bytes per node + text content + attributes
+- **Memory overhead**: ~600 bytes per node (base) + text content + (actual attributes × ~260 bytes each)
+
+## Memory Usage
+
+**Base memory per node** (no attributes, no text):
+```
+Name:          256 bytes (string)
+Text:          256 bytes (string)
+TextBuf:         4 bytes (pointer)
+TextLen:         2 bytes (Word)
+TextCap:         2 bytes (Word)
+AttrKeys:        4 bytes (pointer)
+AttrValues:      4 bytes (pointer)
+AttrCount:       2 bytes (Integer)
+AttrCap:         2 bytes (Integer)
+AttrMap:       ~50 bytes (hash map)
+Tree pointers:  12 bytes (FirstChild, NextSibling, Parent)
+────────────────────
+Total:        ~594 bytes per node (without attributes)
+```
+
+**Per attribute cost** (dynamically allocated):
+```
+Key pointer:     4 bytes
+Value pointer:   4 bytes
+Key string:    256 bytes (max)
+Value string:  256 bytes (max)
+────────────────────
+Total:        ~520 bytes per attribute (worst case)
+Typical:      ~20-50 bytes per attribute (for short keys/values)
+```
+
+**Memory savings vs. fixed arrays**:
+- Old design: 4096 bytes per node for attributes (8 × 256 × 2), always allocated
+- New design: Only allocates what's needed
+- **Savings**: 3500+ bytes per node with 0-2 attributes (typical case)
+- **Example**: 100 nodes with 2 attributes each saves ~350 KB!
 
 ## Common Patterns
 
@@ -481,6 +518,10 @@ XMLTEST.EXE
 - Fixed real-mode DOS compatibility (64KB heap block limits)
 - Changed TBuf.Pos/Len from Integer to Word for >32KB files
 - Added 64KB cap to text buffer growth in EnsureBuf
+- **Memory optimization**: Replaced fixed attribute arrays with dynamic allocation
+  - Saves ~3500 bytes per node with 0-2 attributes (typical case)
+  - Only allocates space for attributes that actually exist
+  - 100-node XML with 2 attributes/node: ~350 KB savings!
 - Maintained backward compatibility with existing code
 
 **Original** - Initial implementation

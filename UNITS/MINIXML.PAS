@@ -16,6 +16,8 @@ type
   PWordArray = ^TWordArray;
 
 type
+  PPShortString = ^PShortString;
+
   PXMLNode = ^TXMLNode;
   TXMLNode = record
     Name    : string;
@@ -29,9 +31,10 @@ type
     TextCap : Word;      { allocated capacity in bytes }
 
     AttrMap : TStringMap;
-    AttrKeys  : array[0..MAX_ATTRS-1] of string;
-    AttrValues: array[0..MAX_ATTRS-1] of string;
+    AttrKeys  : PPShortString;  { Dynamic array of string pointers }
+    AttrValues: PPShortString;  { Dynamic array of string pointers }
     AttrCount : Integer;
+    AttrCap   : Integer;        { Allocated capacity }
 
     FirstChild : PXMLNode;
     NextSibling: PXMLNode;
@@ -145,7 +148,10 @@ begin
   N.TextLen := 0;
   N.TextCap := 0;
 
+  N.AttrKeys := nil;
+  N.AttrValues := nil;
   N.AttrCount := 0;
+  N.AttrCap := 0;
   MapInit(N.AttrMap);
   N.FirstChild := nil;
   N.NextSibling := nil;
@@ -170,17 +176,53 @@ end;
 
 procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
 var
-  idx: Integer;
-  pstr: PShortString;
+  idx, NewCap, i: Integer;
+  NewKeys, NewValues: PPShortString;
+  pKey, pVal: PShortString;
 begin
   if (Node = nil) or (Node^.AttrCount >= MAX_ATTRS) then Exit;
 
-  idx := Node^.AttrCount;
-  Node^.AttrKeys[idx] := Key;
-  Node^.AttrValues[idx] := Value;
+  { Grow arrays if needed }
+  if Node^.AttrCount >= Node^.AttrCap then
+  begin
+    if Node^.AttrCap = 0 then
+      NewCap := 2
+    else
+      NewCap := Node^.AttrCap * 2;
+    if NewCap > MAX_ATTRS then NewCap := MAX_ATTRS;
 
-  pstr := @Node^.AttrValues[idx];  { pointer to storage inside the node }
-  MapPut(Node^.AttrMap, Key, Pointer(pstr));
+    { Allocate new arrays }
+    GetMem(NewKeys, NewCap * SizeOf(PShortString));
+    GetMem(NewValues, NewCap * SizeOf(PShortString));
+
+    { Copy existing pointers }
+    if Node^.AttrCap > 0 then
+    begin
+      for i := 0 to Node^.AttrCount - 1 do
+      begin
+        NewKeys^[i] := Node^.AttrKeys^[i];
+        NewValues^[i] := Node^.AttrValues^[i];
+      end;
+      FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
+      FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
+    end;
+
+    Node^.AttrKeys := NewKeys;
+    Node^.AttrValues := NewValues;
+    Node^.AttrCap := NewCap;
+  end;
+
+  { Allocate strings for key and value }
+  idx := Node^.AttrCount;
+  New(pKey);
+  New(pVal);
+  pKey^ := Key;
+  pVal^ := Value;
+
+  Node^.AttrKeys^[idx] := pKey;
+  Node^.AttrValues^[idx] := pVal;
+
+  MapPut(Node^.AttrMap, Key, Pointer(pVal));
 
   Inc(Node^.AttrCount);
 end;
@@ -252,6 +294,7 @@ end;
 procedure FreeNodeRecursive(Node: PXMLNode);
 var
   c, nxt: PXMLNode;
+  i: Integer;
 begin
   if Node = nil then Exit;
 
@@ -264,8 +307,20 @@ begin
     c := nxt;
   end;
 
-  { Free attribute map entries (keys) — values point into Node, so no extra freeing }
+  { Free attribute map entries (keys) }
   MapFree(Node^.AttrMap);
+
+  { Free dynamically allocated attribute strings }
+  if Node^.AttrCap > 0 then
+  begin
+    for i := 0 to Node^.AttrCount - 1 do
+    begin
+      Dispose(Node^.AttrKeys^[i]);
+      Dispose(Node^.AttrValues^[i]);
+    end;
+    FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
+    FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
+  end;
 
   { Free large text buffer if used }
   if Node^.TextBuf <> nil then
