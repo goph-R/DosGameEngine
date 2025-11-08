@@ -4,11 +4,6 @@ unit SndBank;
 { Stores multiple VOC files in extended memory, loads on demand }
 { DMA-safe buffer allocation by ChatGPT (2025) }
 
-{ DOSBox-X QUIRK: PlaySound() requires caller to have dummy variables }
-{ in their var section or sound cuts off immediately. Works fine in   }
-{ 86Box without workaround. Cause unknown after extensive testing.    }
-{ See CLAUDE.md Common Pitfall #16 for full investigation.            }
-
 interface
 
 uses XMS, SBDSP, Crt, Dos;

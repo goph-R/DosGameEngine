@@ -1,0 +1,509 @@
+unit MiniXML;
+
+interface
+
+uses
+  StrMap;
+
+const
+  MAX_ATTRS   = 32;   { per node, keep modest for TP7 memory }
+  MAX_CHILDREN_HINT = 0; { not used, kept for clarity }
+
+type
+  PShortString = ^string;
+
+  PXMLNode = ^TXMLNode;
+  TXMLNode = record
+    Name    : string;
+    Text    : string;           { concatenated text content (trimmed) }
+    AttrMap : TStringMap;       { name -> ^string (points to AttrValue[i]) }
+    AttrKeys  : array[0..MAX_ATTRS-1] of string;
+    AttrValues: array[0..MAX_ATTRS-1] of string;
+    AttrCount : Integer;
+
+    FirstChild: PXMLNode;
+    NextSibling: PXMLNode;
+    Parent    : PXMLNode;
+  end;
+
+{ Loading / freeing }
+function XMLLoadFile(const FileName: string; out Root: PXMLNode): Boolean;
+procedure XMLFreeTree(Node: PXMLNode);
+
+{ Query helpers }
+function XMLAttr(const Node: PXMLNode; const Name: string): string;
+function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
+function XMLFirstChild(const Node: PXMLNode; const Name: string): PXMLNode;
+function XMLNextSibling(const Node: PXMLNode; const Name: string): PXMLNode;
+
+{ Debug / convenience }
+procedure XMLInitNode(var N: TXMLNode);
+procedure XMLAddChild(Parent, Child: PXMLNode);
+procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
+
+implementation
+
+uses
+  Dos;
+
+{ ===== Utility: whitespace & small helpers ===== }
+
+function IsWhite(c: Char): Boolean;
+begin
+  IsWhite := (c = ' ') or (c = #9) or (c = #10) or (c = #13);
+end;
+
+function TrimStr(const s: string): string;
+var
+  i1, i2: Integer;
+begin
+  i1 := 1; i2 := Length(s);
+  while (i1 <= i2) and IsWhite(s[i1]) do Inc(i1);
+  while (i2 >= i1) and IsWhite(s[i2]) do Dec(i2);
+  if i2 >= i1 then TrimStr := Copy(s, i1, i2 - i1 + 1) else TrimStr := '';
+end;
+
+{ ===== Node basics ===== }
+
+procedure XMLInitNode(var N: TXMLNode);
+begin
+  N.Name := '';
+  N.Text := '';
+  N.AttrCount := 0;
+  MapInit(N.AttrMap);
+  N.FirstChild := nil;
+  N.NextSibling := nil;
+  N.Parent := nil;
+end;
+
+procedure XMLAddChild(Parent, Child: PXMLNode);
+var
+  p: PXMLNode;
+begin
+  if (Parent = nil) or (Child = nil) then Exit;
+  Child^.Parent := Parent;
+  if Parent^.FirstChild = nil then
+    Parent^.FirstChild := Child
+  else
+  begin
+    p := Parent^.FirstChild;
+    while p^.NextSibling <> nil do p := p^.NextSibling;
+    p^.NextSibling := Child;
+  end;
+end;
+
+procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
+var
+  idx: Integer;
+  pstr: PShortString;
+begin
+  if (Node = nil) or (Node^.AttrCount >= MAX_ATTRS) then Exit;
+
+  idx := Node^.AttrCount;
+  Node^.AttrKeys[idx] := Key;
+  Node^.AttrValues[idx] := Value;
+
+  pstr := @Node^.AttrValues[idx];  { pointer to storage inside the node }
+  MapPut(Node^.AttrMap, Key, Pointer(pstr));
+
+  Inc(Node^.AttrCount);
+end;
+
+function XMLAttr(const Node: PXMLNode; const Name: string): string;
+var
+  p: Pointer;
+begin
+  if Node = nil then begin XMLAttr := ''; Exit; end;
+  p := MapGet(Node^.AttrMap, Name);
+  if p <> nil then
+    XMLAttr := PShortString(p)^
+  else
+    XMLAttr := '';
+end;
+
+function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
+begin
+  if Node = nil then XMLHasAttr := False
+  else XMLHasAttr := MapContains(Node^.AttrMap, Name);
+end;
+
+function XMLFirstChild(const Node: PXMLNode; const Name: string): PXMLNode;
+var
+  c: PXMLNode;
+begin
+  c := Node^.FirstChild;
+  while c <> nil do
+  begin
+    if (Name = '') or (c^.Name = Name) then
+    begin XMLFirstChild := c; Exit; end;
+    c := c^.NextSibling;
+  end;
+  XMLFirstChild := nil;
+end;
+
+function XMLNextSibling(const Node: PXMLNode; const Name: string): PXMLNode;
+var
+  s: PXMLNode;
+begin
+  s := Node^.NextSibling;
+  while s <> nil do
+  begin
+    if (Name = '') or (s^.Name = Name) then
+    begin XMLNextSibling := s; Exit; end;
+    s := s^.NextSibling;
+  end;
+  XMLNextSibling := nil;
+end;
+
+procedure FreeNodeRecursive(Node: PXMLNode);
+var
+  c, nxt: PXMLNode;
+begin
+  if Node = nil then Exit;
+
+  { Free children first }
+  c := Node^.FirstChild;
+  while c <> nil do
+  begin
+    nxt := c^.NextSibling;
+    FreeNodeRecursive(c);
+    c := nxt;
+  end;
+
+  { Free attribute map entries (keys) — values point into Node, so no extra freeing }
+  MapFree(Node^.AttrMap);
+
+  Dispose(Node);
+end;
+
+procedure XMLFreeTree(Node: PXMLNode);
+begin
+  FreeNodeRecursive(Node);
+end;
+
+{ ====== Tiny tokenizer over a memory buffer ====== }
+
+type
+  TBuf = record
+    Data: string; { whole file; OK for small XML config files }
+    Pos : Integer;
+    Len : Integer;
+  end;
+
+procedure BInit(var B: TBuf; const S: string);
+begin
+  B.Data := S;
+  B.Pos := 1;
+  B.Len := Length(S);
+end;
+
+function BEOF(var B: TBuf): Boolean;
+begin
+  BEOF := B.Pos > B.Len;
+end;
+
+function BPeek(var B: TBuf): Char;
+begin
+  if B.Pos <= B.Len then BPeek := B.Data[B.Pos] else BPeek := #0;
+end;
+
+function BGet(var B: TBuf): Char;
+begin
+  if B.Pos <= B.Len then
+  begin
+    BGet := B.Data[B.Pos];
+    Inc(B.Pos);
+  end
+  else
+    BGet := #0;
+end;
+
+procedure BSkipWS(var B: TBuf);
+begin
+  while (not BEOF(B)) and IsWhite(BPeek(B)) do Inc(B.Pos);
+end;
+
+function StartsWithAt(const S, Pat: string; idx: Integer): Boolean;
+var
+  i: Integer;
+begin
+  StartsWithAt := False;
+  if idx + Length(Pat) - 1 > Length(S) then Exit;
+  for i := 1 to Length(Pat) do
+    if S[idx + i - 1] <> Pat[i] then Exit;
+  StartsWithAt := True;
+end;
+
+procedure SkipComment(var B: TBuf);
+begin
+  { assumes we just consumed '<!' and next two chars are '--' }
+  while (not BEOF(B)) and (not StartsWithAt(B.Data, '-->', B.Pos)) do Inc(B.Pos);
+  if StartsWithAt(B.Data, '-->', B.Pos) then Inc(B.Pos, 3);
+end;
+
+function ParseName(var B: TBuf): string;
+var
+  c: Char; start: Integer;
+begin
+  start := B.Pos;
+  while (not BEOF(B)) do
+  begin
+    c := BPeek(B);
+    if (c in ['a'..'z','A'..'Z','0'..'9','_','-','.',':',]) then
+      Inc(B.Pos)
+    else
+      Break;
+  end;
+  ParseName := Copy(B.Data, start, B.Pos - start);
+end;
+
+function ParseAttrValue(var B: TBuf): string;
+var
+  q, c: Char;
+  start: Integer;
+begin
+  Result := '';
+  BSkipWS(B);
+  q := BGet(B); { quote }
+  if (q <> '"') and (q <> '''') then
+  begin
+    { unquoted fallback until whitespace or '>' or '/' }
+    start := B.Pos - 1;
+    while (not BEOF(B)) do
+    begin
+      c := BPeek(B);
+      if IsWhite(c) or (c = '>') or (c = '/') then Break;
+      Inc(B.Pos);
+    end;
+    ParseAttrValue := Copy(B.Data, start, B.Pos - start);
+    Exit;
+  end;
+
+  start := B.Pos;
+  while (not BEOF(B)) and (BPeek(B) <> q) do Inc(B.Pos);
+  ParseAttrValue := Copy(B.Data, start, B.Pos - start);
+  if (not BEOF(B)) and (BPeek(B) = q) then Inc(B.Pos);
+end;
+
+function ParseUntilLT(var B: TBuf): string;
+var
+  start: Integer;
+begin
+  start := B.Pos;
+  while (not BEOF(B)) and (BPeek(B) <> '<') do Inc(B.Pos);
+  ParseUntilLT := Copy(B.Data, start, B.Pos - start);
+end;
+
+{ ====== Recursive-descent-ish parser ====== }
+
+function NewNode(const Name: string): PXMLNode;
+var
+  p: PXMLNode;
+begin
+  New(p);
+  XMLInitNode(p^);
+  p^.Name := Name;
+  NewNode := p;
+end;
+
+function ParseElement(var B: TBuf; Parent: PXMLNode): PXMLNode; forward;
+
+procedure ParseAttributes(var B: TBuf; Node: PXMLNode);
+var
+  attrName, attrVal: string;
+  c: Char;
+begin
+  while not BEOF(B) do
+  begin
+    BSkipWS(B);
+    c := BPeek(B);
+    if (c = '/') or (c = '>') then Exit; { end of start-tag }
+    attrName := ParseName(B);
+    BSkipWS(B);
+    if BPeek(B) = '=' then
+    begin
+      BGet(B); { consume '=' }
+      BSkipWS(B);
+      attrVal := ParseAttrValue(B);
+    end
+    else
+      attrVal := ''; { boolean-like attribute }
+
+    XMLSetAttr(Node, attrName, attrVal);
+  end;
+end;
+
+function ParseElement(var B: TBuf; Parent: PXMLNode): PXMLNode;
+var
+  name, endname, txt: string;
+  node, child: PXMLNode;
+  c: Char;
+begin
+  Result := nil;
+
+  { assumes current char is '<' }
+  if BPeek(B) <> '<' then Exit;
+  BGet(B); { consume '<' }
+
+  { Comments / declarations }
+  if (BPeek(B) = '!') then
+  begin
+    Inc(B.Pos);
+    if StartsWithAt(B.Data, '--', B.Pos) then
+    begin
+      Inc(B.Pos, 2);
+      SkipComment(B);
+      ParseElement := nil;
+      Exit;
+    end
+    else
+    begin
+      { skip generic <! ... > }
+      while (not BEOF(B)) and (BGet(B) <> '>') do ;
+      ParseElement := nil;
+      Exit;
+    end;
+  end
+  else if (BPeek(B) = '?') then
+  begin
+    { processing instruction <? ... ?> }
+    while (not BEOF(B)) and (not StartsWithAt(B.Data, '?>', B.Pos)) do Inc(B.Pos);
+    if StartsWithAt(B.Data, '?>', B.Pos) then Inc(B.Pos, 2);
+    ParseElement := nil;
+    Exit;
+  end
+  else if (BPeek(B) = '/') then
+  begin
+    { stray close-tag (should be handled by caller) }
+    ParseElement := nil;
+    Exit;
+  end;
+
+  { Start-tag name }
+  name := ParseName(B);
+  node := NewNode(name);
+
+  { Attributes }
+  ParseAttributes(B, node);
+
+  { Self-closing? <tag ... /> }
+  BSkipWS(B);
+  if BPeek(B) = '/' then
+  begin
+    BGet(B); { '/' }
+    if BPeek(B) = '>' then BGet(B);
+    ParseElement := node;
+    Exit;
+  end;
+
+  { Expect '>' }
+  if BPeek(B) = '>' then BGet(B);
+
+  { Content loop: text and child elements until </name> }
+  repeat
+    BSkipWS(B);
+    if BEOF(B) then Break;
+
+    if BPeek(B) = '<' then
+    begin
+      { closing tag? }
+      if StartsWithAt(B.Data, '</', B.Pos) then
+      begin
+        Inc(B.Pos, 2);           { consume '</' }
+        endname := ParseName(B); { closing name }
+        { skip until '>' }
+        while (not BEOF(B)) and (BGet(B) <> '>') do ;
+        { accept even if mismatched, but ideally should match }
+        Break;
+      end
+      else
+      begin
+        { child element or comment/PI }
+        child := ParseElement(B, node);
+        if child <> nil then XMLAddChild(node, child);
+      end;
+    end
+    else
+    begin
+      txt := TrimStr(ParseUntilLT(B));
+      if txt <> '' then
+      begin
+        if node^.Text = '' then node^.Text := txt
+        else node^.Text := node^.Text + ' ' + txt; { collapse }
+      end;
+    end;
+
+  until BEOF(B);
+
+  ParseElement := node;
+end;
+
+function XMLLoadFile(const FileName: string; out Root: PXMLNode): Boolean;
+var
+  F: File;
+  sz: LongInt;
+  S: string;
+  B: TBuf;
+  n, child: PXMLNode;
+  ch: Char;
+begin
+  Root := nil;
+
+  { Read the whole file (small configs ideal; for big XML split reads) }
+  Assign(F, FileName);
+  {$I-}
+  Reset(F, 1);
+  {$I+}
+  if IOResult <> 0 then begin XMLLoadFile := False; Exit; end;
+
+  sz := FileSize(F);
+  if sz > 64000 then
+  begin
+    { keep it safe for TP7 single string limit; could chunk if needed }
+    Close(F);
+    XMLLoadFile := False;
+    Exit;
+  end;
+
+  SetLength(S, sz);
+  if sz > 0 then BlockRead(F, S[1], sz);
+  Close(F);
+
+  { Parse }
+  BInit(B, S);
+  { Skip BOM if present (naive) }
+  if (Length(S) >= 3) and (S[1] = #$EF) and (S[2] = #$BB) and (S[3] = #$BF) then
+  begin
+    B.Pos := 4;
+  end;
+
+  while (not BEOF(B)) do
+  begin
+    { find next '<' }
+    while (not BEOF(B)) and (BPeek(B) <> '<') do Inc(B.Pos);
+    if BEOF(B) then Break;
+
+    n := ParseElement(B, nil);
+    if n <> nil then
+    begin
+      if Root = nil then Root := n
+      else
+      begin
+        { wrap multiple top-level nodes in a synthetic root }
+        if (Root <> nil) and (Root^.Name <> '#document') then
+        begin
+          child := Root;
+          New(Root);
+          XMLInitNode(Root^);
+          Root^.Name := '#document';
+          XMLAddChild(Root, child);
+        end;
+        XMLAddChild(Root, n);
+      end;
+    end;
+  end;
+
+  XMLLoadFile := Root <> nil;
+end;
+
+end.
