@@ -2,11 +2,11 @@
 
 ## Overview
 
-MINIXML is a compact XML parser designed for Turbo Pascal 7.0, providing DOM-style access to XML configuration files and data. It handles XML files up to ~640KB (DOS conventional memory limit) and supports the core XML features needed for game configuration and data storage.
+MINIXML is a compact XML parser designed for Turbo Pascal 7.0, providing DOM-style access to XML configuration files and data. It handles XML files up to ~64KB (Turbo Pascal real-mode heap block limit) and supports the core XML features needed for game configuration and data storage.
 
 ## Features
 
-- **Large file support**: Handles XML files up to 640KB (previously limited to 255 bytes)
+- **Large file support**: Handles XML files up to ~64KB
 - **DOM-style tree structure**: Navigate XML as parent/child/sibling nodes
 - **Attribute support**: Read element attributes with fast hash-map lookup
 - **Text content**: Handles both small (<255 bytes) and large text content
@@ -59,7 +59,7 @@ function XMLLoadFile(const FileName: string; var Root: PXMLNode): Boolean;
 ```
 
 **Parameters:**
-- `FileName`: Path to XML file (DOS 8.3 format, max ~640KB)
+- `FileName`: Path to XML file (DOS 8.3 format, max ~64KB)
 - `Root`: Returns pointer to root node on success
 
 **Returns:** `True` if successful, `False` on error
@@ -345,7 +345,7 @@ end;
 
 ## Limitations
 
-1. **File size**: Maximum ~640KB (DOS conventional memory limit)
+1. **File size**: Maximum ~64KB (Turbo Pascal heap block limit in real-mode DOS)
 2. **Attributes per element**: Maximum 8 attributes (can be increased via `MAX_ATTRS`)
 3. **Attribute values**: Maximum 255 bytes (Turbo Pascal string limit)
 4. **Element names**: Maximum 255 bytes (Turbo Pascal string limit)
@@ -444,7 +444,7 @@ end;
 
 **Problem:** `XMLLoadFile` returns `False`
 - Check file exists and path is correct (use DOS 8.3 format)
-- Ensure file is under 640KB
+- Ensure file is under ~64KB (65500 bytes)
 - Check file is valid XML (well-formed)
 
 **Problem:** Attribute not found
@@ -477,7 +477,10 @@ XMLTEST.EXE
 
 **2025** - Enhanced to support files larger than 255 bytes
 - Replaced string buffer with pointer-based allocation
-- Increased file size limit from 255 bytes to ~640KB
+- Increased file size limit from 255 bytes to ~64KB
+- Fixed real-mode DOS compatibility (64KB heap block limits)
+- Changed TBuf.Pos/Len from Integer to Word for >32KB files
+- Added 64KB cap to text buffer growth in EnsureBuf
 - Maintained backward compatibility with existing code
 
 **Original** - Initial implementation

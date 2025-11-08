@@ -48,6 +48,7 @@ function XMLAttr(const Node: PXMLNode; const Name: string): string;
 function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
 function XMLFirstChild(const Node: PXMLNode; const Name: string): PXMLNode;
 function XMLNextSibling(const Node: PXMLNode; const Name: string): PXMLNode;
+function XMLCountChildren(const Node: PXMLNode; const Name: string): Integer;
 function XMLReadWordArray(const Node: PXMLNode; var Arr: PWord; var Count: Word): Boolean;
 
 { Debug / convenience }
@@ -86,6 +87,12 @@ begin
   begin
     NewCap := Need;
     if NewCap < 256 then NewCap := 256;
+    { Cap at 64KB for TP7 real-mode GetMem limit }
+    if NewCap > 65520 then
+    begin
+      NewCap := 65520;
+      if Need > NewCap then Exit; { Cannot allocate }
+    end;
     GetMem(Node^.TextBuf, NewCap);
     Node^.TextCap := NewCap;
     Node^.TextLen := 0;
@@ -98,6 +105,12 @@ begin
   while Node^.TextLen + Need > NewCap do
   begin
     if NewCap < 4096 then Inc(NewCap, NewCap) else Inc(NewCap, 4096);
+    { Hard cap at 64KB for TP7 real-mode GetMem limit }
+    if NewCap > 65520 then
+    begin
+      NewCap := 65520;
+      if Node^.TextLen + Need > NewCap then Exit; { Cannot grow further }
+    end;
   end;
 
   GetMem(NewPtr, NewCap);
@@ -218,6 +231,24 @@ begin
   XMLNextSibling := nil;
 end;
 
+function XMLCountChildren(const Node: PXMLNode; const Name: string): Integer;
+var
+  Count: Integer;
+  Child: PXMLNode;
+begin
+  Count := 0;
+  if Node <> nil then
+  begin
+    Child := XMLFirstChild(Node, Name);
+    while Child <> nil do
+    begin
+      Inc(Count);
+      Child := XMLNextSibling(Child, Name);
+    end;
+  end;
+  XMLCountChildren := Count;
+end;
+
 procedure FreeNodeRecursive(Node: PXMLNode);
 var
   c, nxt: PXMLNode;
@@ -258,15 +289,17 @@ end;
 type
   TBuf = record
     Data: Pointer; { whole file buffer (dynamically allocated) }
-    Pos : Integer;
-    Len : Integer;
+    Pos : Word;    { Current position (1-based, max 65535) }
+    Len : Word;    { Total buffer length (max 65535) }
   end;
 
 procedure BInit(var B: TBuf; P: Pointer; Size: LongInt);
 begin
   B.Data := P;
   B.Pos := 1;
-  B.Len := Size;
+  { Clamp to Word range (max 65535) }
+  if Size > 65535 then Size := 65535;
+  B.Len := Word(Size);
 end;
 
 function BCopy(var B: TBuf; StartPos, Len: Integer): string;
@@ -597,15 +630,9 @@ begin
   if IOResult <> 0 then begin XMLLoadFile := False; Exit; end;
 
   sz := FileSize(F);
-  if sz > 640000 then
-  begin
-    { limit to ~640KB (DOS conventional memory constraint) }
-    Close(F);
-    XMLLoadFile := False;
-    Exit;
-  end;
 
-  if sz = 0 then
+  { Hard cap for single near-pointer block in TP7 real mode }
+  if (sz <= 0) or (sz > 65500) then
   begin
     Close(F);
     XMLLoadFile := False;

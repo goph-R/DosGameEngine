@@ -7,22 +7,8 @@ var
   Root: PXMLNode;
   Node, Child: PXMLNode;
   AttrValue: string;
-
-{ Helper function to count children }
-function CountChildren(Parent: PXMLNode): Integer;
-var
-  Count: Integer;
-  N: PXMLNode;
-begin
-  Count := 0;
-  N := XMLFirstChild(Parent, '');
-  while N <> nil do
-  begin
-    Inc(Count);
-    N := XMLNextSibling(N, '');
-  end;
-  CountChildren := Count;
-end;
+  Values: PWord;
+  Count: Word;
 
 begin
   WriteLn('MiniXML Test - Loading ..\DATA\TEST.XML');
@@ -90,11 +76,48 @@ begin
     Child := XMLFirstChild(Node, '');
     if Child <> nil then
     begin
-      WriteLn('    Has ', CountChildren(Node), ' child node(s)');
+      WriteLn('    Has ', XMLCountChildren(Node, ''), ' child node(s)');
     end;
 
     Node := XMLNextSibling(Node, '');
   end;
+
+  WriteLn;
+
+  { Test large text content (>255 bytes) with numeric array parsing }
+  WriteLn('Large text content test:');
+  WriteLn('------------------------');
+  Node := XMLFirstChild(Root, 'testdata');
+  if Node <> nil then
+  begin
+    WriteLn('Found <testdata> node');
+
+    { Check text storage type }
+    if Node^.TextBuf <> nil then
+      WriteLn('  Text stored in buffer: ', Node^.TextLen, ' bytes (>255)')
+    else if Node^.Text <> '' then
+      WriteLn('  Text stored in string: ', Length(Node^.Text), ' bytes (<=255)');
+
+    { Parse numeric array }
+    if XMLReadWordArray(Node, Values, Count) then
+    begin
+      WriteLn('  Parsed ', Count, ' numbers');
+      WriteLn('  First value: ', PWordArray(Values)^[0]);
+      WriteLn('  Last value: ', PWordArray(Values)^[Count - 1]);
+
+      { Verify last value is 1234 }
+      if PWordArray(Values)^[Count - 1] = 1234 then
+        WriteLn('  SUCCESS: Last value is 1234!')
+      else
+        WriteLn('  ERROR: Last value is not 1234!');
+
+      FreeMem(Values, Count * SizeOf(Word));
+    end
+    else
+      WriteLn('  ERROR: Failed to parse array!');
+  end
+  else
+    WriteLn('ERROR: <testdata> node not found!');
 
   WriteLn;
   WriteLn('Test complete. Press ENTER to exit.');
