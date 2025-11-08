@@ -60,6 +60,13 @@ IMGTEST.EXE
 - **Smart buffering**: Sounds stored in XMS, minimal conventional memory usage
 - **Heap management**: GetMem/FreeMem wrappers for safety
 
+### 📝 Data & Configuration
+- **XML parser**: DOM-style XML loader for game configuration and data files
+- **Hash map**: Fast O(1) attribute lookup for XML elements
+- **Large file support**: Handles files up to ~64KB (TP7 heap limit)
+- **Hybrid text storage**: Automatic switching between string and buffer for efficiency
+- **Numeric array parser**: Parse comma-separated Word arrays from XML content
+
 ### 🛠️ Development Tools
 - **Configuration utility**: DOS-style setup program for sound card detection
 - **Text UI library**: Menu system with direct video memory rendering
@@ -74,6 +81,7 @@ cd TESTS
 CVGATEST.BAT    # VGA graphics test
 CSNDTEST.BAT    # Sound bank test
 CIMGTEST.BAT    # Full sprite demo with music and sound
+CXMLTEST.BAT    # XML parser test
 ```
 
 **Manual compilation:**
@@ -102,12 +110,15 @@ D:\ENGINE\
 │   ├── KEYBOARD.PAS    - Keyboard interrupt handler
 │   ├── RTCTIMER.PAS    - RTC high-resolution timer
 │   ├── CONFIG.PAS      - INI file configuration
-│   └── TEXTUI.PAS      - Text mode UI library
+│   ├── TEXTUI.PAS      - Text mode UI library
+│   ├── MINIXML.PAS     - XML parser with DOM tree
+│   └── STRMAP.PAS      - String hash map
 │
 ├── TESTS\          Test programs
 │   ├── VGATEST.PAS     - VGA graphics demo
 │   ├── SNDTEST.PAS     - Sound bank demo
 │   ├── IMGTEST.PAS     - Sprite animation with audio
+│   ├── XMLTEST.PAS     - XML parser demo
 │   └── C*.BAT          - Compile scripts
 │
 ├── SETUP\          Configuration utility
@@ -117,12 +128,14 @@ D:\ENGINE\
 │
 ├── DATA\           Sample assets
 │   ├── TEST.PKM        - Example 320×200 image
+│   ├── TEST.XML        - Example game configuration
 │   ├── FANTASY.HSC     - Example Adlib music
 │   └── EXPLODE.VOC     - Example sound effect
 │
 ├── DOCS\           File format documentation
 │   ├── PKM.md          - PKM image format spec
-│   └── HSC.md          - HSC music format spec
+│   ├── HSC.md          - HSC music format spec
+│   └── MINIXML.md      - XML parser API reference
 │
 └── VENDOR\         Third-party libraries - Not used directly
     ├── SBDSP2B\        - Sound Blaster driver (1995)
@@ -134,6 +147,7 @@ D:\ENGINE\
 - **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
 - **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
 - **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
+- **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
 - **[DOCS/EXAMPLE.md](DOCS/HSC.md)** - Example codes for usage
 - **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
 
@@ -158,6 +172,30 @@ Use [Audacity](https://www.audacityteam.org/) (Windows/Linux/Mac):
 Use one of the following:
 1. [Adlib Tracker II](https://adlibtracker.net/) - More modern approach (Windows/Linux)
 2. [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC tracker (only DOS)
+
+### XML Configuration Files
+Create game configuration files with any text editor:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<game version="1.0">
+  <levels>
+    <level id="1" name="Forest" difficulty="easy">
+      <music>FOREST.HSC</music>
+      <background>FOREST.PKM</background>
+    </level>
+  </levels>
+  <sprites>
+    <sprite id="player" file="PLAYER.PKM" width="32" height="32" />
+  </sprites>
+</game>
+```
+
+**Features:**
+- DOM-style tree navigation
+- Fast attribute lookup (O(1) hash map)
+- Supports files up to ~64KB
+- Automatic text storage optimization
+- See [DOCS/MINIXML.md](DOCS/MINIXML.md) for complete API reference
 
 ## ⚠️ Critical Cleanup Rules
 
