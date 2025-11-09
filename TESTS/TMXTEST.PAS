@@ -37,6 +37,8 @@ begin
 end;
 
 procedure DrawUI;
+var
+  FreeMem: LongInt;
 begin
   { Display camera position and FPS }
   Str(CameraX, StatusText);
@@ -50,6 +52,12 @@ begin
   Str(FPS:0:1, StatusText);
   StatusText := 'FPS: ' + StatusText;
   PrintText(5, 25, StatusText, 15, FrameBuffer);
+
+  { Display free conventional memory }
+  FreeMem := MemAvail;
+  Str(FreeMem, StatusText);
+  StatusText := 'Free: ' + StatusText + ' bytes';
+  PrintText(5, 35, StatusText, 15, FrameBuffer);
 
   { Instructions }
   PrintText(5, 45, 'Arrow keys: Scroll', 14, FrameBuffer);
