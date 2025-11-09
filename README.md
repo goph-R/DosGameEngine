@@ -33,6 +33,19 @@ IMGTEST.EXE
 - **E**: Play an explosion
 - **ESC**: Exit demo
 
+## 📖 Documentation
+
+- **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
+- **[DOCS/BUILD.md](DOCS/BUILD.md)** - How to build
+- **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
+- **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
+- **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
+- **[DOCS/TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format guide and loader API
+- **[DOCS/DESIGN/TIMING.md](DOCS/DESIGN/TIMING.md)** - Delta-time patterns and sprite animation timing
+- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example codes for usage
+- **[DOCS/ISSUES.md](DOCS/ISSUES.md)** - Critical cleanup rules, common issues
+- **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
+
 ## ✨ Features
 
 ### 🎨 Graphics
@@ -42,7 +55,7 @@ IMGTEST.EXE
 - **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Sprite rendering**: GetImage/PutImage with transparency and horizontal/vertical flipping
 - **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
-- **Palette support**: Direct VGA DAC programming (0-63 RGB)
+- **Palette support**: Direct VGA DAC programming (0-63 RGB), 768 Byte PAL loader
 
 ### 🎵 Audio
 - **HSC music player**: Adlib/OPL2 tracker format with interrupt-driven playback
@@ -72,31 +85,6 @@ IMGTEST.EXE
 - **Text UI library**: Menu system with direct video memory rendering
 - **Test programs**: Example code demonstrating all features
 - **Automated builds**: Batch files handle dependency compilation
-
-## 🧱 Building from Source
-
-**Automated (recommended):**
-```bash
-cd TESTS
-CVGATEST.BAT    # VGA graphics test
-CSNDTEST.BAT    # Sound bank test
-CSPRTEST.BAT    # Sprite animation test
-CIMGTEST.BAT    # Advanced VGA demo with music and sound
-CTMXTEST.BAT    # TMX tilemap scrolling test
-CXMLTEST.BAT    # XML parser test
-```
-
-**Manual compilation:**
-```bash
-cd UNITS
-tpc VGA.PAS
-tpc PKMLOAD.PAS
-tpc SBDSP.PAS
-# ... compile other units
-
-cd ..\TESTS
-tpc -U..\UNITS VGATEST.PAS
-```
 
 ## 📁 Project Structure
 
@@ -154,17 +142,6 @@ D:\ENGINE\
     └── XMS\            - XMS memory manager (1992)
 ```
 
-## 📖 Documentation
-
-- **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
-- **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
-- **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
-- **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
-- **[DOCS/TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format guide and loader API
-- **[DOCS/DESIGN/TIMING.md](DOCS/DESIGN/TIMING.md)** - Delta-time patterns and sprite animation timing
-- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example codes for usage
-- **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
-
 ## 🎨 Creating Assets
 
 ### PKM Images
@@ -188,94 +165,10 @@ Use one of the following:
 1. [Adlib Tracker II](https://adlibtracker.net/) - More modern approach (Windows/Linux)
 2. [HSC-tracker](https://demozoo.org/productions/293837/) - The original HSC tracker (only DOS)
 
-### XML Configuration Files
-Create game configuration files with any text editor:
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<game version="1.0">
-  <levels>
-    <level id="1" name="Forest" difficulty="easy">
-      <music>FOREST.HSC</music>
-      <background>FOREST.PKM</background>
-    </level>
-  </levels>
-  <sprites>
-    <sprite id="player" file="PLAYER.PKM" width="32" height="32" />
-  </sprites>
-</game>
-```
-
 ### TMX tilemaps
 
 Use [Tiled](https://www.mapeditor.org/) a full-featured level editor (Windows/Linux/Mac).
 See the restrictions at the [tilemap documentation](DOCS/TILEMAP.md).
-
-**Features:**
-- DOM-style tree navigation
-- Fast attribute lookup (O(1) hash map)
-- Supports files up to ~64KB
-- Automatic text storage optimization
-- See [DOCS/MINIXML.md](DOCS/MINIXML.md) for complete API reference
-
-## ⚠️ Critical Cleanup Rules
-
-Always clean up interrupt handlers before exit, or the system will crash:
-
-```pascal
-{ Correct cleanup order - unhook ALL interrupts FIRST before any I/O or cleanup }
-Music.Done;       { Unhook music timer (IRQ0) }
-Bank.Done;        { Free sound bank XMS memory }
-UninstallHandler; { Unhook Sound Blaster (IRQ5/7) }
-DoneRTC;          { Unhook RTC timer (IRQ8) }
-DoneKeyboard;     { Unhook keyboard (IRQ1, INT 9h) }
-
-{ Now safe to do cleanup and I/O }
-CloseVGA;         { Restore text mode }
-WriteLn(...);     { Console I/O }
-```
-
-**Best practice: Install an ExitProc handler** to ensure cleanup runs even on Ctrl+C/Ctrl+Break:
-
-```pascal
-{$F+}
-procedure CleanupOnExit;
-begin
-  ExitProc := OldExitProc;
-  if not InterruptsUnhooked then
-  begin
-    Music.Done;
-    UninstallHandler;
-    DoneRTC;
-    InterruptsUnhooked := True;
-  end;
-end;
-{$F-}
-
-begin
-  OldExitProc := ExitProc;
-  ExitProc := @CleanupOnExit;
-  { ... rest of program ... }
-end.
-```
-
-**Failure to unhook interrupts will:**
-- Cause DOSBox-X to crash
-- Hang the DOS system
-- Prevent running other programs
-- Break mouse/keyboard in subsequent programs
-
-## 🐛 Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| "XMS not installed" | Load HIMEM.SYS in CONFIG.SYS |
-| "Sound Blaster not detected" | Run SETUP.EXE to configure port/IRQ/DMA |
-| DOSBox-X crashes after exit | Missing `DoneRTC` or `DoneKeyboard` call |
-| Mouse erratic/broken after exit | IRQ2 cascade was masked - use fixed RTCTIMER.PAS (only masks IRQ8) |
-| Keyboard stops working after exit | IRQ2 cascade was masked - prevents slave PIC (IRQ8-15) from working |
-| Sound cuts off immediately | Use RTCTimer instead of PIT Timer 0 for timing |
-| Screen stays in graphics mode | Missing `CloseVGA` call |
-| Crackling audio | DMA buffer crossing 64KB boundary (auto-fixed in SBDSP) |
 
 ## 📜 Credits
 
