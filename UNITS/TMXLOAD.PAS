@@ -327,10 +327,8 @@ begin
     else if Node^.Name = 'layer' then
     begin
       if ObjectGroupFound then
-        { First the front }
         LoadTileMapLayer(Node, TileMap, TileMapLayer_Front)
       else
-        { Then the back }
         LoadTileMapLayer(Node, TileMap, TileMapLayer_Back);
     end;
     Node := Node^.NextSibling;
