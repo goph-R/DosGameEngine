@@ -79,7 +79,7 @@ IMGTEST.EXE
 ### 📝 Data & Configuration
 - **XML parser**: DOM-style XML loader for game configuration and data files
 - **Hash map**: Fast O(1) attribute lookup for XML elements
-- **Large file support**: Handles files up to ~64KB (TP7 heap limit)
+- **Small file support**: Handles files up to ~64KB (TP7 heap limit)
 - **Numeric array parser**: Parse comma-separated Word arrays from XML content
 
 ### 🛠️ Development Tools
