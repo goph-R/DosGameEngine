@@ -25,13 +25,15 @@ copy CONFIG.INI ..\TESTS
 
 # 3. Compile & try the sprite animation demo
 cd ..\TESTS
-CIMGTEST.BAT
-IMGTEST.EXE
+CSPRTEST.BAT
+SPRTEST.EXE
 ```
 
 **Controls:**
+- **1**: Switch to Idle animation
+- **2**: Switch to Run animation
+- **F**: Flip sprite horizontally
 - **ESC**: Exit demo
-- **E**: Play explosion sound effect
 
 ## ✨ Features
 
@@ -39,7 +41,8 @@ IMGTEST.EXE
 - **VGA Mode 13h**: 320×200 pixels, 256 colors
 - **PKM image loader**: RLE-compressed format from GrafX2
 - **Double-buffering**: Flicker-free rendering with VSync support
-- **Sprite system**: GetImage/PutImage with transparency and flipping
+- **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
+- **Sprite rendering**: GetImage/PutImage with transparency and horizontal/vertical flipping
 - **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
 - **Palette support**: Direct VGA DAC programming (0-63 RGB)
 
@@ -79,7 +82,9 @@ IMGTEST.EXE
 cd TESTS
 CVGATEST.BAT    # VGA graphics test
 CSNDTEST.BAT    # Sound bank test
-CIMGTEST.BAT    # Full sprite demo with music and sound
+CSPRTEST.BAT    # Sprite animation test
+CIMGTEST.BAT    # Advanced sprite demo with music and sound
+CTMXTEST.BAT    # TMX tilemap scrolling test
 CXMLTEST.BAT    # XML parser test
 ```
 
@@ -102,6 +107,7 @@ D:\ENGINE\
 ├── UNITS\          Core engine units
 │   ├── VGA.PAS         - Mode 13h graphics driver
 │   ├── VGAPRINT.PAS    - 8x8 bitmap font text renderer
+│   ├── SPRITE.PAS      - Sprite animation system
 │   ├── PKMLOAD.PAS     - PKM image loader
 │   ├── SBDSP.PAS       - Sound Blaster driver
 │   ├── SNDBANK.PAS     - XMS sound bank manager
@@ -111,12 +117,16 @@ D:\ENGINE\
 │   ├── CONFIG.PAS      - INI file configuration
 │   ├── TEXTUI.PAS      - Text mode UI library
 │   ├── MINIXML.PAS     - XML parser with DOM tree
+│   ├── TMXLOAD.PAS     - TMX tilemap loader
+│   ├── TMXDRAW.PAS     - TMX tilemap renderer
 │   └── STRMAP.PAS      - String hash map
 │
 ├── TESTS\          Test programs
 │   ├── VGATEST.PAS     - VGA graphics demo
 │   ├── SNDTEST.PAS     - Sound bank demo
-│   ├── IMGTEST.PAS     - Sprite animation with audio
+│   ├── SPRTEST.PAS     - Sprite animation system demo
+│   ├── IMGTEST.PAS     - Advanced sprite demo with audio
+│   ├── TMXTEST.PAS     - TMX tilemap scrolling demo
 │   ├── XMLTEST.PAS     - XML parser demo
 │   └── C*.BAT          - Compile scripts
 │
@@ -127,14 +137,19 @@ D:\ENGINE\
 │
 ├── DATA\           Sample assets
 │   ├── TEST.PKM        - Example 320×200 image
+│   ├── PLAYER.PKM      - Example sprite sheet (192×64)
 │   ├── TEST.XML        - Example game configuration
+│   ├── TEST.TMX        - Example tilemap
 │   ├── FANTASY.HSC     - Example Adlib music
 │   └── EXPLODE.VOC     - Example sound effect
 │
 ├── DOCS\           File format documentation
 │   ├── PKM.md          - PKM image format spec
 │   ├── HSC.md          - HSC music format spec
-│   └── MINIXML.md      - XML parser API reference
+│   ├── MINIXML.md      - XML parser API reference
+│   ├── TILEMAP.md      - TMX tilemap format guide
+│   └── DESIGN\
+│       └── TIMING.md   - Delta-time and animation patterns
 │
 └── VENDOR\         Third-party libraries - Not used directly
     ├── SBDSP2B\        - Sound Blaster driver (1995)
@@ -147,7 +162,9 @@ D:\ENGINE\
 - **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
 - **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
 - **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
-- **[DOCS/EXAMPLE.md](DOCS/HSC.md)** - Example codes for usage
+- **[DOCS/TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format guide and loader API
+- **[DOCS/DESIGN/TIMING.md](DOCS/DESIGN/TIMING.md)** - Delta-time patterns and sprite animation timing
+- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example codes for usage
 - **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
 
 ## 🎨 Creating Assets

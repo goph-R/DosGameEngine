@@ -262,6 +262,27 @@ SETUP.EXE      - Configure sound card settings
 - **Performance**: Renders using `PutImageRect` for each visible tile (transparency supported)
 - See DOCS\TILEMAP.md for usage examples and coordinate systems
 
+**SPRITE.PAS** - Sprite animation system
+- Delta-time based sprite animation framework using millisecond timing
+- `UpdateSprite(spriteinstance, deltatime)`: Update animation state (call once per frame with delta time in ms)
+- `DrawSprite(spriteinstance, framebuffer)`: Render current animation frame
+- **Types**:
+  - `TSprite`: Sprite definition (shared data - image, frames, duration, play type)
+  - `TSpriteInstance`: Sprite instance (per-entity data - position, flip, current time)
+  - `PSprite`: Pointer to sprite definition
+- **Play modes**:
+  - `SpritePlayType_Forward` (0): Loop animation continuously
+  - `SpritePlayType_PingPong` (1): Bounce animation back and forth
+  - `SpritePlayType_Once` (2): Play once and stop (CurrentTime = -1)
+- **Frame storage**: Fixed array[0..63] of TRectangle (MaxSpriteFrames = 64)
+- **Animation timing**: Duration in milliseconds, evenly distributed across frames
+- **Flip support**: FlipX/FlipY for sprite mirroring (uses PutFlippedImageRect)
+- **Visibility**: Hidden flag to skip rendering
+- **Shared image**: Multiple sprite definitions can reference same TImage (sprite sheet support)
+- **Frame calculation**: `FrameNumber = (CurrentTime × FrameCount) div Duration`
+- **CRITICAL**: Call UpdateSprite every frame with delta time for smooth animation
+- See DOCS\DESIGN\TIMING.md for delta-time patterns and millisecond timing recommendations
+
 ### File Formats
 
 **PKM Images**:
@@ -399,6 +420,79 @@ begin
 end;
 ```
 
+### Testing Sprites
+```pascal
+uses VGA, Sprite, PKMLoad, RTCTimer;
+
+var
+  SpriteSheet: TImage;
+  PlayerIdle: TSprite;
+  Player: TSpriteInstance;
+  FrameBuffer: PFrameBuffer;
+  CurrentTimeMS, LastTimeMS: LongInt;
+  DeltaTimeMS: Word;
+
+begin
+  { Load sprite sheet }
+  LoadPKM('PLAYER.PKM', SpriteSheet);
+
+  { Define sprite animation }
+  PlayerIdle.Image := @SpriteSheet;
+  PlayerIdle.FrameCount := 4;
+  PlayerIdle.Duration := 800;  { 0.8 seconds in milliseconds }
+  PlayerIdle.PlayType := SpritePlayType_Forward;
+
+  { Setup frame rectangles (4 frames, 32x32 each, first row) }
+  for I := 0 to 3 do
+  begin
+    PlayerIdle.Frames[I].X := I * 32;
+    PlayerIdle.Frames[I].Y := 0;
+    PlayerIdle.Frames[I].Width := 32;
+    PlayerIdle.Frames[I].Height := 32;
+  end;
+
+  { Create sprite instance }
+  Player.Sprite := @PlayerIdle;
+  Player.X := 144;
+  Player.Y := 84;
+  Player.FlipX := False;
+  Player.FlipY := False;
+  Player.CurrentTime := 0;
+  Player.Hidden := False;
+
+  { Initialize timing }
+  InitRTC(1024);
+  LastTimeMS := Round(GetTimeSeconds * 1000);
+
+  { Game loop }
+  while Running do
+  begin
+    { Calculate delta time }
+    CurrentTimeMS := Round(GetTimeSeconds * 1000);
+    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
+    LastTimeMS := CurrentTimeMS;
+
+    { Update sprite animation }
+    UpdateSprite(Player, DeltaTimeMS);
+
+    { Render }
+    ClearFrameBuffer(FrameBuffer);
+    DrawSprite(Player, FrameBuffer);
+    RenderFrameBuffer(FrameBuffer);
+  end;
+
+  { Cleanup }
+  DoneRTC;
+end;
+```
+
+**Key points:**
+- **TSprite** defines the animation (shared by all instances)
+- **TSpriteInstance** is per-entity state (position, time, flip)
+- Call **UpdateSprite** once per frame with delta time (milliseconds)
+- Call **DrawSprite** to render current frame
+- See **SPRTEST.PAS** for complete example with multiple animations
+
 ### Running Setup Program
 ```bash
 # Compile SETUP.PAS
@@ -503,6 +597,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **SNDTEST.PAS**: XMS sound bank test with SBDSP (loads VOC into XMS, plays on demand) ✅
 - **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
 - **TMXTEST.PAS**: TMX tilemap scrolling demo with keyboard navigation (arrow keys to scroll, displays FPS and camera position)
+- **SPRTEST.PAS**: Sprite animation system test (demonstrates SPRITE.PAS with idle/run animations, 1/2 to switch, F to flip)
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
