@@ -1,11 +1,12 @@
 program TMapTest;
 
 uses
-  VGA, VGAPrint, TMXLoad, Keyboard, RTCTimer, PKMLoad;
+  VGA, VGAPrint, TMXLoad, TMXDraw, Keyboard, RTCTimer, PKMLoad;
 
 var
   TileMap: TTileMap;
   FrameBuffer: PFrameBuffer;
+  BackBuffer: PFrameBuffer;
   Background: TImage;
   Running: Boolean;
   CameraX, CameraY: Word;
@@ -127,6 +128,11 @@ begin
   InitVGA;
   SetPalette(Palette);
   FrameBuffer := CreateFrameBuffer;
+  BackBuffer := CreateFrameBuffer;
+
+  PutImage(Background, 0, 0, False, BackBuffer);
+  FreeImage(Background);
+
 
   { Main loop }
   while Running do
@@ -148,7 +154,7 @@ begin
       Inc(CameraY);
 
     { Draw background }
-    PutImage(Background, 0, 0, False, FrameBuffer);
+    CopyFrameBuffer(BackBuffer, FrameBuffer);
 
     { Render back layer (background) }
     DrawTileMapLayer(TileMap, TileMapLayer_Back, CameraX, CameraY, ViewWidthTiles, ViewHeightTiles, FrameBuffer);
@@ -174,7 +180,7 @@ begin
 
   { Cleanup }
   FreeFrameBuffer(FrameBuffer);
-  FreeImage(Background);
+  FreeFrameBuffer(BackBuffer);
   CloseVGA;
 
   FreeTileMap(TileMap);

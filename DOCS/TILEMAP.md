@@ -1,6 +1,8 @@
 # 🟨 TileMap handling
 
-The DOS Game Engine can load `.tmx` files (Tiled Map Editor XML format) with basic functionality found in `TMXLOAD.PAS`.
+The DOS Game Engine can load `.tmx` files (Tiled Map Editor XML format) with basic functionality:
+- **TMXLOAD.PAS** - Loading TMX files, parsing XML, managing tilesets and layers
+- **TMXDRAW.PAS** - Rendering tilemap layers to framebuffers
 
 ## 🎯 Layer Merging System
 
@@ -112,15 +114,19 @@ procedure LoadTileMapLayer(const XMLNode: PXMLNode; var TileMap: TTileMap; const
 
 Processes a `<layer>` tag, only with `<data encoding="csv">` tags (Base64 and compressed formats are unsupported).
 
+## 🎨 TMXDRAW.PAS - Rendering Functions
+
 ```pascal
 procedure DrawTileMapLayer(
-  var TileMap: TTileMap; 
+  var TileMap: TTileMap;
   Layer: Byte; X: Word; Y: Word; Width: Word; Height: Word;
   FrameBuffer: PFrameBuffer
 )
 ```
 
 Renders the specified layer to the framebuffer. Iterates through the specific tiles in the layer (based on `X`, `Y`, `Width`, `Height` parameters), calculates the tileset based on the `FirstGID` then the source tile coordinates (TRect), then blits each tile to the destination position and framebuffer with the `PutImageRect` (see VGA.PAS).
+
+**Unit:** TMXDRAW.PAS (requires VGA.PAS and TMXLOAD.PAS)
 
 **Parameters:**
 - `Layer`: Use `TileMapLayer_Back` (1) or `TileMapLayer_Front` (0)
@@ -145,7 +151,7 @@ Frees dynamically allocated layer memory. Calls `FreeMem` on both layer arrays i
 
 ```pascal
 program TileMapDemo;
-uses VGA, Image, TMXLoad;
+uses VGA, Image, TMXLoad, TMXDraw;
 
 var
   Map: TTileMap;

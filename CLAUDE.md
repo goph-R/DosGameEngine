@@ -233,6 +233,34 @@ SETUP.EXE      - Configure sound card settings
 - **Menu features**: Disabled items (drawn in gray, skipped during navigation), inverted color selection bar
 - First menu item is always enabled (cannot be disabled)
 
+**TMXLOAD.PAS** - TMX tilemap loader (Tiled Map Editor format)
+- Loads orthogonal tilemaps from Tiled Map Editor XML files (`.tmx` format)
+- `LoadTileMap(filepath, var tilemap, objectgroup_callback)`: Load TMX file and populate TTileMap structure
+- `GetLoadTileMapError()`: Returns last error message if loading failed
+- `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory
+- **Layer merging system**: Merges multiple TMX layers into 2 final layers (front/back)
+  - Layers before first `<objectgroup>` → Front layer (TileMapLayer_Front = 0)
+  - Layers after first `<objectgroup>` → Back layer (TileMapLayer_Back = 1)
+  - Higher index layers overwrite lower index when merging (higher priority)
+- **Tileset support**: Up to 4 tilesets per map (TileMap_MaxTileSets = 4)
+- **CSV encoding only**: Only supports `<data encoding="csv">` (no Base64/compression)
+- **Image loading**: Converts tileset image paths from `.png` → `.pkm` automatically
+- **Path handling**: Replaces forward slashes with backslashes for DOS compatibility
+- **Types**: `TTileMap`, `TTileSet`, `TObjectGroupProc` (callback for processing objectgroups)
+- **CRITICAL**: Requires at least one tileset in TMX file or loading fails
+- See DOCS\TILEMAP.md for full format specification and examples
+
+**TMXDRAW.PAS** - TMX tilemap rendering
+- Renders loaded tilemaps to VGA framebuffers (requires VGA.PAS and TMXLOAD.PAS)
+- `DrawTileMapLayer(tilemap, layer, x, y, width, height, framebuffer)`: Render portion of layer
+- **Viewport rendering**: Only renders visible tiles within specified rectangle (camera scrolling)
+- **Layer parameter**: Use `TileMapLayer_Back` (1) or `TileMapLayer_Front` (0)
+- **Tile lookup**: Automatically finds correct tileset for each tile ID using FirstGID ranges
+- **Empty tile optimization**: Skips rendering for tile ID = 0 (transparent tiles)
+- **Clipping**: Automatically clips at map boundaries
+- **Performance**: Renders using `PutImageRect` for each visible tile (transparency supported)
+- See DOCS\TILEMAP.md for usage examples and coordinate systems
+
 ### File Formats
 
 **PKM Images**:
@@ -473,6 +501,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **XMSTEST2.PAS**: XMS round-trip test (write pattern to XMS, read back, verify) ✅
 - **SNDTEST.PAS**: XMS sound bank test with SBDSP (loads VOC into XMS, plays on demand) ✅
 - **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
+- **TMXTEST.PAS**: TMX tilemap scrolling demo with keyboard navigation (arrow keys to scroll, displays FPS and camera position)
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
