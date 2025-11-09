@@ -124,7 +124,6 @@ var
   ImageNode: PXMLNode;
   ImageSource: String;
   FullPath: String;
-  Dummy: TPalette;
 begin
   LoadTileSet := False;
 
@@ -179,7 +178,7 @@ begin
   FullPath := FolderPath + ImageSource;
 
   { Load the PKM image }
-  if not LoadPKM(FullPath, TileSet.Image, Dummy) then
+  if not LoadPKM(FullPath, TileSet.Image) then
   begin
     LoadTileMapError := 'Failed to load tileset image: ' + FullPath;
     Exit;

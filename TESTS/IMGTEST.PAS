@@ -169,7 +169,7 @@ begin
 
 
   { Load test image and palette }
-  if not LoadPKM('..\DATA\TEST.PKM', BackgroundImage, Palette) then
+  if not LoadPKMWithPalette('..\DATA\TEST.PKM', BackgroundImage, Palette) then
   begin
     WriteLn('Error: Could not load TEST.PKM');
     Halt(1);

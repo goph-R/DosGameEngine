@@ -7,19 +7,25 @@ uses VGA, PKMLoad;
 
 var
   FrameBuffer: PFrameBuffer;
+  TestImage: TImage;
   Palette: TPalette;
 
 begin
-  FrameBuffer := CreateFrameBuffer;
-  LoadPKM('DATA\TEST.PKM', FrameBuffer, Palette);
+  { Load image with palette }
+  LoadPKMWithPalette('DATA\TEST.PKM', TestImage, Palette);
 
   InitVGA;
   SetPalette(Palette);
+
+  { Render to framebuffer }
+  FrameBuffer := CreateFrameBuffer;
+  PutImage(TestImage, 0, 0, False, FrameBuffer);
   RenderFrameBuffer(FrameBuffer);
   ReadLn;
 
   CloseVGA;
   FreeFrameBuffer(FrameBuffer);
+  FreeImage(TestImage);
 end.
 ```
 

@@ -179,7 +179,8 @@ SETUP.EXE      - Configure sound card settings
 
 **PKMLOAD.PAS** - PKM image format loader
 - PKM format: RLE-compressed paletted image format from GrafX2 drawing program (http://grafx2.chez.com/)
-- `LoadPKM(filename, buffer, palette)`: Decompresses image to framebuffer
+- `LoadPKM(filename, buffer)`: Decompresses image to framebuffer (palette discarded)
+- `LoadPKMWithPalette(filename, buffer, palette)`: Decompresses image and extracts palette
 - Supports arbitrary image dimensions (images loaded at their native size)
 - Header structure:
   - Signature: "PKM" (3 bytes)

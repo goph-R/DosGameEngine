@@ -15,13 +15,14 @@ type
     PH_size: Word;
   end;
 
-function LoadPKM(const FileName: string; var Image: TImage;
-                 var Palette: TPalette): Boolean;
+function LoadPKM(const FileName: string; var Image: TImage): Boolean;
+function LoadPKMWithPalette(const FileName: string; var Image: TImage;
+                            var Palette: TPalette): Boolean;
 
 implementation
 
-function LoadPKM(const FileName: string; var Image: TImage;
-                 var Palette: TPalette): Boolean;
+function LoadPKMWithPalette(const FileName: string; var Image: TImage;
+                            var Palette: TPalette): Boolean;
 type
   PByteArray = ^TByteArray;
   TByteArray = array[0..65520] of Byte;
@@ -207,7 +208,14 @@ begin
   end;
   
   Close(F);
-  LoadPKM := (Pixels_counter = Image_size);
+  LoadPKMWithPalette := (Pixels_counter = Image_size);
+end;
+
+function LoadPKM(const FileName: string; var Image: TImage): Boolean;
+var
+  DummyPalette: TPalette;
+begin
+  LoadPKM := LoadPKMWithPalette(FileName, Image, DummyPalette);
 end;
 
 end.

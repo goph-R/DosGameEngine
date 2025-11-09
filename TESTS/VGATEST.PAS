@@ -7,7 +7,7 @@ var
 
 begin
   { Load image }
-  if not LoadPKM('..\DATA\TEST.PKM', TestImage, Palette) then
+  if not LoadPKMWithPalette('..\DATA\TEST.PKM', TestImage, Palette) then
   begin
     WriteLn('Error: Could not load TEST.PKM');
     Halt(1);
