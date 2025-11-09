@@ -66,9 +66,9 @@ function LoadTileMap(const FilePath: String; var TileMap: TTileMap): Boolean
 
 Clears the `LoadTileMapError` variable, then loads the content of the `.tmx` file from the `FilePath` to an `XMLNode` (see MINIXML.PAS). On any fail sets the `LoadTileMapError` and returns `False.`
 
-Searches for the `<map>` tag, if not presents the load fails. Sets the `TileMap.Width` and `TileMap.Height` via the `<map>` tag's `width` and `height` attributes, if any of these missing: the load fails. 
+Searches for the `<map>` tag, if not presents the load fails. Sets the `TileMap.Width` and `TileMap.Height` via the `<map>` tag's `width` and `height` attributes, if any of these missing: the load fails.
 
-Searches for the `<tileset>` tags in the `<map>` node and calls the `LoadTileSet` for each. If a tileset load fails, returns with `False`. The `FolderPath` parameter will be the folder from the `FilePath`.
+Searches for the `<tileset>` tags in the `<map>` node and calls the `LoadTileSet` for each. If a tileset load fails, returns with `False`. The `FolderPath` parameter will be the folder from the `FilePath`. **At least one tileset must be present** - if no tilesets are found, the load fails with error "No tilesets found".
 
 Searches for the `<layer>` tags in the `<map>` node and calls the `LoadTileMapLayer` for each.
 
@@ -273,6 +273,11 @@ Bytes = Width × Height × 2 layers × 2 bytes per tile
 **"Missing width/height attributes"**
 - Map tag must have both `width="X"` and `height="Y"` attributes
 - Check TMX file structure in text editor
+
+**"No tilesets found"**
+- TMX file must contain at least one `<tileset>` tag
+- Check if tileset definition exists in the map file
+- Verify `<tileset>` tags are direct children of `<map>`
 
 **"Failed to load tileset"**
 - Tileset image file not found (check relative path in `<image source="...">`)

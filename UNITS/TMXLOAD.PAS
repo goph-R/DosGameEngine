@@ -1,4 +1,4 @@
-unit TmxLoad;
+unit TMXLoad;
 
 {$G+}  { Enable 286 instructions }
 
@@ -40,7 +40,7 @@ procedure FreeTileMap(var TileMap: TTileMap);
 implementation
 
 uses
-  PkmLoad;
+  PKMLoad;
 
 var
   LoadTileMapError: String;
@@ -309,6 +309,15 @@ begin
     end;
     Inc(TileMap.TileSetCount);
     Node := XMLNextSibling(Node, 'tileset');
+  end;
+
+  { Verify at least one tileset was loaded }
+  if TileMap.TileSetCount = 0 then
+  begin
+    LoadTileMapError := 'No tilesets found';
+    XMLFree(Root);
+    FreeTileMap(TileMap);
+    Exit;
   end;
 
   { Process layers with merging logic }

@@ -1,7 +1,7 @@
 program TMapTest;
 
 uses
-  VGA, TmxLoad, Keyboard, VgaPrint, RTCTimer;
+  VGA, VGAPrint, TMXLoad, Keyboard, RTCTimer;
 
 var
   TileMap: TTileMap;
@@ -54,6 +54,32 @@ begin
 end;
 
 begin
+  { Load tilemap }
+  WriteLn('Loading tilemap from DATA\TEST.TMX...');
+  if not LoadTileMap('DATA\TEST.TMX', TileMap) then
+  begin
+    WriteLn('ERROR: ', GetLoadTileMapError());
+    Halt(1);
+  end;
+
+  WriteLn('Tilemap loaded successfully!');
+  WriteLn('  Map size: ', TileMap.Width, ' x ', TileMap.Height, ' tiles');
+  WriteLn('  Tilesets: ', TileMap.TileSetCount);
+  for I := 0 to TileMap.TileSetCount - 1 do
+  begin
+    WriteLn('    Tileset ', I, ': FirstGID=', TileMap.TileSets[I].FirstGID,
+            ' Size=', TileMap.TileSets[I].TileWidth, 'x', TileMap.TileSets[I].TileHeight,
+            ' Cols=', TileMap.TileSets[I].Columns);
+  end;
+
+  { Calculate view size in tiles }
+  ViewWidthTiles := 320 div TileMap.TileSets[0].TileWidth;
+  ViewHeightTiles := 200 div TileMap.TileSets[0].TileHeight;
+
+  WriteLn('  View size: ', ViewWidthTiles, ' x ', ViewHeightTiles, ' tiles');
+  WriteLn('Press any key to start...');
+  ReadLn;
+
   { Initialize }
   Running := True;
   CameraX := 0;
@@ -68,37 +94,6 @@ begin
   InitRTC(1024);
   LastFPSUpdate := GetTimeSeconds;
 
-  { Load tilemap }
-  WriteLn('Loading tilemap from DATA\TEST.TMX...');
-  if not LoadTileMap('DATA\TEST.TMX', TileMap) then
-  begin
-    WriteLn('ERROR: ', GetLoadTileMapError());
-    DoneRTC;
-    DoneKeyboard;
-    Halt(1);
-  end;
-
-  WriteLn('Tilemap loaded successfully!');
-  WriteLn('  Map size: ', TileMap.Width, ' x ', TileMap.Height, ' tiles');
-  WriteLn('  Tilesets: ', TileMap.TileSetCount);
-  for I := 0 to TileMap.TileSetCount - 1 do
-  begin
-    WriteLn('    Tileset ', I, ': FirstGID=', TileMap.TileSets[I].FirstGID,
-            ' Size=', TileMap.TileSets[I].TileWidth, 'x', TileMap.TileSets[I].TileHeight,
-            ' Cols=', TileMap.TileSets[I].Columns);
-  end;
-
-  { Calculate view size in tiles (assuming 32x32 tiles for now) }
-  if TileMap.TileSetCount > 0 then
-  begin
-    ViewWidthTiles := 320 div TileMap.TileSets[0].TileWidth;
-    ViewHeightTiles := 200 div TileMap.TileSets[0].TileHeight;
-  end
-  else
-  begin
-    ViewWidthTiles := 10;
-    ViewHeightTiles := 6;
-  end;
 
   { Calculate max camera position }
   if TileMap.Width > ViewWidthTiles then
@@ -110,10 +105,6 @@ begin
     MaxCameraY := TileMap.Height - ViewHeightTiles
   else
     MaxCameraY := 0;
-
-  WriteLn('  View size: ', ViewWidthTiles, ' x ', ViewHeightTiles, ' tiles');
-  WriteLn('Press any key to start...');
-  ReadLn;
 
   { Enter VGA mode }
   InitVGA;
