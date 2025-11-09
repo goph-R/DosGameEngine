@@ -1,6 +1,7 @@
 unit TMXLoad;
 
 {$G+}  { Enable 286 instructions }
+{$F+}  { Enable far calls for procedural types }
 
 interface
 
@@ -31,9 +32,13 @@ type
                                                             { Every word represents a TileID }
   end;
 
+  { Callback for processing objectgroup }
+  TObjectGroupProc = procedure(ObjectGroup: PXMLNode);
+
 { Public API }
 function GetLoadTileMapError: String;
-function LoadTileMap(const FilePath: String; var TileMap: TTileMap): Boolean;
+function LoadTileMap(const FilePath: String; var TileMap: TTileMap;
+                     ObjectGroupProc: TObjectGroupProc): Boolean;
 procedure DrawTileMapLayer(var TileMap: TTileMap; Layer: Byte; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
 procedure FreeTileMap(var TileMap: TTileMap);
 
@@ -191,13 +196,39 @@ end;
 procedure LoadTileMapLayer(const XMLNode: PXMLNode; var TileMap: TTileMap; const Layer: Byte);
 var
   DataNode: PXMLNode;
+  PropertiesNode: PXMLNode;
+  PropertyNode: PXMLNode;
+  PropertyName: String;
   Encoding: String;
   TileData: PWord;
   TileCount: Word;
   I, X, Y: Word;
   TileID: Word;
   DestIndex: LongInt;
+  IsBlocksLayer: Boolean;
 begin
+  { Check for blocks property (TODO: implement block map handling) }
+  IsBlocksLayer := False;
+  PropertiesNode := XMLFirstChild(XMLNode, 'properties');
+  if PropertiesNode <> nil then
+  begin
+    PropertyNode := XMLFirstChild(PropertiesNode, 'property');
+    while PropertyNode <> nil do
+    begin
+      if XMLHasAttr(PropertyNode, 'name') then
+      begin
+        PropertyName := XMLAttr(PropertyNode, 'name');
+        if PropertyName = 'blocks' then
+        begin
+          IsBlocksLayer := True;
+          { TODO: Handle as block map instead of tile layer }
+          Break;
+        end;
+      end;
+      PropertyNode := XMLNextSibling(PropertyNode, 'property');
+    end;
+  end;
+
   { Find <data> child node }
   DataNode := XMLFirstChild(XMLNode, 'data');
   if DataNode = nil then Exit;
@@ -209,7 +240,7 @@ begin
   { Parse CSV data using XMLReadWordArray }
   if not XMLReadWordArray(DataNode, TileData, TileCount) then Exit;
 
-  { Merge tiles into the layer (lower index = higher priority) }
+  { Merge tiles into the layer (higher index = higher priority, later layers overwrite earlier) }
   for I := 0 to TileCount - 1 do
   begin
     TileID := PWordArray(TileData)^[I];
@@ -219,8 +250,8 @@ begin
     X := I mod TileMap.Width;
     DestIndex := LongInt(Y) * LongInt(TileMap.Width) + LongInt(X);
 
-    { Merge: only write if destination is empty (0) or this tile is non-empty }
-    if (PWordArray(TileMap.Layers[Layer])^[DestIndex] = 0) and (TileID > 0) then
+    { Merge: non-zero tiles always overwrite (later layers have priority) }
+    if TileID > 0 then
       PWordArray(TileMap.Layers[Layer])^[DestIndex] := TileID;
   end;
 
@@ -229,7 +260,8 @@ begin
 end;
 
 { Main loader function }
-function LoadTileMap(const FilePath: String; var TileMap: TTileMap): Boolean;
+function LoadTileMap(const FilePath: String; var TileMap: TTileMap;
+                     ObjectGroupProc: TObjectGroupProc): Boolean;
 var
   Root: PXMLNode;
   MapNode: PXMLNode;
@@ -329,7 +361,12 @@ begin
   while Node <> nil do
   begin
     if Node^.Name = 'objectgroup' then
-      ObjectGroupFound := True
+    begin
+      ObjectGroupFound := True;
+      { Call callback for custom objectgroup processing }
+      if @ObjectGroupProc <> nil then
+        ObjectGroupProc(Node);
+    end
     else if Node^.Name = 'layer' then
     begin
       if ObjectGroupFound then

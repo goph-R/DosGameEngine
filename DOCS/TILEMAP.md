@@ -10,7 +10,7 @@ The loader can read **multiple `<layer>` tags** from a TMX file, but **merges th
 - **Back Layer** (index 1): All layers after the first `<objectgroup>` tag
 
 **Merging behavior:**
-- When multiple source layers overlap at the same tile position, the **lower index has priority** (earlier layers draw on top)
+- When multiple source layers overlap at the same tile position, the **higher index has priority** (later layers draw on top)
 - If no `<objectgroup>` tag exists, all layers merge into the front layer only
 - Empty tiles (ID = 0) are treated as transparent during merging
 
@@ -61,10 +61,13 @@ function GetLoadTileMapError(): String
 Returns the last error on TileMap loading, gets it from a unit scoped variable: `LoadTileMapError: String`.
 
 ```pascal
-function LoadTileMap(const FilePath: String; var TileMap: TTileMap): Boolean
+function LoadTileMap(const FilePath: String; var TileMap: TTileMap;
+                     ObjectGroupProc: TObjectGroupProc): Boolean
 ```
 
 Clears the `LoadTileMapError` variable, then loads the content of the `.tmx` file from the `FilePath` to an `XMLNode` (see MINIXML.PAS). On any fail sets the `LoadTileMapError` and returns `False.`
+
+The `ObjectGroupProc` parameter is a callback procedure that will be invoked when an `<objectgroup>` tag is encountered. Pass `nil` if you don't need to process objectgroups. The callback receives a `PXMLNode` pointer to the objectgroup node for custom processing.
 
 Searches for the `<map>` tag, if not presents the load fails. Sets the `TileMap.Width` and `TileMap.Height` via the `<map>` tag's `width` and `height` attributes, if any of these missing: the load fails.
 
@@ -83,19 +86,19 @@ Searches for the `<layer>` tags in the `<map>` node and calls the `LoadTileMapLa
 Given this layer order in a TMX file:
 
 ```xml
-<layer id="0"><data encoding="csv">...</data></layer> <!-- Front source #0 (highest priority) -->
-<layer id="1"><data encoding="csv">...</data></layer> <!-- Front source #1 -->
+<layer id="0"><data encoding="csv">...</data></layer> <!-- Front source #0 (lowest priority) -->
+<layer id="1"><data encoding="csv">...</data></layer> <!-- Front source #1 (highest priority) -->
 <objectgroup id="2">...</objectgroup>                 <!-- Split point -->
-<layer id="3"><data encoding="csv">...</data></layer> <!-- Back source #0 (highest priority) -->
-<layer id="4"><data encoding="csv">...</data></layer> <!-- Back source #1 -->
+<layer id="3"><data encoding="csv">...</data></layer> <!-- Back source #0 (lowest priority) -->
+<layer id="4"><data encoding="csv">...</data></layer> <!-- Back source #1 (highest priority) -->
 ```
 
 At tile position (x, y):
-- If Front #0 has tile ID > 0, use it (highest priority)
-- Else if Front #1 has tile ID > 0, use it
+- If Front #1 has tile ID > 0, use it (highest priority - rendered last)
+- Else if Front #0 has tile ID > 0, use it
 - Else position is empty (ID = 0)
 
-The same priority logic applies to back layers. **Lower index = higher priority** during merging.
+The same priority logic applies to back layers. **Higher index = higher priority** during merging (later layers overwrite earlier layers).
 
 ```pascal
 function LoadTileSet(const FolderPath: String; const XMLNode: PXMLNode; var TileSet: TTileSet): Boolean
@@ -155,7 +158,7 @@ begin
   Buffer := CreateFrameBuffer;
 
   { Load tilemap from TMX file }
-  if LoadTileMap('DATA\LEVEL1.TMX', Map) then
+  if LoadTileMap('DATA\LEVEL1.TMX', Map, nil) then
   begin
     { Render back layer (background scenery) }
     DrawTileMapLayer(Map, TileMapLayer_Back, 0, 0, 20, 11, Buffer);
@@ -221,6 +224,40 @@ SourceY = Row * TileSet.TileHeight
 - External TSX tileset files (only internal)
 
 **TMX format info:** https://doc.mapeditor.org/en/stable/reference/tmx-map-format/
+
+## 🚧 TODO: Block Maps
+
+**Planned feature:** Support for collision/blocking layers using custom properties.
+
+**Concept:**
+- Layers with `<property name="blocks">` should be treated as collision maps instead of visual tile layers
+- These layers define which tiles block player movement
+- Block data should be stored separately from visual layers (not merged)
+
+**Example TMX usage:**
+```xml
+<layer id="5" name="Collision" width="20" height="15">
+  <properties>
+    <property name="blocks" type="bool" value="true"/>
+  </properties>
+  <data encoding="csv">
+0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
+0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+...
+  </data>
+</layer>
+```
+
+**Implementation notes:**
+- Detection code already exists in `LoadTileMapLayer` (checks for `blocks` property)
+- Currently marked with `TODO: Handle as block map instead of tile layer` comment
+- Future implementation should:
+  - Add `BlockMap: PByte` field to `TTileMap` record (1 byte per tile, 0=passable, 1=blocked)
+  - Skip block layers during visual layer merging
+  - Provide `IsBlocked(X, Y: Word): Boolean` helper function
+  - Consider using bit-packing for memory efficiency (8 tiles per byte)
+
+**Status:** Detection implemented, data handling not yet implemented.
 
 ## 📐 Coordinate Systems
 
@@ -312,7 +349,7 @@ Minimal working TMX file demonstrating 2-layer merging:
     <image source="TILES.PNG" width="128" height="128"/>
   </tileset>
 
-  <!-- Front layer: Decorations -->
+  <!-- Front layer: Decorations (lower priority - rendered first) -->
   <layer id="1" name="Decorations" width="20" height="15">
     <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -322,7 +359,7 @@ Minimal working TMX file demonstrating 2-layer merging:
     </data>
   </layer>
 
-  <!-- Front layer: Trees (overlays decorations) -->
+  <!-- Front layer: Trees (higher priority - rendered last, overwrites decorations) -->
   <layer id="2" name="Trees" width="20" height="15">
     <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -335,7 +372,7 @@ Minimal working TMX file demonstrating 2-layer merging:
   <!-- Separator: Everything after this goes to back layer -->
   <objectgroup id="3" name="Objects"/>
 
-  <!-- Back layer: Ground tiles -->
+  <!-- Back layer: Ground tiles (no merging - single layer after objectgroup) -->
   <layer id="4" name="Ground" width="20" height="15">
     <data encoding="csv">
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -348,4 +385,4 @@ Minimal working TMX file demonstrating 2-layer merging:
 </map>
 ```
 
-**Result:** "Decorations" and "Trees" merge into front layer (trees have priority), "Ground" becomes back layer.
+**Result:** "Decorations" and "Trees" merge into front layer (Trees have priority because higher index), "Ground" becomes back layer.

@@ -56,7 +56,7 @@ end;
 begin
   { Load tilemap }
   WriteLn('Loading tilemap from DATA\TEST.TMX...');
-  if not LoadTileMap('DATA\TEST.TMX', TileMap) then
+  if not LoadTileMap('DATA\TEST.TMX', TileMap, nil) then
   begin
     WriteLn('ERROR: ', GetLoadTileMapError());
     Halt(1);
