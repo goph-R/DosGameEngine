@@ -1,18 +1,43 @@
 @echo off
-echo Compiling TMX Memory Test...
+echo Compiling TMXTEST and dependencies...
 echo.
 
 cd ..\UNITS
-echo Compiling StrMap...
-tpc StrMap.pas
+
+echo Compiling VGA.PAS...
+tpc VGA.PAS
 if errorlevel 1 goto error
 
-echo Compiling MiniXML...
-tpc MiniXML.pas
+echo Compiling VGAPRINT.PAS...
+tpc VGAPRINT.PAS
 if errorlevel 1 goto error
 
+echo Compiling PKMLOAD.PAS...
+tpc PKMLOAD.PAS
+if errorlevel 1 goto error
+
+echo Compiling STRMAP.PAS...
+tpc STRMAP.PAS
+if errorlevel 1 goto error
+
+echo Compiling MINIXML.PAS...
+tpc MINIXML.PAS
+if errorlevel 1 goto error
+
+echo Compiling KEYBOARD.PAS...
+tpc KEYBOARD.PAS
+if errorlevel 1 goto error
+
+echo Compiling RTCTIMER.PAS...
+tpc RTCTIMER.PAS
+if errorlevel 1 goto error
+
+echo Compiling TMXLOAD.PAS...
+tpc TMXLOAD.PAS
+if errorlevel 1 goto error
+
+echo Compiling TMXTEST.PAS...
 cd ..\TESTS
-echo Compiling TMXTEST...
 tpc -U..\UNITS TMXTEST.PAS
 if errorlevel 1 goto error
 
@@ -22,6 +47,7 @@ goto end
 
 :error
 echo.
-echo Build FAILED!
+echo Build failed!
+cd ..\TESTS
 
 :end

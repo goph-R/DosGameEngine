@@ -1,137 +1,176 @@
-program TMXTest;
+program TMapTest;
 
 uses
-  MiniXML;
+  VGA, TmxLoad, Keyboard, VgaPrint, RTCTimer;
 
 var
-  Root: PXMLNode;
-  TotalNodes: LongInt;
-  TotalAttrs: LongInt;
-  TotalTextBytes: LongInt;
-  BaseMemory: LongInt;
-  AttrMemory: LongInt;
-  TextMemory: LongInt;
-  TotalMemory: LongInt;
+  TileMap: TTileMap;
+  FrameBuffer: PFrameBuffer;
+  Running: Boolean;
+  CameraX, CameraY: Word;
+  ViewWidthTiles, ViewHeightTiles: Word;
+  MaxCameraX, MaxCameraY: Word;
+  FPS: Real;
+  FrameCount: Word;
+  LastFPSUpdate: Real;
+  StatusText: String;
+  I: Integer;
 
-{ Recursively count nodes and memory usage }
-procedure CountNodeMemory(Node: PXMLNode);
+procedure UpdateFPS;
 var
-  Child: PXMLNode;
-  i: Integer;
-  AttrKeyLen, AttrValLen: Integer;
+  CurrentTime: Real;
+  Elapsed: Real;
 begin
-  if Node = nil then Exit;
+  Inc(FrameCount);
+  CurrentTime := GetTimeSeconds;
+  Elapsed := CurrentTime - LastFPSUpdate;
 
-  { Count this node }
-  Inc(TotalNodes);
-
-  { Base node overhead: ~103 bytes }
-  Inc(BaseMemory, 103);
-
-  { Count attributes }
-  Inc(TotalAttrs, Node^.AttrCount);
-
-  { Calculate attribute memory (pointers + actual strings) }
-  if Node^.AttrCount > 0 then
+  if Elapsed >= 1.0 then
   begin
-    { Pointer arrays overhead }
-    Inc(AttrMemory, Node^.AttrCap * SizeOf(Pointer) * 2);
-
-    { Individual attribute strings }
-    for i := 0 to Node^.AttrCount - 1 do
-    begin
-      { Each string: 1 byte length + actual chars }
-      AttrKeyLen := Length(PPShortStringArray(Node^.AttrKeys)^[i]^);
-      AttrValLen := Length(PPShortStringArray(Node^.AttrValues)^[i]^);
-      Inc(AttrMemory, 1 + AttrKeyLen);  { Key string }
-      Inc(AttrMemory, 1 + AttrValLen);  { Value string }
-    end;
-  end;
-
-  { Count text buffer }
-  if Node^.TextBuf <> nil then
-  begin
-    Inc(TotalTextBytes, Node^.TextLen);
-    Inc(TextMemory, Node^.TextCap);  { Allocated capacity }
-  end;
-
-  { Recurse into children }
-  Child := Node^.FirstChild;
-  while Child <> nil do
-  begin
-    CountNodeMemory(Child);
-    Child := Child^.NextSibling;
+    FPS := FrameCount / Elapsed;
+    FrameCount := 0;
+    LastFPSUpdate := CurrentTime;
   end;
 end;
 
+procedure DrawUI;
 begin
-  WriteLn('TMX/XML Memory Usage Analyzer');
-  WriteLn('=============================');
-  WriteLn;
+  { Display camera position and FPS }
+  Str(CameraX, StatusText);
+  StatusText := 'Cam X: ' + StatusText;
+  PrintText(5, 5, StatusText, 15, FrameBuffer);
 
-  { Initialize counters }
-  TotalNodes := 0;
-  TotalAttrs := 0;
-  TotalTextBytes := 0;
-  BaseMemory := 0;
-  AttrMemory := 0;
-  TextMemory := 0;
+  Str(CameraY, StatusText);
+  StatusText := 'Cam Y: ' + StatusText;
+  PrintText(5, 15, StatusText, 15, FrameBuffer);
 
-  { Load TMX file }
-  Write('Loading ..\DATA\TEST.TMX... ');
-  if not XMLLoadFile('..\DATA\TEST.TMX', Root) then
+  Str(FPS:0:1, StatusText);
+  StatusText := 'FPS: ' + StatusText;
+  PrintText(5, 25, StatusText, 15, FrameBuffer);
+
+  { Instructions }
+  PrintText(5, 45, 'Arrow keys: Scroll', 14, FrameBuffer);
+  PrintText(5, 55, 'ESC: Exit', 14, FrameBuffer);
+end;
+
+begin
+  { Initialize }
+  Running := True;
+  CameraX := 0;
+  CameraY := 0;
+  FPS := 0.0;
+  FrameCount := 0;
+
+  { Initialize keyboard handler }
+  InitKeyboard;
+
+  { Initialize RTC timer for FPS calculation }
+  InitRTC(1024);
+  LastFPSUpdate := GetTimeSeconds;
+
+  { Load tilemap }
+  WriteLn('Loading tilemap from DATA\TEST.TMX...');
+  if not LoadTileMap('DATA\TEST.TMX', TileMap) then
   begin
-    WriteLn('FAILED!');
-    WriteLn('Error: Could not load file.');
+    WriteLn('ERROR: ', GetLoadTileMapError());
+    DoneRTC;
+    DoneKeyboard;
     Halt(1);
   end;
-  WriteLn('OK');
-  WriteLn;
 
-  { Analyze memory usage }
-  CountNodeMemory(Root);
-
-  { Calculate totals }
-  TotalMemory := BaseMemory + AttrMemory + TextMemory;
-
-  { Display statistics }
-  WriteLn('Structure Statistics:');
-  WriteLn('--------------------');
-  WriteLn('Total nodes:           ', TotalNodes);
-  WriteLn('Total attributes:      ', TotalAttrs);
-  WriteLn('Total text content:    ', TotalTextBytes, ' bytes');
-  WriteLn;
-
-  WriteLn('Memory Usage Breakdown:');
-  WriteLn('----------------------');
-  WriteLn('Base node overhead:    ', BaseMemory, ' bytes  (~', BaseMemory div 1024, ' KB)');
-  WriteLn('Attribute storage:     ', AttrMemory, ' bytes  (~', AttrMemory div 1024, ' KB)');
-  WriteLn('Text buffers:          ', TextMemory, ' bytes  (~', TextMemory div 1024, ' KB)');
-  WriteLn('--------------------------------');
-  WriteLn('TOTAL MEMORY:          ', TotalMemory, ' bytes  (~', TotalMemory div 1024, ' KB)');
-  WriteLn;
-
-  WriteLn('Per-Node Averages:');
-  WriteLn('-----------------');
-  if TotalNodes > 0 then
+  WriteLn('Tilemap loaded successfully!');
+  WriteLn('  Map size: ', TileMap.Width, ' x ', TileMap.Height, ' tiles');
+  WriteLn('  Tilesets: ', TileMap.TileSetCount);
+  for I := 0 to TileMap.TileSetCount - 1 do
   begin
-    WriteLn('Avg memory per node:   ', TotalMemory div TotalNodes, ' bytes');
-    WriteLn('Avg attributes/node:   ', TotalAttrs div TotalNodes);
+    WriteLn('    Tileset ', I, ': FirstGID=', TileMap.TileSets[I].FirstGID,
+            ' Size=', TileMap.TileSets[I].TileWidth, 'x', TileMap.TileSets[I].TileHeight,
+            ' Cols=', TileMap.TileSets[I].Columns);
   end;
-  WriteLn;
 
-  WriteLn('Estimated OLD Design (pre-optimization):');
-  WriteLn('---------------------------------------');
-  WriteLn('Old memory per node:   4680 bytes (fixed arrays)');
-  WriteLn('Old total memory:      ', TotalNodes * 4680, ' bytes  (~', (TotalNodes * 4680) div 1024, ' KB)');
-  WriteLn('MEMORY SAVED:          ', (TotalNodes * 4680) - TotalMemory,' bytes  (~',
-    ((TotalNodes * 4680) - TotalMemory) div 1024, ' KB)');
-  WriteLn('REDUCTION:             ', 100 - ((TotalMemory * 100) div (TotalNodes * 4680)), '%');
-  WriteLn;
+  { Calculate view size in tiles (assuming 32x32 tiles for now) }
+  if TileMap.TileSetCount > 0 then
+  begin
+    ViewWidthTiles := 320 div TileMap.TileSets[0].TileWidth;
+    ViewHeightTiles := 200 div TileMap.TileSets[0].TileHeight;
+  end
+  else
+  begin
+    ViewWidthTiles := 10;
+    ViewHeightTiles := 6;
+  end;
+
+  { Calculate max camera position }
+  if TileMap.Width > ViewWidthTiles then
+    MaxCameraX := TileMap.Width - ViewWidthTiles
+  else
+    MaxCameraX := 0;
+
+  if TileMap.Height > ViewHeightTiles then
+    MaxCameraY := TileMap.Height - ViewHeightTiles
+  else
+    MaxCameraY := 0;
+
+  WriteLn('  View size: ', ViewWidthTiles, ' x ', ViewHeightTiles, ' tiles');
+  WriteLn('Press any key to start...');
+  ReadLn;
+
+  { Enter VGA mode }
+  InitVGA;
+  FrameBuffer := CreateFrameBuffer;
+
+  { Main loop }
+  while Running do
+  begin
+    { Handle input }
+    if IsKeyPressed(Key_Escape) then
+      Running := False;
+
+    if IsKeyDown(Key_Left) and (CameraX > 0) then
+      Dec(CameraX);
+
+    if IsKeyDown(Key_Right) and (CameraX < MaxCameraX) then
+      Inc(CameraX);
+
+    if IsKeyDown(Key_Up) and (CameraY > 0) then
+      Dec(CameraY);
+
+    if IsKeyDown(Key_Down) and (CameraY < MaxCameraY) then
+      Inc(CameraY);
+
+    { Clear framebuffer }
+    ClearFrameBuffer(FrameBuffer);
+
+    { Render back layer (background) }
+    DrawTileMapLayer(TileMap, TileMapLayer_Back, CameraX, CameraY, ViewWidthTiles, ViewHeightTiles, FrameBuffer);
+
+    { TODO: Render game sprites here }
+
+    { Render front layer (foreground) }
+    DrawTileMapLayer(TileMap, TileMapLayer_Front, CameraX, CameraY, ViewWidthTiles, ViewHeightTiles, FrameBuffer);
+
+    { Draw UI overlay }
+    DrawUI;
+
+    { Display }
+    WaitForVSync;
+    RenderFrameBuffer(FrameBuffer);
+
+    { Update FPS }
+    UpdateFPS;
+
+    { Clear key states for next frame }
+    ClearKeyPressed;
+  end;
 
   { Cleanup }
-  XMLFreeTree(Root);
+  FreeFrameBuffer(FrameBuffer);
+  CloseVGA;
 
-  WriteLn('Press ENTER to exit.');
-  ReadLn;
+  FreeTileMap(TileMap);
+
+  DoneRTC;
+  DoneKeyboard;
+
+  WriteLn('Tilemap test completed.');
 end.
