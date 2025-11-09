@@ -32,7 +32,7 @@ type
   end;
 
 { Public API }
-function GetLoadTileMapError(): String;
+function GetLoadTileMapError: String;
 function LoadTileMap(const FilePath: String; var TileMap: TTileMap): Boolean;
 procedure DrawTileMapLayer(var TileMap: TTileMap; Layer: Byte; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
 procedure FreeTileMap(var TileMap: TTileMap);
@@ -121,7 +121,6 @@ end;
 { Load a single tileset from XML node }
 function LoadTileSet(const FolderPath: String; const XMLNode: PXMLNode; var TileSet: TTileSet): Boolean;
 var
-  Attr: String;
   ImageNode: PXMLNode;
   ImageSource: String;
   FullPath: String;
@@ -130,37 +129,33 @@ begin
   LoadTileSet := False;
 
   { Extract required attributes }
-  Attr := XMLGetAttr(XMLNode, 'firstgid');
-  if Attr = '' then
+  if not XMLHasAttr(XMLNode, 'firstgid') then
   begin
     LoadTileMapError := 'Missing firstgid attribute in tileset';
     Exit;
   end;
-  TileSet.FirstGID := StrToInt(Attr);
+  TileSet.FirstGID := StrToInt(XMLAttr(XMLNode, 'firstgid'));
 
-  Attr := XMLGetAttr(XMLNode, 'tilewidth');
-  if Attr = '' then
+  if not XMLHasAttr(XMLNode, 'tilewidth') then
   begin
     LoadTileMapError := 'Missing tilewidth attribute in tileset';
     Exit;
   end;
-  TileSet.TileWidth := StrToInt(Attr);
+  TileSet.TileWidth := StrToInt(XMLAttr(XMLNode, 'tilewidth'));
 
-  Attr := XMLGetAttr(XMLNode, 'tileheight');
-  if Attr = '' then
+  if not XMLHasAttr(XMLNode, 'tileheight') then
   begin
     LoadTileMapError := 'Missing tileheight attribute in tileset';
     Exit;
   end;
-  TileSet.TileHeight := StrToInt(Attr);
+  TileSet.TileHeight := StrToInt(XMLAttr(XMLNode, 'tileheight'));
 
-  Attr := XMLGetAttr(XMLNode, 'columns');
-  if Attr = '' then
+  if not XMLHasAttr(XMLNode, 'columns') then
   begin
     LoadTileMapError := 'Missing columns attribute in tileset';
     Exit;
   end;
-  TileSet.Columns := StrToInt(Attr);
+  TileSet.Columns := StrToInt(XMLAttr(XMLNode, 'columns'));
 
   { Find <image> child node }
   ImageNode := XMLFirstChild(XMLNode, 'image');
@@ -171,12 +166,12 @@ begin
   end;
 
   { Get image source path }
-  ImageSource := XMLGetAttr(ImageNode, 'source');
-  if ImageSource = '' then
+  if not XMLHasAttr(ImageNode, 'source') then
   begin
     LoadTileMapError := 'Missing source attribute in <image> tag';
     Exit;
   end;
+  ImageSource := XMLAttr(ImageNode, 'source');
 
   { Convert path: fix slashes, change extension to PKM }
   ImageSource := FixPath(ImageSource);
@@ -209,7 +204,7 @@ begin
   if DataNode = nil then Exit;
 
   { Check encoding }
-  Encoding := XMLGetAttr(DataNode, 'encoding');
+  Encoding := XMLAttr(DataNode, 'encoding');
   if Encoding <> 'csv' then Exit;  { Only CSV supported }
 
   { Parse CSV data using XMLReadWordArray }
@@ -240,7 +235,6 @@ var
   Root: PXMLNode;
   MapNode: PXMLNode;
   Node: PXMLNode;
-  Attr: String;
   FolderPath: String;
   LayerSize: LongInt;
   ObjectGroupFound: Boolean;
@@ -274,23 +268,21 @@ begin
   end;
 
   { Get map dimensions }
-  Attr := XMLGetAttr(MapNode, 'width');
-  if Attr = '' then
+  if not XMLHasAttr(MapNode, 'width') then
   begin
     LoadTileMapError := 'Missing width attribute in <map> tag';
     XMLFree(Root);
     Exit;
   end;
-  TileMap.Width := StrToInt(Attr);
+  TileMap.Width := StrToInt(XMLAttr(MapNode, 'width'));
 
-  Attr := XMLGetAttr(MapNode, 'height');
-  if Attr = '' then
+  if not XMLHasAttr(MapNode, 'height') then
   begin
     LoadTileMapError := 'Missing height attribute in <map> tag';
     XMLFree(Root);
     Exit;
   end;
-  TileMap.Height := StrToInt(Attr);
+  TileMap.Height := StrToInt(XMLAttr(MapNode, 'height'));
 
   { Allocate layer memory }
   LayerSize := LongInt(TileMap.Width) * LongInt(TileMap.Height) * SizeOf(Word);
@@ -427,7 +419,7 @@ begin
 end;
 
 { Get last error message }
-function GetLoadTileMapError(): String;
+function GetLoadTileMapError: String;
 begin
   GetLoadTileMapError := LoadTileMapError;
 end;
