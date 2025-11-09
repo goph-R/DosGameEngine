@@ -40,6 +40,10 @@ echo Compiling TMXLOAD.PAS...
 tpc TMXLOAD.PAS
 if errorlevel 1 goto error
 
+echo Compiling TMXDRAW.PAS...
+tpc TMXDRAW.PAS
+if errorlevel 1 goto error
+
 echo Compiling TMXTEST.PAS...
 cd ..\TESTS
 tpc -U..\UNITS TMXTEST.PAS
