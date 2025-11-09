@@ -205,6 +205,11 @@ Create game configuration files with any text editor:
 </game>
 ```
 
+### TMX tilemaps
+
+Use [Tiled](https://www.mapeditor.org/) a full-featured level editor (Windows/Linux/Mac).
+See the restrictions at the [tilemap documentation](DOCS/TILEMAP.md).
+
 **Features:**
 - DOM-style tree navigation
 - Fast attribute lookup (O(1) hash map)
