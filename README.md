@@ -23,16 +23,14 @@ SETUP.EXE
 # 2. Copy the saved CONFIG.INI to the TESTS folder
 copy CONFIG.INI ..\TESTS
 
-# 3. Compile & try the sprite animation demo
+# 3. Compile & try the advanced VGA demo with music and sound
 cd ..\TESTS
-CSPRTEST.BAT
-SPRTEST.EXE
+CIMGTEST.BAT
+IMGTEST.EXE
 ```
 
 **Controls:**
-- **1**: Switch to Idle animation
-- **2**: Switch to Run animation
-- **F**: Flip sprite horizontally
+- **E**: Play an explosion
 - **ESC**: Exit demo
 
 ## ✨ Features
@@ -83,7 +81,7 @@ cd TESTS
 CVGATEST.BAT    # VGA graphics test
 CSNDTEST.BAT    # Sound bank test
 CSPRTEST.BAT    # Sprite animation test
-CIMGTEST.BAT    # Advanced sprite demo with music and sound
+CIMGTEST.BAT    # Advanced VGA demo with music and sound
 CTMXTEST.BAT    # TMX tilemap scrolling test
 CXMLTEST.BAT    # XML parser test
 ```
