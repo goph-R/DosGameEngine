@@ -133,17 +133,8 @@ D:\ENGINE\
 │   ├── FANTASY.HSC     - Example Adlib music
 │   └── EXPLODE.VOC     - Example sound effect
 │
-├── DOCS\           Documentation
-│   ├── PKM.md          - PKM image format spec
-│   ├── HSC.md          - HSC music format spec
-│   ├── MINIXML.md      - XML parser API reference
-│   ├── TILEMAP.md      - TMX tilemap format guide
-│   └── DESIGN\
-│       └── TIMING.md   - Delta-time and animation patterns
-│
-└── VENDOR\         Third-party libraries - Not used directly
-    ├── SBDSP2B\        - Sound Blaster driver (1995)
-    └── XMS\            - XMS memory manager (1992)
+├── DOCS\           Documentation, see the links above
+└── VENDOR\         Third-party libraries - Not used directly, only for credits
 ```
 
 ## 🎨 Creating Assets
