@@ -134,7 +134,7 @@ D:\ENGINE\
 │   └── CSETUP.BAT      - Compile script
 │
 ├── DATA\           Sample assets
-│   ├── TEST.PKM        - Example 320×200 image
+│   ├── TEST.PKM        - Example 289×171 image
 │   ├── PLAYER.PKM      - Example sprite sheet (192×64)
 │   ├── TEST.XML        - Example game configuration
 │   ├── TEST.TMX        - Example tilemap
