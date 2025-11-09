@@ -180,11 +180,11 @@ SETUP.EXE      - Configure sound card settings
 **PKMLOAD.PAS** - PKM image format loader
 - PKM format: RLE-compressed paletted image format from GrafX2 drawing program (http://grafx2.chez.com/)
 - `LoadPKM(filename, buffer, palette)`: Decompresses image to framebuffer
-- **Current limitation**: Only loads 320x200 pixel images (under construction - will support arbitrary sizes later)
+- Supports arbitrary image dimensions (images loaded at their native size)
 - Header structure:
   - Signature: "PKM" (3 bytes)
   - Version, pack markers (Pack_byte/Pack_word for RLE)
-  - Width/Height (currently must be 320x200)
+  - Width/Height (arbitrary dimensions supported)
   - 768-byte palette (256 RGB triplets)
   - RLE-compressed pixel data (byte-run or word-run encoding)
 
@@ -239,7 +239,7 @@ SETUP.EXE      - Configure sound card settings
 - TEST.PKM (example image)
 - Indexed color (256 colors) with embedded palette
 - RLE compression using configurable pack markers
-- **Current**: Only 320x200 images supported ⚠️ **UNDER CONSTRUCTION** (arbitrary dimensions planned)
+- Supports arbitrary image dimensions
 
 **HSC Music**:
 - FANTASY.HSC (example)
@@ -488,14 +488,13 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 10. **Memory leaks**: Match every `CreateFrameBuffer` with `FreeFrameBuffer`
 11. **Keyboard loop order**: Always call `ClearKeyPressed` at the **end** of the game loop
 12. **DMA boundaries**: Sound samples must not cross 64KB page boundaries (handled automatically by SBDSP)
-13. **Image dimensions**: PKM loader enforces 320x200; other sizes will fail silently
-14. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
-15. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
-16. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
-17. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
-18. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
-19. ~~**DOSBox-X sound cutoff mystery**~~: **✅ SOLVED** - The infamous sound cutoff bug was caused by **PIT Timer 0 / IRQ0 interrupt conflicts**. When HSC music player hooks IRQ0 for polling, reading PIT Timer 0 counters creates race conditions and nested interrupt issues that disrupt Sound Blaster DMA timing. **Solution**: Use **RTCTimer.PAS** (RTC IRQ8 on slave PIC) for high-resolution timing instead of reading PIT Timer 0. IRQ8 is completely separate from IRQ0, eliminating all conflicts. The "dummy variable workaround" was masking a timing-dependent bug by changing stack layout - switching to RTC fixed the root cause. See IMGTEST.PAS for the corrected implementation.
-20. **PIT Timer 0 / IRQ0 conflicts**: Never share PIT Timer 0 with interrupt-driven systems like HSC music player. Reading PIT counters or hooking IRQ0 while HSC is active causes interrupt conflicts, timing glitches, stack corruption, and sound cutoff. **Always use RTCTimer.PAS (IRQ8) for high-resolution timing** - it's on the slave PIC and completely isolated from music/BIOS timers.
+13. **Palette**: PKM palette values are used directly (0-63 for VGA DAC)
+14. **File paths**: DOS 8.3 filenames, case-insensitive, backslash paths
+15. **XMS far calls**: Turbo Pascal 7.0 has quirks with far procedure pointers - XMS.PAS needs fixing
+16. **Timer interrupt safety**: Keep interrupt handlers minimal - complex logic can cause crashes. Always chain to original BIOS handler.
+17. **Menu callbacks**: Procedures used as menu item callbacks must be compiled with `{$F+}` (far calls) directive, otherwise they cannot be assigned to procedure pointers
+18. ~~**DOSBox-X sound cutoff mystery**~~: **✅ SOLVED** - The infamous sound cutoff bug was caused by **PIT Timer 0 / IRQ0 interrupt conflicts**. When HSC music player hooks IRQ0 for polling, reading PIT Timer 0 counters creates race conditions and nested interrupt issues that disrupt Sound Blaster DMA timing. **Solution**: Use **RTCTimer.PAS** (RTC IRQ8 on slave PIC) for high-resolution timing instead of reading PIT Timer 0. IRQ8 is completely separate from IRQ0, eliminating all conflicts. The "dummy variable workaround" was masking a timing-dependent bug by changing stack layout - switching to RTC fixed the root cause. See IMGTEST.PAS for the corrected implementation.
+19. **PIT Timer 0 / IRQ0 conflicts**: Never share PIT Timer 0 with interrupt-driven systems like HSC music player. Reading PIT counters or hooking IRQ0 while HSC is active causes interrupt conflicts, timing glitches, stack corruption, and sound cutoff. **Always use RTCTimer.PAS (IRQ8) for high-resolution timing** - it's on the slave PIC and completely isolated from music/BIOS timers.
 
 ## Technical Constraints
 

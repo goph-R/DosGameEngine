@@ -362,22 +362,13 @@ end;
 ## Limitations
 
 1. **File size**: Maximum ~64KB (Turbo Pascal heap block limit in real-mode DOS)
-2. **Attributes per element**: Maximum 8 attributes (can be increased via `MAX_ATTRS`)
+2. **Attributes per element**: Maximum 8 attributes (can be increased via `XML_MaxAttrsCount`)
 3. **Attribute values**: Maximum 255 bytes (Turbo Pascal string limit)
-4. **Element names**: Maximum 255 bytes (Turbo Pascal string limit)
+4. **Element/Attribute names**: Maximum 20 bytes (can be increased via `XML_MaxNameLength`)
 5. **No validation**: Does not validate against DTD/XSD schemas
 6. **No entities**: HTML entities (`&lt;`, `&amp;`, etc.) not decoded
 7. **No namespaces**: XML namespaces not supported
 8. **Error handling**: Limited error reporting (returns `False` on failure)
-
-## Text Content Storage
-
-MINIXML uses a hybrid approach for text content:
-
-- **Small text (<255 bytes)**: Stored in `Node^.Text` string for fast access
-- **Large text (>=255 bytes)**: Automatically switches to dynamically allocated `TextBuf`
-
-This allows efficient handling of both small configuration values and large text blocks without wasting memory.
 
 ## Memory Management
 
@@ -528,28 +519,27 @@ CXMLTEST.BAT
 XMLTEST.EXE
 ```
 
-## History
+## Design Goals
 
-**2025** - Enhanced to support files larger than 255 bytes
-- Replaced string buffer with pointer-based allocation
-- Increased file size limit from 255 bytes to ~64KB
-- Fixed real-mode DOS compatibility (64KB heap block limits)
-- Changed TBuf.Pos/Len from Integer to Word for >32KB files
-- Added 64KB cap to text buffer growth in EnsureBuf
-- **Massive memory optimization** (98% reduction per node!):
-  - Removed Text field (saves 256 bytes per node)
-  - Changed Name from string to string[20] (saves 235 bytes per node)
-  - Replaced fixed attribute arrays with dynamic allocation
-  - Base node: 4680 bytes → 103 bytes (98% reduction!)
-  - 100 empty nodes: 468 KB → 10 KB (458 KB saved!)
-- Added XMLGetText() function for text content access
-- Added XML_MaxNameLength and XML_MaxAttrsCount constants
-- Maintained backward compatibility with existing code
+MINIXML was created in 2025 specifically for this DOS game engine with the following priorities:
 
-**Original** - Initial implementation
-- Basic XML parsing with DOM tree
-- Attribute support with hash map
-- Small file support (<=255 bytes)
+**Memory Efficiency:**
+- Dynamic allocation for all variable-size data
+- Only allocate what's actually needed (attributes, text)
+- Optimized for typical game config files (few attributes per node)
+- Result: ~103 bytes per empty node vs. 4680 bytes in naive design (98% reduction)
+
+**Real-Mode DOS Compatibility:**
+- All allocations respect TP7 heap block limits (≤64KB per block)
+- Buffer growth capped at safe limits
+- Word-sized position/length fields for >32KB file support
+- Tested on DOSBox-X and real hardware
+
+**Simplicity:**
+- Single-pass parser, no preprocessing
+- DOM-style tree for easy navigation
+- Hash map for fast O(1) attribute lookup
+- Minimal dependencies (only STRMAP.PAS)
 
 ## See Also
 

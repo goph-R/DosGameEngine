@@ -64,7 +64,6 @@ IMGTEST.EXE
 - **XML parser**: DOM-style XML loader for game configuration and data files
 - **Hash map**: Fast O(1) attribute lookup for XML elements
 - **Large file support**: Handles files up to ~64KB (TP7 heap limit)
-- **Hybrid text storage**: Automatic switching between string and buffer for efficiency
 - **Numeric array parser**: Parse comma-separated Word arrays from XML content
 
 ### 🛠️ Development Tools
@@ -155,8 +154,9 @@ D:\ENGINE\
 
 ### PKM Images
 Use [GrafX2](http://grafx2.chez.com/) the DOS pixel art editor (Windows/Linux/Mac):
-1. Draw in 320×200 mode with 256 colors
+1. Draw with 256 colors (any resolution supported)
 2. Save as PKM format (RLE-compressed)
+   - Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
 
 ### VOC Sound Effects
 Use [Audacity](https://www.audacityteam.org/) (Windows/Linux/Mac):

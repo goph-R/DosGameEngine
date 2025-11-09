@@ -124,7 +124,8 @@ begin
   WriteLn('---------------------------------------');
   WriteLn('Old memory per node:   4680 bytes (fixed arrays)');
   WriteLn('Old total memory:      ', TotalNodes * 4680, ' bytes  (~', (TotalNodes * 4680) div 1024, ' KB)');
-  WriteLn('MEMORY SAVED:          ', (TotalNodes * 4680) - TotalMemory, ' bytes  (~', ((TotalNodes * 4680) - TotalMemory) div 1024, ' KB)');
+  WriteLn('MEMORY SAVED:          ', (TotalNodes * 4680) - TotalMemory,' bytes  (~',
+    ((TotalNodes * 4680) - TotalMemory) div 1024, ' KB)');
   WriteLn('REDUCTION:             ', 100 - ((TotalMemory * 100) div (TotalNodes * 4680)), '%');
   WriteLn;
 
