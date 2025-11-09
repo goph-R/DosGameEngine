@@ -77,9 +77,10 @@ IMGTEST.EXE
 - **Heap management**: GetMem/FreeMem wrappers for safety
 
 ### 📝 Data & Configuration
-- **XML parser**: DOM-style XML loader for game configuration and data files
+- **INI parser**: Simple INI loader and writer for the setup program
+- **XML parser**: DOM-style XML loader for the game resources and TMX files
 - **Hash map**: Fast O(1) attribute lookup for XML elements
-- **Small file support**: Handles files up to ~64KB (TP7 heap limit)
+- **64KB file support**: Handles files up to ~64KB (TP7 heap limit)
 - **Numeric array parser**: Parse comma-separated Word arrays from XML content
 
 ### 🛠️ Development Tools
@@ -93,45 +94,45 @@ IMGTEST.EXE
 ```
 D:\ENGINE\
 ├── UNITS\          Core engine units
-│   ├── VGA.PAS         - Mode 13h graphics driver
-│   ├── VGAPRINT.PAS    - 8x8 bitmap font text renderer
-│   ├── SPRITE.PAS      - Sprite animation system
+│   ├── CONFIG.PAS      - INI file configuration
+│   ├── KEYBOARD.PAS    - Keyboard interrupt handler
+│   ├── MINIXML.PAS     - XML parser with DOM tree
+│   ├── MOUSE.PAS       - Mouse interrupt handler
 │   ├── PKMLOAD.PAS     - PKM image loader
+│   ├── PLAYHSC.PAS     - HSC music player
+│   ├── RTCTIMER.PAS    - RTC high-resolution timer
 │   ├── SBDSP.PAS       - Sound Blaster driver
 │   ├── SNDBANK.PAS     - XMS sound bank manager
-│   ├── PLAYHSC.PAS     - HSC music player
-│   ├── KEYBOARD.PAS    - Keyboard interrupt handler
-│   ├── MOUSE.PAS       - Mouse interrupt handler
-│   ├── RTCTIMER.PAS    - RTC high-resolution timer
-│   ├── CONFIG.PAS      - INI file configuration
+│   ├── SPRITE.PAS      - Sprite animation system
+│   ├── STRMAP.PAS      - String hash map
 │   ├── TEXTUI.PAS      - Text mode UI library
-│   ├── MINIXML.PAS     - XML parser with DOM tree
 │   ├── TMXLOAD.PAS     - TMX tilemap loader
 │   ├── TMXDRAW.PAS     - TMX tilemap renderer
-│   └── STRMAP.PAS      - String hash map
+│   ├── VGA.PAS         - Mode 13h graphics driver
+│   └── VGAPRINT.PAS    - 8x8 bitmap font text renderer
 │
 ├── TESTS\          Test programs
-│   ├── VGATEST.PAS     - VGA graphics demo
+│   ├── C*.BAT          - Compile scripts
+│   ├── IMGTEST.PAS     - Advanced sprite demo with audio
+│   ├── MOUTEST.PAS     - Mouse input demo with crosshair
 │   ├── SNDTEST.PAS     - Sound bank demo
 │   ├── SPRTEST.PAS     - Sprite animation system demo
-│   ├── MOUTEST.PAS     - Mouse input demo with crosshair
-│   ├── IMGTEST.PAS     - Advanced sprite demo with audio
 │   ├── TMXTEST.PAS     - TMX tilemap scrolling demo
-│   ├── XMLTEST.PAS     - XML parser demo
-│   └── C*.BAT          - Compile scripts
+│   ├── VGATEST.PAS     - VGA graphics demo
+│   └── XMLTEST.PAS     - XML parser demo
 │
 ├── SETUP\          Configuration utility
+│   ├── CSETUP.BAT      - Compile script
 │   ├── SETUP.PAS       - Sound card setup program
-│   ├── VOCLOAD.PAS     - VOC file loader
-│   └── CSETUP.BAT      - Compile script
+│   └── VOCLOAD.PAS     - VOC file loader
 │
 ├── DATA\           Sample assets
-│   ├── TEST.PKM        - Example 289×171 image
-│   ├── PLAYER.PKM      - Example sprite sheet (192×64)
-│   ├── TEST.XML        - Example game configuration
-│   ├── TEST.TMX        - Example tilemap
+│   ├── EXPLODE.VOC     - Example sound effect
 │   ├── FANTASY.HSC     - Example Adlib music
-│   └── EXPLODE.VOC     - Example sound effect
+│   ├── PLAYER.PKM      - Example sprite sheet (192×64)
+│   ├── TEST.PKM        - Example 289×171 image
+│   ├── TEST.TMX        - Example tilemap
+│   └── TEST.XML        - Example game configuration
 │
 ├── DOCS\           Documentation, see the links above
 └── VENDOR\         Third-party libraries - Not used directly, only for credits
