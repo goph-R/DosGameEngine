@@ -1,11 +1,12 @@
 program TMapTest;
 
 uses
-  VGA, VGAPrint, TMXLoad, Keyboard, RTCTimer;
+  VGA, VGAPrint, TMXLoad, Keyboard, RTCTimer, PKMLoad;
 
 var
   TileMap: TTileMap;
   FrameBuffer: PFrameBuffer;
+  Background: TImage;
   Running: Boolean;
   CameraX, CameraY: Word;
   ViewWidthTiles, ViewHeightTiles: Word;
@@ -15,6 +16,7 @@ var
   LastFPSUpdate: Real;
   StatusText: String;
   I: Integer;
+  Palette: TPalette;
 
 procedure UpdateFPS;
 var
@@ -54,11 +56,12 @@ begin
 end;
 
 begin
+
   { Load tilemap }
   WriteLn('Loading tilemap from DATA\TEST.TMX...');
-  if not LoadTileMap('DATA\TEST.TMX', TileMap, nil) then
+  if not LoadTileMap('..\DATA\TEST.TMX', TileMap, nil) then
   begin
-    WriteLn('ERROR: ', GetLoadTileMapError());
+    WriteLn('ERROR: ', GetLoadTileMapError);
     Halt(1);
   end;
 
@@ -74,11 +77,26 @@ begin
 
   { Calculate view size in tiles }
   ViewWidthTiles := 320 div TileMap.TileSets[0].TileWidth;
-  ViewHeightTiles := 200 div TileMap.TileSets[0].TileHeight;
+  ViewHeightTiles := 200 div TileMap.TileSets[0].TileHeight + 1;
 
   WriteLn('  View size: ', ViewWidthTiles, ' x ', ViewHeightTiles, ' tiles');
   WriteLn('Press any key to start...');
   ReadLn;
+
+  { Load palette }
+  WriteLn('Loading palette from DATA\TEST.PAL...');
+  if not LoadPalette('..\DATA\TEST.PAL', Palette) then
+  begin
+    WriteLn('Could not load palette.');
+    Halt(1);
+  end;
+
+  WriteLn('Loading background from DATA\BG.PKM...');
+  if not LoadPKM('..\DATA\BG.PKM', Background) then
+  begin
+    WriteLn('Could not background.');
+    Halt(1);
+  end;
 
   { Initialize }
   Running := True;
@@ -94,7 +112,6 @@ begin
   InitRTC(1024);
   LastFPSUpdate := GetTimeSeconds;
 
-
   { Calculate max camera position }
   if TileMap.Width > ViewWidthTiles then
     MaxCameraX := TileMap.Width - ViewWidthTiles
@@ -108,6 +125,7 @@ begin
 
   { Enter VGA mode }
   InitVGA;
+  SetPalette(Palette);
   FrameBuffer := CreateFrameBuffer;
 
   { Main loop }
@@ -117,20 +135,20 @@ begin
     if IsKeyPressed(Key_Escape) then
       Running := False;
 
-    if IsKeyDown(Key_Left) and (CameraX > 0) then
+    if IsKeyPressed(Key_Left) and (CameraX > 0) then
       Dec(CameraX);
 
-    if IsKeyDown(Key_Right) and (CameraX < MaxCameraX) then
+    if IsKeyPressed(Key_Right) and (CameraX < MaxCameraX) then
       Inc(CameraX);
 
-    if IsKeyDown(Key_Up) and (CameraY > 0) then
+    if IsKeyPressed(Key_Up) and (CameraY > 0) then
       Dec(CameraY);
 
-    if IsKeyDown(Key_Down) and (CameraY < MaxCameraY) then
+    if IsKeyPressed(Key_Down) and (CameraY < MaxCameraY) then
       Inc(CameraY);
 
-    { Clear framebuffer }
-    ClearFrameBuffer(FrameBuffer);
+    { Draw background }
+    PutImage(Background, 0, 0, False, FrameBuffer);
 
     { Render back layer (background) }
     DrawTileMapLayer(TileMap, TileMapLayer_Back, CameraX, CameraY, ViewWidthTiles, ViewHeightTiles, FrameBuffer);
@@ -144,7 +162,7 @@ begin
     DrawUI;
 
     { Display }
-    WaitForVSync;
+    {WaitForVSync;}
     RenderFrameBuffer(FrameBuffer);
 
     { Update FPS }
@@ -156,6 +174,7 @@ begin
 
   { Cleanup }
   FreeFrameBuffer(FrameBuffer);
+  FreeImage(Background);
   CloseVGA;
 
   FreeTileMap(TileMap);

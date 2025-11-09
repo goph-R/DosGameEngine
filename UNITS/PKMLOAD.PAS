@@ -43,7 +43,7 @@ var
   TempByte: Byte;
   ImageBuffer: PByteArray;
 begin
-  LoadPKM := False;
+  LoadPKMWithPalette := False;
 
   { Initialize Image structure }
   Image.Width := 0;

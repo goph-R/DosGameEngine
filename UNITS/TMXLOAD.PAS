@@ -45,7 +45,7 @@ procedure FreeTileMap(var TileMap: TTileMap);
 implementation
 
 uses
-  PKMLoad;
+  PKMLoad, StrUtil;
 
 var
   LoadTileMapError: String;
@@ -222,7 +222,7 @@ begin
         begin
           IsBlocksLayer := True;
           { TODO: Handle as block map instead of tile layer }
-          Break;
+          Exit;
         end;
       end;
       PropertyNode := XMLNextSibling(PropertyNode, 'property');
@@ -263,7 +263,6 @@ end;
 function LoadTileMap(const FilePath: String; var TileMap: TTileMap;
                      ObjectGroupProc: TObjectGroupProc): Boolean;
 var
-  Root: PXMLNode;
   MapNode: PXMLNode;
   Node: PXMLNode;
   FolderPath: String;
@@ -282,20 +281,11 @@ begin
   TileMap.Layers[0] := nil;
   TileMap.Layers[1] := nil;
 
-  { Load and parse XML }
-  Root := XMLLoad(FilePath);
-  if Root = nil then
-  begin
-    LoadTileMapError := 'Failed to load TMX file: ' + FilePath;
-    Exit;
-  end;
-
-  { Find <map> node }
-  MapNode := XMLFirstChild(Root, 'map');
+  { Load and parse XML, the <map> is the root node }
+  XMLLoadFile(FilePath, MapNode);
   if MapNode = nil then
   begin
-    LoadTileMapError := 'No <map> tag found in TMX file';
-    XMLFree(Root);
+    LoadTileMapError := 'Failed to load TMX file: ' + FilePath;
     Exit;
   end;
 
@@ -303,7 +293,7 @@ begin
   if not XMLHasAttr(MapNode, 'width') then
   begin
     LoadTileMapError := 'Missing width attribute in <map> tag';
-    XMLFree(Root);
+    XMLFreeTree(MapNode);
     Exit;
   end;
   TileMap.Width := StrToInt(XMLAttr(MapNode, 'width'));
@@ -311,7 +301,7 @@ begin
   if not XMLHasAttr(MapNode, 'height') then
   begin
     LoadTileMapError := 'Missing height attribute in <map> tag';
-    XMLFree(Root);
+    XMLFreeTree(MapNode);
     Exit;
   end;
   TileMap.Height := StrToInt(XMLAttr(MapNode, 'height'));
@@ -335,7 +325,7 @@ begin
   begin
     if not LoadTileSet(FolderPath, Node, TileMap.TileSets[TileMap.TileSetCount]) then
     begin
-      XMLFree(Root);
+      XMLFreeTree(MapNode);
       FreeTileMap(TileMap);
       Exit;
     end;
@@ -347,7 +337,7 @@ begin
   if TileMap.TileSetCount = 0 then
   begin
     LoadTileMapError := 'No tilesets found';
-    XMLFree(Root);
+    XMLFreeTree(MapNode);
     FreeTileMap(TileMap);
     Exit;
   end;
@@ -370,9 +360,11 @@ begin
     else if Node^.Name = 'layer' then
     begin
       if ObjectGroupFound then
-        LoadTileMapLayer(Node, TileMap, TileMapLayer_Back)
+        { First the front }
+        LoadTileMapLayer(Node, TileMap, TileMapLayer_Front)
       else
-        LoadTileMapLayer(Node, TileMap, TileMapLayer_Front);
+        { Then the back }
+        LoadTileMapLayer(Node, TileMap, TileMapLayer_Back);
     end;
     Node := Node^.NextSibling;
   end;
@@ -381,12 +373,16 @@ begin
   if (ObjectGroupNode <> nil) and (@ObjectGroupProc <> nil) then
     ObjectGroupProc(ObjectGroupNode);
 
-  XMLFree(Root);
+  XMLFreeTree(MapNode);
   LoadTileMap := True;
 end;
 
 { Render a portion of a tilemap layer }
-procedure DrawTileMapLayer(var TileMap: TTileMap; Layer: Byte; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
+procedure DrawTileMapLayer(
+  var TileMap: TTileMap;
+  Layer: Byte; X, Y, Width, Height: Word;
+  FrameBuffer: PFrameBuffer
+);
 var
   TileX, TileY: Word;
   TileID: Word;
@@ -437,6 +433,7 @@ begin
       DestY := (TileY - Y) * TileSet.TileHeight;
 
       { Render tile }
+      { TODO: differentiate opaque and transparent tiles! Can be +10 FPS! }
       PutImageRect(TileSet.Image, SourceRect, DestX, DestY, True, FrameBuffer);
     end;
   end;
