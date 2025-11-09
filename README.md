@@ -54,6 +54,7 @@ IMGTEST.EXE
 - **Double-buffering**: Flicker-free rendering with VSync support
 - **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Sprite rendering**: GetImage/PutImage with transparency and horizontal/vertical flipping
+- **Tilemap support**: TMX tilemap loader and renderer for Tiled Map Editor files
 - **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
 - **Palette support**: Direct VGA DAC programming (0-63 RGB), 768 Byte PAL loader
 
