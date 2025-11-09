@@ -253,7 +253,7 @@ SETUP.EXE      - Configure sound card settings
 - Loads orthogonal tilemaps from Tiled Map Editor XML files (`.tmx` format)
 - Depends on VGA.PAS for TImage type (used in TTileSet), but doesn't perform rendering
 - `LoadTileMap(filepath, var tilemap, objectgroup_callback)`: Load TMX file and populate TTileMap structure
-- `GetLoadTileMapError()`: Returns last error message if loading failed
+- `GetLoadTileMapError`: Returns last error message if loading failed
 - `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory
 - **Layer merging system**: Merges multiple TMX layers into 2 final layers (front/back)
   - Layers before first `<objectgroup>` → Front layer (TileMapLayer_Front = 0)

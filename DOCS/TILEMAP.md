@@ -57,7 +57,7 @@ Every `/` character in the paths in the TMX files should be replaced with `\` be
 ## 🔥 Functions
 
 ```pascal
-function GetLoadTileMapError(): String
+function GetLoadTileMapError: String
 ```
 
 Returns the last error on TileMap loading, gets it from a unit scoped variable: `LoadTileMapError: String`.
@@ -182,7 +182,7 @@ begin
     FreeTileMap(Map);
   end
   else
-    WriteLn('Error: ', GetLoadTileMapError());
+    WriteLn('Error: ', GetLoadTileMapError);
 
   FreeFrameBuffer(Buffer);
   CloseVGA;
