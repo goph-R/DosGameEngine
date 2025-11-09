@@ -114,7 +114,7 @@ D:\ENGINE\
 │   ├── VGATEST.PAS     - VGA graphics demo
 │   ├── SNDTEST.PAS     - Sound bank demo
 │   ├── SPRTEST.PAS     - Sprite animation system demo
-│   ├── MOUSETEST.PAS   - Mouse input demo with crosshair
+│   ├── MOUTEST.PAS     - Mouse input demo with crosshair
 │   ├── IMGTEST.PAS     - Advanced sprite demo with audio
 │   ├── TMXTEST.PAS     - TMX tilemap scrolling demo
 │   ├── XMLTEST.PAS     - XML parser demo

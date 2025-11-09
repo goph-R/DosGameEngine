@@ -614,7 +614,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
 - **TMXTEST.PAS**: TMX tilemap scrolling demo with keyboard navigation (arrow keys to scroll, displays FPS and camera position)
 - **SPRTEST.PAS**: Sprite animation system test (demonstrates SPRITE.PAS with idle/run animations, 1/2 to switch, F to flip)
-- **MOUSETEST.PAS**: Mouse input test with crosshair (move mouse, click buttons, displays X/Y coordinates and button states)
+- **MOUTEST.PAS**: Mouse input test with crosshair (move mouse, click buttons, displays X/Y coordinates and button states)
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls
