@@ -135,7 +135,7 @@ D:\ENGINE\
 │   └── TEST.XML        - Example game configuration
 │
 ├── DOCS\           Documentation, see the links above
-└── VENDOR\         Third-party libraries - Not used directly, only for credits
+└── VENDOR\         Third-party libraries (not used), only for credits
 ```
 
 ## 🎨 Creating Assets
