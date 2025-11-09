@@ -204,6 +204,22 @@ SETUP.EXE      - Configure sound card settings
   - Can call `IsKeyPressed` multiple times per frame for same key safely
 - **CRITICAL**: Always call `DoneKeyboard` before exit to unhook interrupt handler, or system will hang
 
+**MOUSE.PAS** - DOS mouse driver support via INT 33h
+- Provides mouse input using DOS mouse driver (requires MOUSE.COM or MOUSE.SYS loaded)
+- `InitMouse()`: Initialize mouse driver and detect presence (returns Boolean - true if found)
+- `ShowMouse` / `HideMouse`: Control cursor visibility
+- `UpdateMouse`: Update mouse state - **call once per frame before reading position/buttons**
+- `GetMouseX()`: Returns current X position (0-319 for Mode 13h)
+- `GetMouseY()`: Returns current Y position (0-199 for Mode 13h)
+- `GetMouseButtons()`: Returns button state byte
+- `IsMouseButtonDown(button)`: Check if specific button is pressed
+- `DoneMouse`: Cleanup mouse driver (hides cursor)
+- **Button constants**: `MouseButton_Left` ($01), `MouseButton_Right` ($02), `MouseButton_Middle` ($04)
+- **Coordinate scaling**: Automatically scales from 640 virtual to 320 actual for Mode 13h
+- **Usage pattern**: Call `UpdateMouse` once per frame, then read position/buttons multiple times if needed
+- **CRITICAL**: Requires DOS mouse driver loaded (MOUSE.COM or MOUSE.SYS) before `InitMouse`
+- **NOTE**: Mouse cursor is handled by BIOS - custom cursor rendering requires hiding default cursor
+
 **CONFIG.PAS** - Configuration management
 - Handles loading and saving settings to CONFIG.INI text file (INI format)
 - `TConfig` record type containing sound type and Sound Blaster settings
@@ -598,6 +614,7 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 - **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
 - **TMXTEST.PAS**: TMX tilemap scrolling demo with keyboard navigation (arrow keys to scroll, displays FPS and camera position)
 - **SPRTEST.PAS**: Sprite animation system test (demonstrates SPRITE.PAS with idle/run animations, 1/2 to switch, F to flip)
+- **MOUSETEST.PAS**: Mouse input test with crosshair (move mouse, click buttons, displays X/Y coordinates and button states)
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls

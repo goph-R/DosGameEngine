@@ -65,8 +65,10 @@ IMGTEST.EXE
 - **DMA-safe buffers**: Automatic 64KB boundary handling
 
 ### 🎮 Input
-- **Keyboard handler**: Direct INT 9h hardware access
-- **Scan code support**: IsKeyDown (continuous) and IsKeyPressed (single-tap) detection
+- **Keyboard handler**: Direct INT 9h hardware access with scan code support
+- **Keyboard detection**: IsKeyDown (continuous) and IsKeyPressed (single-tap)
+- **Mouse support**: DOS mouse driver (INT 33h) with position and button tracking
+- **Mouse features**: Automatic coordinate scaling for Mode 13h, 3-button support
 - **No BIOS delays**: Instant response for games
 
 ### 💾 Memory Management
@@ -99,6 +101,7 @@ D:\ENGINE\
 │   ├── SNDBANK.PAS     - XMS sound bank manager
 │   ├── PLAYHSC.PAS     - HSC music player
 │   ├── KEYBOARD.PAS    - Keyboard interrupt handler
+│   ├── MOUSE.PAS       - Mouse interrupt handler
 │   ├── RTCTIMER.PAS    - RTC high-resolution timer
 │   ├── CONFIG.PAS      - INI file configuration
 │   ├── TEXTUI.PAS      - Text mode UI library
@@ -111,6 +114,7 @@ D:\ENGINE\
 │   ├── VGATEST.PAS     - VGA graphics demo
 │   ├── SNDTEST.PAS     - Sound bank demo
 │   ├── SPRTEST.PAS     - Sprite animation system demo
+│   ├── MOUSETEST.PAS   - Mouse input demo with crosshair
 │   ├── IMGTEST.PAS     - Advanced sprite demo with audio
 │   ├── TMXTEST.PAS     - TMX tilemap scrolling demo
 │   ├── XMLTEST.PAS     - XML parser demo
@@ -129,7 +133,7 @@ D:\ENGINE\
 │   ├── FANTASY.HSC     - Example Adlib music
 │   └── EXPLODE.VOC     - Example sound effect
 │
-├── DOCS\           File format documentation
+├── DOCS\           Documentation
 │   ├── PKM.md          - PKM image format spec
 │   ├── HSC.md          - HSC music format spec
 │   ├── MINIXML.md      - XML parser API reference
