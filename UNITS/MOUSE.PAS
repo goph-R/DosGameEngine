@@ -31,6 +31,12 @@ function IsMouseButtonDown(Button: Byte): Boolean;
 { Cleanup mouse driver }
 procedure DoneMouse;
 
+{ Set horizontal cursor range }
+procedure SetMouseRangeX(MinX, MaxX: Word);
+
+{ Set vertical cursor range }
+procedure SetMouseRangeY(MinY, MaxY: Word);
+
 implementation
 
 var
