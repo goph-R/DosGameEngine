@@ -137,15 +137,39 @@ SETUP.EXE      - Configure sound card settings
 - **IMPORTANT**: Requires XMS driver (HIMEM.SYS) and Sound Blaster initialization via SBDSP.ResetDSP
 
 **VGA.PAS** - Low-level VGA Mode 13h graphics driver
-- `TFrameBuffer`: 64000-byte (320x200) pixel buffer type
-- `TPalette`: 256-color RGB palette (0-63 range for VGA DAC)
-- `InitVGA`/`CloseVGA`: Switch between text mode and Mode 13h
-- `CreateFrameBuffer`/`FreeFrameBuffer`: Memory-managed pixel buffer
-- `RenderFrameBuffer`: Assembly routine to blit buffer to VGA memory ($A000:0000)
-- `SetPalette`: Upload 256-color palette to VGA DAC
-- `LoadPalette`: Load 768-byte .PAL file
-- `WaitForVSync`: Sync to vertical blanking interval (prevents tearing)
-- All rendering uses double-buffering pattern for flicker-free updates
+- **Types**:
+  - `TFrameBuffer`: 64000-byte array (320×200 pixels) for double-buffering
+  - `PFrameBuffer`: Pointer to TFrameBuffer
+  - `TImage`: Record with Width, Height, and Data pointer (for sprites/images)
+  - `TRectangle`: Record with X, Y, Width, Height (for rectangular regions)
+  - `TPalette`: 256-color RGB palette array (0-63 range for VGA DAC)
+  - `TRGBColor`: Record with R, G, B bytes
+- **Initialization**:
+  - `InitVGA`: Switch to VGA Mode 13h (320×200, 256 colors)
+  - `CloseVGA`: Return to text mode
+  - `WaitForVSync`: Sync to vertical blanking interval (prevents tearing)
+- **Framebuffer management**:
+  - `CreateFrameBuffer`: Allocate off-screen buffer (returns PFrameBuffer)
+  - `GetScreenBuffer`: Get pointer to VGA memory ($A000:0000) for direct drawing
+  - `ClearFrameBuffer`: Fill buffer with black (color 0)
+  - `CopyFrameBuffer(source, dest)`: Fast copy between buffers
+  - `RenderFrameBuffer`: Assembly blit buffer to VGA memory
+  - `FreeFrameBuffer`: Deallocate buffer memory
+- **Palette operations**:
+  - `SetPalette(palette)`: Upload 256-color palette to VGA DAC
+  - `LoadPalette(filename, palette)`: Load 768-byte .PAL file (256 × RGB triplets)
+- **Image operations**:
+  - `GetImage(image, x, y, width, height, framebuffer)`: Capture rectangular region to TImage
+  - `PutImage(image, x, y, transparent, framebuffer)`: Draw TImage to framebuffer
+  - `PutImageRect(source, sourcerect, x, y, transparent, framebuffer)`: Draw portion of TImage
+  - `PutFlippedImage(image, x, y, flipx, flipy, transparent, framebuffer)`: Draw with mirroring
+  - `PutFlippedImageRect(source, sourcerect, x, y, flipx, flipy, transparent, framebuffer)`: Draw portion with mirroring
+  - `ClearImage(image)`: Fill TImage data with black
+  - `FreeImage(image)`: Free TImage data memory
+- **Transparency**: Color 0 (black) is treated as transparent in Put* operations when transparent=True
+- **Coordinate clipping**: All drawing operations clip at screen boundaries (0-319, 0-199)
+- **Double-buffering pattern**: Render to off-screen buffer, then blit to screen with RenderFrameBuffer
+- **Memory allocation**: Uses GetMem/FreeMem for dynamic buffer and image allocation
 
 **VGAPRINT.PAS** - Bitmap font text renderer for Mode 13h (2025)
 - Renders text overlays on framebuffers using embedded 8x8 bitmap font
@@ -668,7 +692,3 @@ The `VENDOR/` directory contains third-party libraries and tools:
 - **SBDSP.TXT**: Full documentation and usage guide
 - Copied SBDSP.PAS to root for use in engine
 - Original source preserved for reference and licensing
-
-## Known Issues
-
-1. ~~**XMS.PAS far call problem**~~: **RESOLVED** - XMS.PAS now working correctly. The professional XMS driver by KIV without Co (1992) uses self-modifying code to patch the far call address at runtime.
