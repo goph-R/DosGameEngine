@@ -82,8 +82,8 @@ begin
 
   FrameBuffer := CreateFrameBuffer;
 
-  { Show mouse cursor }
-  ShowMouse;
+  { Hide hardware cursor - we draw our own crosshair }
+  HideMouse;
 
   Running := True;
 

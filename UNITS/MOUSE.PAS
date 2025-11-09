@@ -41,8 +41,8 @@ var
   CursorVisible: Boolean;
   CursorCount: Integer;
 
-{ Initialize mouse driver }
-function InitMouse: Boolean; assembler;
+{ Helper: Detect mouse driver }
+function DetectMouse: Boolean; assembler;
 asm
   xor ax, ax           { AX = 0: Reset mouse }
   int 33h
@@ -53,6 +53,18 @@ asm
 @installed:
   mov al, 1            { Return True }
 @done:
+end;
+
+{ Initialize mouse driver }
+function InitMouse: Boolean;
+begin
+  MouseInstalled := DetectMouse;
+  InitMouse := MouseInstalled;
+  if MouseInstalled then
+  begin
+    { Initialize position }
+    UpdateMouse;
+  end;
 end;
 
 { Show mouse cursor }
