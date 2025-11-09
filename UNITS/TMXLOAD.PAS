@@ -269,6 +269,7 @@ var
   FolderPath: String;
   LayerSize: LongInt;
   ObjectGroupFound: Boolean;
+  ObjectGroupNode: PXMLNode;
   LayersBefore, LayersAfter: Byte;
 begin
   LoadTileMap := False;
@@ -354,6 +355,7 @@ begin
   { Process layers with merging logic }
   { Scan for objectgroup to determine layer split point }
   ObjectGroupFound := False;
+  ObjectGroupNode := nil;
   LayersBefore := 0;
   LayersAfter := 0;
 
@@ -363,9 +365,7 @@ begin
     if Node^.Name = 'objectgroup' then
     begin
       ObjectGroupFound := True;
-      { Call callback for custom objectgroup processing }
-      if @ObjectGroupProc <> nil then
-        ObjectGroupProc(Node);
+      ObjectGroupNode := Node;  { Save node pointer for callback after loading }
     end
     else if Node^.Name = 'layer' then
     begin
@@ -376,6 +376,10 @@ begin
     end;
     Node := Node^.NextSibling;
   end;
+
+  { Call objectgroup callback AFTER tilemap is fully loaded }
+  if (ObjectGroupNode <> nil) and (@ObjectGroupProc <> nil) then
+    ObjectGroupProc(ObjectGroupNode);
 
   XMLFree(Root);
   LoadTileMap := True;
