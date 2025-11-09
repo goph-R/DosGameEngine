@@ -32,6 +32,8 @@ D:\ENGINE\
 ### Compilation
 This project requires **Turbo Pascal 7.0** (or compatible version) for DOS.
 
+**IMPORTANT**: Compilation must be performed by the user in a DOS environment (DOSBox-X, FreeDOS, or real DOS hardware). AI agents cannot compile this code directly - they can only provide guidance, write code, and create batch files.
+
 **Automated compilation using batch files (recommended):**
 ```bash
 # Compile test programs with all dependencies
