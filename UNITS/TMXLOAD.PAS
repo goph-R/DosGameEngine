@@ -6,7 +6,7 @@ unit TMXLoad;
 interface
 
 uses
-  MiniXML;
+  VGA, MiniXML;
 
 type
   TTileSet = record

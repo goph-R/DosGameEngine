@@ -235,6 +235,7 @@ SETUP.EXE      - Configure sound card settings
 
 **TMXLOAD.PAS** - TMX tilemap loader (Tiled Map Editor format)
 - Loads orthogonal tilemaps from Tiled Map Editor XML files (`.tmx` format)
+- Depends on VGA.PAS for TImage type (used in TTileSet), but doesn't perform rendering
 - `LoadTileMap(filepath, var tilemap, objectgroup_callback)`: Load TMX file and populate TTileMap structure
 - `GetLoadTileMapError()`: Returns last error message if loading failed
 - `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory
