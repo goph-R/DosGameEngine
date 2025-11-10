@@ -90,6 +90,19 @@ SETUP.EXE      - Configure sound card settings
 
 ### Core Units
 
+**GENTYPES.PAS** - Generic type definitions (2025)
+- Centralized generic pointer and array types to avoid duplication across units
+- **Pointer types**:
+  - `PWord`: Pointer to Word
+  - `PShortString`: Pointer to string
+- **Array types**:
+  - `TByteArray`: array[0..65520] of Byte (max size for pointer access)
+  - `PByteArray`: Pointer to TByteArray
+  - `TWordArray`: array[0..32000] of Word (max 64000 bytes)
+  - `PWordArray`: Pointer to TWordArray
+- **Usage**: Imported by MINIXML, PKMLOAD, SNDBANK, TMXLOAD, TMXDRAW and test programs
+- **Purpose**: Eliminates duplicate type definitions, ensures consistency across codebase
+
 **SBDSP.PAS** - Professional Sound Blaster DSP driver (1995, by Romesh Prakashpalan)
 - Professional-grade Sound Blaster driver from VENDOR/SBDSP2B
 - Double-buffered DMA playback for smooth audio
@@ -143,6 +156,7 @@ SETUP.EXE      - Configure sound card settings
   - `TFrameBuffer`: 64000-byte array (320×200 pixels) for double-buffering
   - `PFrameBuffer`: Pointer to TFrameBuffer
   - `TImage`: Record with Width, Height, and Data pointer (for sprites/images)
+  - `PImage`: Pointer to TImage
   - `TRectangle`: Record with X, Y, Width, Height (for rectangular regions)
   - `TPalette`: 256-color RGB palette array (0-63 range for VGA DAC)
   - `TRGBColor`: Record with R, G, B bytes
@@ -253,6 +267,7 @@ SETUP.EXE      - Configure sound card settings
 - `SaveConfig(const Config)`: Save configuration to INI file
 - **Constants**:
   - `GameTitle`, `GameVersion`: Application metadata constants
+  - `TileSize`: Default tile size constant (16 pixels)
   - `SoundCard_None` (0), `SoundCard_Adlib` (1), `SoundCard_SoundBlaster` (2) for sound card enumeration
   - `ConfigFile`: Filename constant ('CONFIG.INI')
 - **INI Format**: Standard INI-style text file with `[Sound]` section and key=value pairs
@@ -281,6 +296,8 @@ SETUP.EXE      - Configure sound card settings
 - `LoadTileMap(filepath, var tilemap, objectgroup_callback)`: Load TMX file and populate TTileMap structure
 - `GetLoadTileMapError`: Returns last error message if loading failed
 - `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory
+- **Helper functions**:
+  - `HasProperty(xmlnode, name)`: Check if a layer/tileset has a custom property (e.g., 'blocks' property for collision layers)
 - **Layer merging system**: Merges multiple TMX layers into 2 final layers (front/back)
   - Layers before first `<objectgroup>` → Front layer (TileMapLayer_Front = 0)
   - Layers after first `<objectgroup>` → Back layer (TileMapLayer_Back = 1)
@@ -310,8 +327,9 @@ SETUP.EXE      - Configure sound card settings
 - `DrawSprite(spriteinstance, framebuffer)`: Render current animation frame
 - **Types**:
   - `TSprite`: Sprite definition (shared data - image, frames, duration, play type)
-  - `TSpriteInstance`: Sprite instance (per-entity data - position, flip, current time)
   - `PSprite`: Pointer to sprite definition
+  - `TSpriteInstance`: Sprite instance (per-entity data - position, flip, current time)
+  - `PSpriteInstance`: Pointer to sprite instance
 - **Play modes**:
   - `SpritePlayType_Forward` (0): Loop animation continuously
   - `SpritePlayType_PingPong` (1): Bounce animation back and forth
@@ -634,13 +652,12 @@ ffmpeg -i input.wav -ar 11025 -ac 1 -acodec pcm_u8 output.voc
 ## Test Programs
 
 - **VGATEST.PAS**: VGA graphics test with a PKM image load and show
-- **KBTEST.PAS**: Keyboard handler test (demonstrates IsKeyDown vs IsKeyPressed)
-- **XMSTEST2.PAS**: XMS round-trip test (write pattern to XMS, read back, verify) ✅
 - **SNDTEST.PAS**: XMS sound bank test with SBDSP (loads VOC into XMS, plays on demand) ✅
 - **IMGTEST.PAS**: Advanced sprite animation demo with RTCTimer (delta timing, FPS counter, HSC music + sound effects) ✅
 - **TMXTEST.PAS**: TMX tilemap scrolling demo with keyboard navigation (arrow keys to scroll, displays FPS and camera position)
 - **SPRTEST.PAS**: Sprite animation system test (demonstrates SPRITE.PAS with idle/run animations, 1/2 to switch, F to flip)
 - **MOUTEST.PAS**: Mouse input test with crosshair (move mouse, click buttons, displays X/Y coordinates and button states)
+- **MAPTEST.PAS**: StrMap unit, TStringMap test
 - **SETUP.PAS**: Menu-driven setup program using TEXTUI for sound card configuration (includes music and sound testing)
 
 ## Common Pitfalls

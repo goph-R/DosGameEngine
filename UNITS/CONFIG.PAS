@@ -9,6 +9,8 @@ const
   GameTitle = 'Game Title';
   GameVersion = '1.0.0';
 
+  TileSize = 16;
+
   SoundCard_None = 0;
   SoundCard_Adlib = 1;
   SoundCard_SoundBlaster = 2;

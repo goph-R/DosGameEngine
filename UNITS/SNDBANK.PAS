@@ -6,7 +6,7 @@ unit SndBank;
 
 interface
 
-uses XMS, SBDSP, Crt, Dos;
+uses XMS, SBDSP, Crt, Dos, GenTypes;
 
 const
   MaxSounds = 32;  { Maximum sounds in bank }
@@ -41,10 +41,6 @@ type
   end;
 
 implementation
-
-type
-  TByteArray = array[0..64000] of Byte;
-  PByteArray = ^TByteArray;
 
 { Initialize sound bank }
 function TSoundBank.Init: Boolean;

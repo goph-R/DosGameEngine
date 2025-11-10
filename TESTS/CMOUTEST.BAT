@@ -4,6 +4,10 @@ echo.
 
 cd ..\UNITS
 
+echo Compiling GENTYPES.PAS...
+tpc GENTYPES.PAS
+if errorlevel 1 goto error
+
 echo Compiling VGA.PAS...
 tpc VGA.PAS
 if errorlevel 1 goto error

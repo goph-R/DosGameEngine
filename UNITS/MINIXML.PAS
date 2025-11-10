@@ -3,19 +3,13 @@ unit MiniXML;
 interface
 
 uses
-  StrMap;
+  StrMap, GenTypes;
 
 const
   XML_MaxNameLength = 20;  { Maximum element/attribute name length }
   XML_MaxAttrsCount = 8;   { Maximum attributes per node }
   MAX_ATTRS = XML_MaxAttrsCount; { Backward compatibility }
   MAX_CHILDREN_HINT = 0;   { Not used, kept for clarity }
-
-type
-  PShortString = ^string;
-  PWord = ^Word;
-  TWordArray = array[0..32000] of Word;
-  PWordArray = ^TWordArray;
 
 type
   PPShortString = ^PShortString;

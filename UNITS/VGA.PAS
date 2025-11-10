@@ -14,6 +14,7 @@ type
   PFrameBuffer = ^TFrameBuffer;
   TFrameBuffer = array[0..63999] of byte;
 
+  PImage = ^TImage;
   TImage = record
     Width: Word;
     Height: Word;

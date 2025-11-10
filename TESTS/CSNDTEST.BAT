@@ -4,6 +4,10 @@ echo.
 
 cd ..\UNITS
 
+echo Compiling GENTYPES.PAS...
+tpc GENTYPES.PAS
+if errorlevel 1 goto error
+
 echo Compiling XMS.PAS...
 tpc XMS.PAS
 if errorlevel 1 goto error

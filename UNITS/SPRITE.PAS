@@ -10,27 +10,30 @@ const SpritePlayType_Once = 2;
 
 const MaxSpriteFrames = 64;
 
-type PSprite = ^TSprite;
-type TSprite = record
-	Image: PImage;
-	Frames: array[0..MaxSpriteFrames - 1] of TRectangle;
-	FrameCount: Byte;
-	Width: Word;
-	Height: Word;
-	Duration: LongInt; { Milliseconds }
-	PlayType: Byte;
-end;
+type 
+  PSprite = ^TSprite;
+  TSprite = record
+  	Image: PImage;
+  	Frames: array[0..MaxSpriteFrames - 1] of TRectangle;
+  	FrameCount: Byte;
+  	Width: Word;
+  	Height: Word;
+  	Duration: LongInt; { Milliseconds }
+  	PlayType: Byte;
+  end;
 
-type TSpriteInstance = record
-	Sprite: PSprite;
-	Hidden: Boolean;
-	X: Integer;
-	Y: Integer;
-	FlipX: Boolean;
-	FlipY: Boolean;
-	CurrentTime: LongInt; { Milliseconds }
-	PlayBackward: Boolean; { Only matters when PlayMode is PingPong }
-end;
+type
+  PSpriteInstance = ^TSpriteInstance;
+  TSpriteInstance = record
+  	Sprite: PSprite;
+  	Hidden: Boolean;
+  	X: Integer;
+  	Y: Integer;
+  	FlipX: Boolean;
+  	FlipY: Boolean;
+  	CurrentTime: LongInt; { Milliseconds }
+  	PlayBackward: Boolean; { Only matters when PlayMode is PingPong }
+  end;
 
 procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: LongInt);
 procedure DrawSprite(var SpriteInstance: TSpriteInstance; FrameBuffer: PFrameBuffer);

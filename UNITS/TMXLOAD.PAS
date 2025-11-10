@@ -6,7 +6,7 @@ unit TMXLoad;
 interface
 
 uses
-  VGA, MiniXML;
+  VGA, MiniXML, GenTypes;
 
 type
   TTileSet = record
@@ -90,6 +90,34 @@ begin
   ChangeExtToPKM := FileName + '.PKM';
 end;
 
+{ Helper: Checks if a <xmlnode><properties><property="name"> exists }
+function HasProperty(const XMLNode: PXMLNode; const Name: string): Boolean;
+var
+  PropertiesNode: PXMLNode;
+  PropertyNode: PXMLNode;
+  PropertyName: string;
+begin
+  HasProperty := False;
+  PropertiesNode := XMLFirstChild(XMLNode, 'properties');
+  if PropertiesNode <> nil then
+  begin
+    PropertyNode := XMLFirstChild(PropertiesNode, 'property');
+    while PropertyNode <> nil do
+    begin
+      if XMLHasAttr(PropertyNode, 'name') then
+      begin
+        PropertyName := XMLAttr(PropertyNode, 'name');
+        if PropertyName = Name then
+        begin
+          HasProperty := True;
+          Exit;
+        end;
+      end;
+      PropertyNode := XMLNextSibling(PropertyNode, 'property');
+    end;
+  end;
+end;
+
 { Load a single tileset from XML node }
 function LoadTileSet(const FolderPath: String; const XMLNode: PXMLNode; var TileSet: TTileSet): Boolean;
 var
@@ -98,6 +126,13 @@ var
   FullPath: String;
 begin
   LoadTileSet := False;
+
+  { Check for blocks property (TODO: implement block map handling) }
+  if HasProperty(XMLNode, 'blocks') then
+  begin
+    LoadTileSet := True;
+    Exit;
+  end;
 
   { Extract required attributes }
   if not XMLHasAttr(XMLNode, 'firstgid') then
@@ -172,29 +207,10 @@ var
   I, X, Y: Word;
   TileID: Word;
   DestIndex: LongInt;
-  IsBlocksLayer: Boolean;
 begin
   { Check for blocks property (TODO: implement block map handling) }
-  IsBlocksLayer := False;
-  PropertiesNode := XMLFirstChild(XMLNode, 'properties');
-  if PropertiesNode <> nil then
-  begin
-    PropertyNode := XMLFirstChild(PropertiesNode, 'property');
-    while PropertyNode <> nil do
-    begin
-      if XMLHasAttr(PropertyNode, 'name') then
-      begin
-        PropertyName := XMLAttr(PropertyNode, 'name');
-        if PropertyName = 'blocks' then
-        begin
-          IsBlocksLayer := True;
-          { TODO: Handle as block map instead of tile layer }
-          Exit;
-        end;
-      end;
-      PropertyNode := XMLNextSibling(PropertyNode, 'property');
-    end;
-  end;
+  if HasProperty(XMLNode, 'blocks') then
+    Exit;
 
   { Find <data> child node }
   DataNode := XMLFirstChild(XMLNode, 'data');

@@ -1,0 +1,159 @@
+unit Entities;
+
+interface
+
+uses VGA, Sprite, Config;
+
+const Align_Left = 0;
+const Align_Right = -2;
+const Align_Top = 0;
+const Align_Bottom = -2;
+const Align_Center = -1;
+
+type
+  PEntity = ^TEntity;  
+  TEntity = object
+    Next: PEntity;
+
+    Disabled: Boolean;
+    Parent: PEntity;
+
+    { Only position is precise: pixel position multiplied by 256 (shl 8) }
+    X: LongInt;
+    Y: LongInt;
+
+    { Width and Height is in simple pixel, can not be negative }
+    Width: Word;
+    Height: Word;
+
+    { Align can be only 0, -1, -2 because Left/Top is the default }
+    AlignH: ShortInt;
+    AlignV: ShortInt;
+
+    { Sprite + drawing offset }
+    SpriteInstance: PSpriteInstance;
+    SpriteOffsetX: ShortInt;
+    SpriteOffsetY: ShortInt;
+
+    Physics: PPhysics;
+
+    procedure Init;
+    
+    { These will be only used for collision detection }
+    function GetTop: Integer;
+    function GetRight: Integer;
+    function GetBottom: Integer;
+    function GetLeft: Integer;
+
+    procedure Update(DeltaTime: LongInt);
+    procedure Draw(FrameBuffer: PFrameBuffer);
+  end;
+
+type
+  PPhysics = ^TPhysics;
+  TPhysics = object
+
+    { Every value is precise here because position related }
+
+    { Initial position }
+    InitialX: LongInt; 
+    InitialY: LongInt;
+
+    { Initial velocity }
+    InitialVelocityX: LongInt;
+    InitialVelocityY: LongInt;
+
+    { Current velocity }
+    VelocityX: LongInt; 
+    VelocityY: LongInt; 
+
+    { Velocity modifiers }
+    Acceleration: LongInt;
+    Gravity: LongInt;
+
+  	procedure Update(var Entity: TEntity; DeltaTime: LongInt);
+  end;
+
+type
+  TEntityManager = object
+    FirstEntity: PEntity;
+  end;
+
+implementation
+
+procedure TPhysics.Update(var EntityManager: TEntityManager; var Entity: TEntity; DeltaTime: LongInt);
+begin
+  { TODO: Set X, Y via Velocity and DeltaTime }
+  { TODO: Check collision with blocks }
+  { TODO: Check collision with near entities with Physics.Collider }
+  { TODO: Set IntialX/Y, InitialVelocityX/Y and VelocityX/Y if collision happened }
+end;
+
+procedure TEntity.Init;
+begin
+  X := 160 shl 8;
+  Y := 100 shl 8;
+  Width := 16;
+  Height := 16;
+  AlignH := Align_Center;
+  AlignV := Align_Bottom;
+  SpriteInstance := nil;
+  Physics := nil;
+end;
+
+function TEntity.GetGlobalX: LongInt;
+begin
+  if Parent <> nil then
+    GetGlobalX := X + Parent^.GetGlobalX;
+  else
+    GetGlobalX := X;
+end;
+
+function TEntity.GetGlobalY: LongInt;
+begin
+  if Parent <> nil then
+    GetGlobalY := Y + Parent^.GetGlobalY;
+  else
+    GetGlobalY := Y;
+end;
+
+function TEntity.GetTop: Integer;
+begin
+  GetTop := GetGlobalY shr 8 + AlignV * Height;
+end;
+
+function TEntity.GetRight: Integer;
+begin
+  GetRight := GetGlobalX shr 8 - (AlignH + 2) * Width;
+end;
+
+function TEntity.GetBottom: Integer;
+begin
+  GetBottom := GetGlobalY shr 8 - (AlignV + 2) * Height;
+end;
+
+function TEntity.GetLeft: Integer;
+begin
+  GetLeft := GetGlobalX shr 8 + AlignH * Width;
+end;
+
+procedure TEntity.Update(DeltaTime: LongInt);
+begin
+  if Disabled then
+	Exit;
+  if Physics <> nil then
+  	Physics.Update(DeltaTime);
+  if SpriteInstance <> nil then
+  	UpdateSprite(SpriteInstance, DeltaTime);
+end;
+
+procedure TEntity.Draw(FrameBuffer: PFrameBuffer);
+begin
+  if (SpriteInstance = nil) or (SpriteInstance.Hidden) then
+  	Exit;
+  SpriteInstance.X := GetGlobalX shr 8 + AlignV * SpriteInstance.Sprite^.Width + SpriteOffsetX;
+  SpriteInstance.Y := GetGlobalY shr 8 + AlignH * SpriteInstance.Sprite^.Height + SpriteOffsetY;
+  DrawSprite(SpriteInstance, FrameBuffer);
+end;
+
+end.

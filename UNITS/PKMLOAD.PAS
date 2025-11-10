@@ -2,7 +2,7 @@ unit PKMLoad;
 
 interface
 
-uses VGA;
+uses VGA, GenTypes;
 
 type
   TPKMHeader = record
@@ -23,9 +23,6 @@ implementation
 
 function LoadPKMWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
-type
-  PByteArray = ^TByteArray;
-  TByteArray = array[0..65520] of Byte;
 var
   F: File;
   Header: TPKMHeader;

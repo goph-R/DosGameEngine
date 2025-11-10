@@ -5,7 +5,7 @@ unit TMXDraw;
 interface
 
 uses
-  VGA, TMXLoad, MiniXML;
+  VGA, TMXLoad, MiniXML, GenTypes;
 
 { Render a portion of a tilemap layer to a framebuffer }
 procedure DrawTileMapLayer(var TileMap: TTileMap; Layer: Byte; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);

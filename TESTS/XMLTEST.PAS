@@ -1,7 +1,7 @@
 program XMLTest;
 
 uses
-  MiniXML;
+  MiniXML, GenTypes;
 
 var
   Root: PXMLNode;
