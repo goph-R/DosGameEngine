@@ -260,6 +260,23 @@ SETUP.EXE      - Configure sound card settings
 - **CRITICAL**: Requires DOS mouse driver loaded (MOUSE.COM or MOUSE.SYS) before `InitMouse`
 - **NOTE**: Mouse cursor is handled by BIOS - custom cursor rendering requires hiding default cursor
 
+**LINKLIST.PAS** - Generic doubly-linked list container (2025)
+- Generic linked list implementation for storing pointers to any data type
+- **Types**:
+  - `PListValue`: Pointer to any data type (generic pointer)
+  - `TListEntry`: Linked list node with Next, Prev, and Value pointers
+  - `PListEntry`: Pointer to TListEntry
+  - `TLinkedList`: List structure with First, Last, and Count
+- **Operations**:
+  - `ListInit(var list)`: Initialize empty list
+  - `ListAdd(var list, value)`: Add value to end of list, returns PListEntry
+  - `ListRemove(var list, entry)`: Remove entry from list
+  - `ListContains(list, value)`: Check if value exists in list (returns Boolean)
+  - `ListFree(var list)`: Free all entries in list
+- **Memory management**: Uses New/Dispose for entries, caller manages value memory
+- **Usage**: Similar to StrMap but for general linked list operations
+- **NOTE**: ListRemove only frees the list entry, not the value data itself
+
 **CONFIG.PAS** - Configuration management
 - Handles loading and saving settings to CONFIG.INI text file (INI format)
 - `TConfig` record type containing sound type and Sound Blaster settings
