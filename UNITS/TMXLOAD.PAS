@@ -30,6 +30,8 @@ type
     TileSets: array[0..TileMap_MaxTileSets - 1] of TTileSet;
     Layers: array[0..1] of PWord;                           { Back and front layers }
                                                             { Every word represents a TileID }
+    BlocksLayer: PByteArray;                                { Collision/blocks layer (nil if not present) }
+                                                            { Each byte is a block type (0 = passable) }
   end;
 
   { Callback for processing objectgroup }
@@ -40,6 +42,7 @@ function GetLoadTileMapError: String;
 function LoadTileMap(const FilePath: String; var TileMap: TTileMap;
                      ObjectGroupProc: TObjectGroupProc): Boolean;
 procedure FreeTileMap(var TileMap: TTileMap);
+function IsBlockType(const TileMap: TTileMap; X, Y: Word; BlockType: Byte): Boolean;
 
 implementation
 
@@ -207,10 +210,23 @@ var
   I, X, Y: Word;
   TileID: Word;
   DestIndex: LongInt;
+  IsBlocksLayer: Boolean;
+  LayerSize: LongInt;
 begin
-  { Check for blocks property (TODO: implement block map handling) }
-  if HasProperty(XMLNode, 'blocks') then
-    Exit;
+  { Check for blocks property }
+  IsBlocksLayer := HasProperty(XMLNode, 'blocks');
+
+  { If this is a blocks layer, allocate BlocksLayer if not already allocated }
+  if IsBlocksLayer then
+  begin
+    if TileMap.BlocksLayer = nil then
+    begin
+      LayerSize := LongInt(TileMap.Width) * LongInt(TileMap.Height);
+      GetMem(TileMap.BlocksLayer, LayerSize);
+      { Initialize with zeros (passable) }
+      FillChar(TileMap.BlocksLayer^, LayerSize, 0);
+    end;
+  end;
 
   { Find <data> child node }
   DataNode := XMLFirstChild(XMLNode, 'data');
@@ -223,19 +239,40 @@ begin
   { Parse CSV data using XMLReadWordArray }
   if not XMLReadWordArray(DataNode, TileData, TileCount) then Exit;
 
-  { Merge tiles into the layer (higher index = higher priority, later layers overwrite earlier) }
-  for I := 0 to TileCount - 1 do
+  { Process tiles }
+  if IsBlocksLayer then
   begin
-    TileID := PWordArray(TileData)^[I];
+    { Fill BlocksLayer with tile IDs (as bytes, ignoring values > 255) }
+    for I := 0 to TileCount - 1 do
+    begin
+      TileID := PWordArray(TileData)^[I];
 
-    { Calculate destination index }
-    Y := I div TileMap.Width;
-    X := I mod TileMap.Width;
-    DestIndex := LongInt(Y) * LongInt(TileMap.Width) + LongInt(X);
+      { Calculate destination index }
+      Y := I div TileMap.Width;
+      X := I mod TileMap.Width;
+      DestIndex := LongInt(Y) * LongInt(TileMap.Width) + LongInt(X);
 
-    { Merge: non-zero tiles always overwrite (later layers have priority) }
-    if TileID > 0 then
-      PWordArray(TileMap.Layers[Layer])^[DestIndex] := TileID;
+      { Store tile ID as byte (ignore if > 255) }
+      if TileID <= 255 then
+        TileMap.BlocksLayer^[DestIndex] := Byte(TileID);
+    end;
+  end
+  else
+  begin
+    { Merge tiles into the layer (higher index = higher priority, later layers overwrite earlier) }
+    for I := 0 to TileCount - 1 do
+    begin
+      TileID := PWordArray(TileData)^[I];
+
+      { Calculate destination index }
+      Y := I div TileMap.Width;
+      X := I mod TileMap.Width;
+      DestIndex := LongInt(Y) * LongInt(TileMap.Width) + LongInt(X);
+
+      { Merge: non-zero tiles always overwrite (later layers have priority) }
+      if TileID > 0 then
+        PWordArray(TileMap.Layers[Layer])^[DestIndex] := TileID;
+    end;
   end;
 
   { Free temporary tile data }
@@ -263,6 +300,7 @@ begin
   TileMap.TileSetCount := 0;
   TileMap.Layers[0] := nil;
   TileMap.Layers[1] := nil;
+  TileMap.BlocksLayer := nil;
 
   { Load and parse XML, the <map> is the root node }
   XMLLoadFile(FilePath, MapNode);
@@ -376,6 +414,13 @@ begin
     TileMap.Layers[1] := nil;
   end;
 
+  { Free blocks layer }
+  if TileMap.BlocksLayer <> nil then
+  begin
+    FreeMem(TileMap.BlocksLayer, LongInt(TileMap.Width) * LongInt(TileMap.Height));
+    TileMap.BlocksLayer := nil;
+  end;
+
   { Free tileset images }
   for I := 0 to TileMap.TileSetCount - 1 do
     FreeImage(TileMap.TileSets[I].Image);
@@ -387,6 +432,26 @@ end;
 function GetLoadTileMapError: String;
 begin
   GetLoadTileMapError := LoadTileMapError;
+end;
+
+{ Check if a tile position has a specific block type }
+function IsBlockType(const TileMap: TTileMap; X, Y: Word; BlockType: Byte): Boolean;
+var
+  Index: LongInt;
+begin
+  IsBlockType := False;
+
+  { No blocks layer means everything is passable }
+  if TileMap.BlocksLayer = nil then
+    Exit;
+
+  { Bounds check }
+  if (X >= TileMap.Width) or (Y >= TileMap.Height) then
+    Exit;
+
+  { Calculate index and check block type }
+  Index := LongInt(Y) * LongInt(TileMap.Width) + LongInt(X);
+  IsBlockType := (TileMap.BlocksLayer^[Index] = BlockType);
 end;
 
 end.

@@ -45,6 +45,7 @@ type
     function GetBottom: Integer;
     function GetLeft: Integer;
 
+    procedure PreUpdate(DeltaTime: LongInt);
     procedure Update(DeltaTime: LongInt);
     procedure Draw(FrameBuffer: PFrameBuffer);
   end;
@@ -77,9 +78,56 @@ type
 type
   TEntityManager = object
     FirstEntity: PEntity;
+    LastEntity: PEntity;
+    FirstRemoveEntity: PEntity;
+    LastRemoveEntity: PEntity;
+    procedure Add(Entity: PEntity);
+    procedure Remove(Entity: PEntity);
+    procedure UpdateAll(DeltaTime: LongInt);
   end;
 
 implementation
+
+procedure TEntityManager.AddEntity(Entity: PEntity);
+begin
+  if FirstEntity = nil then
+  begin
+    FirstEntity := Entity;
+    LastEntity := Entity;
+  end
+  else
+  begin
+    LastEntity^.Next := Entity;
+    LastEntity := Entity;
+  end;
+end;
+
+procedure TEntityManager.RemoveEntity(Entity: PEntity);
+begin
+
+end;
+
+procedure TEntityManager.UpdateAll(DeltaTime: LongInt);
+var
+  Entity: PEntity;
+begin
+  { PreUpdate entities }
+  Entity := FirstEntity;
+  while Entity <> nil do
+  begin
+    Entity^.PreUpdate(DeltaTime);
+    Entity := Entity^.Next;
+  end;
+
+  { Update entities }
+  Entity := FirstEntity;
+  while Entity <> nil do
+  begin
+    Entity^.Update(DeltaTime);
+    Entity := Entity^.Next;
+  end;
+
+end;
 
 procedure TPhysics.Update(var EntityManager: TEntityManager; var Entity: TEntity; DeltaTime: LongInt);
 begin

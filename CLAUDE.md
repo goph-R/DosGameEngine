@@ -295,13 +295,19 @@ SETUP.EXE      - Configure sound card settings
 - Depends on VGA.PAS for TImage type (used in TTileSet), but doesn't perform rendering
 - `LoadTileMap(filepath, var tilemap, objectgroup_callback)`: Load TMX file and populate TTileMap structure
 - `GetLoadTileMapError`: Returns last error message if loading failed
-- `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory
+- `FreeTileMap(var tilemap)`: Free all allocated layer and tileset memory (including BlocksLayer)
+- `IsBlockType(tilemap, x, y, blocktype)`: Check if tile at (x,y) has specific block type value
 - **Helper functions**:
   - `HasProperty(xmlnode, name)`: Check if a layer/tileset has a custom property (e.g., 'blocks' property for collision layers)
 - **Layer merging system**: Merges multiple TMX layers into 2 final layers (front/back)
   - Layers before first `<objectgroup>` → Front layer (TileMapLayer_Front = 0)
   - Layers after first `<objectgroup>` → Back layer (TileMapLayer_Back = 1)
   - Higher index layers overwrite lower index when merging (higher priority)
+- **Blocks layer support**: Layers with `blocks` custom property are stored in `BlocksLayer` (PByteArray)
+  - Tile IDs stored as bytes (0-255), values > 255 are ignored
+  - Each byte represents a block/collision type (0 typically = passable)
+  - Used for collision detection, pathfinding, or other game logic
+  - Access via `IsBlockType` function or directly via `TileMap.BlocksLayer^[index]`
 - **Tileset support**: Up to 4 tilesets per map (TileMap_MaxTileSets = 4)
 - **CSV encoding only**: Only supports `<data encoding="csv">` (no Base64/compression)
 - **Image loading**: Converts tileset image paths from `.png` → `.pkm` automatically
