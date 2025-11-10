@@ -36,6 +36,48 @@ begin
   end;
 end;
 
+procedure DrawBlocks;
+var
+  TileX, TileY: Word;
+  ScreenX, ScreenY: Integer;
+  BlockType: Byte;
+  TileWidth, TileHeight: Byte;
+begin
+  { Only draw blocks if BlocksLayer exists }
+  if TileMap.BlocksLayer = nil then
+    Exit;
+
+  TileWidth := TileMap.TileSets[0].TileWidth;
+  TileHeight := TileMap.TileSets[0].TileHeight;
+
+  { Iterate through visible tiles }
+  for TileY := 0 to ViewHeightTiles - 1 do
+  begin
+    for TileX := 0 to ViewWidthTiles - 1 do
+    begin
+      { Check if tile position is within map bounds }
+      if (CameraX + TileX < TileMap.Width) and (CameraY + TileY < TileMap.Height) then
+      begin
+        { Get block type at this position }
+        if IsBlockType(TileMap, CameraX + TileX, CameraY + TileY, 1) then
+        begin
+          { Block type 1 - display "B" }
+          ScreenX := TileX * TileWidth + 4;
+          ScreenY := TileY * TileHeight + 4;
+          PrintText(ScreenX, ScreenY, 'B', 10, FrameBuffer);
+        end
+        else if IsBlockType(TileMap, CameraX + TileX, CameraY + TileY, 2) then
+        begin
+          { Block type 2 - display "T" }
+          ScreenX := TileX * TileWidth + 4;
+          ScreenY := TileY * TileHeight + 4;
+          PrintText(ScreenX, ScreenY, 'T', 12, FrameBuffer);
+        end;
+      end;
+    end;
+  end;
+end;
+
 procedure DrawUI;
 var
   FreeMem: LongInt;
@@ -83,6 +125,11 @@ begin
             ' Size=', TileMap.TileSets[I].TileWidth, 'x', TileMap.TileSets[I].TileHeight,
             ' Cols=', TileMap.TileSets[I].Columns);
   end;
+
+  if TileMap.BlocksLayer <> nil then
+    WriteLn('  Blocks layer: Present')
+  else
+    WriteLn('  Blocks layer: Not found');
 
   { Calculate view size in tiles }
   ViewWidthTiles := 320 div TileMap.TileSets[0].TileWidth;
@@ -171,6 +218,9 @@ begin
 
     { Render front layer (foreground) }
     DrawTileMapLayer(TileMap, TileMapLayer_Front, CameraX, CameraY, ViewWidthTiles, ViewHeightTiles, FrameBuffer);
+
+    { Draw blocks overlay }
+    DrawBlocks;
 
     { Draw UI overlay }
     DrawUI;
