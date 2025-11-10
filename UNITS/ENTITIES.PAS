@@ -2,7 +2,7 @@ unit Entities;
 
 interface
 
-uses VGA, Sprite, Config;
+uses VGA, Sprite, LinkList;
 
 const Align_Left = 0;
 const Align_Right = -2;
@@ -13,8 +13,6 @@ const Align_Center = -1;
 type
   PEntity = ^TEntity;  
   TEntity = object
-    Next: PEntity;
-
     Disabled: Boolean;
     Parent: PEntity;
 
@@ -38,7 +36,11 @@ type
     Physics: PPhysics;
 
     procedure Init;
-    
+
+    { Global position (includes parent offset) }
+    function GetGlobalX: LongInt;
+    function GetGlobalY: LongInt;
+
     { These will be only used for collision detection }
     function GetTop: Integer;
     function GetRight: Integer;
@@ -77,56 +79,79 @@ type
 
 type
   TEntityManager = object
-    FirstEntity: PEntity;
-    LastEntity: PEntity;
-    FirstRemoveEntity: PEntity;
-    LastRemoveEntity: PEntity;
+    EntityList: TLinkedList;
+    RemoveEntityList: TLinkedList;
+    procedure Init;
     procedure Add(Entity: PEntity);
     procedure Remove(Entity: PEntity);
     procedure UpdateAll(DeltaTime: LongInt);
+    procedure Done;
   end;
 
 implementation
 
-procedure TEntityManager.AddEntity(Entity: PEntity);
+procedure TEntityManager.Init;
 begin
-  if FirstEntity = nil then
-  begin
-    FirstEntity := Entity;
-    LastEntity := Entity;
-  end
-  else
-  begin
-    LastEntity^.Next := Entity;
-    LastEntity := Entity;
-  end;
+  ListInit(EntityList);
+  ListInit(RemoveEntityList);
 end;
 
-procedure TEntityManager.RemoveEntity(Entity: PEntity);
+procedure TEntityManager.Done;
 begin
+  ListFree(EntityList);
+  ListFree(RemoveEntityList);
+end;
 
+procedure TEntityManager.Add(Entity: PEntity);
+begin
+  ListAdd(EntityList, Entity);
+end;
+
+procedure TEntityManager.Remove(Entity: PEntity);
+begin
+  ListAdd(RemoveEntityList, Entity);
 end;
 
 procedure TEntityManager.UpdateAll(DeltaTime: LongInt);
 var
+  Entry, NextEntry, SearchEntry: PListEntry;
   Entity: PEntity;
 begin
   { PreUpdate entities }
-  Entity := FirstEntity;
-  while Entity <> nil do
+  Entry := EntityList.First;
+  while Entry <> nil do
   begin
+    Entity := Entry^.Value;
     Entity^.PreUpdate(DeltaTime);
-    Entity := Entity^.Next;
+    Entry := Entry^.Next;
   end;
 
   { Update entities }
-  Entity := FirstEntity;
-  while Entity <> nil do
+  Entry := EntityList.First;
+  while Entry <> nil do
   begin
+    Entity := Entry^.Value;
     Entity^.Update(DeltaTime);
-    Entity := Entity^.Next;
+    Entry := Entry^.Next;
   end;
 
+  { Process entities marked for removal }
+  Entry := RemoveEntityList.First;
+  while Entry <> nil do
+  begin
+    NextEntry := Entry^.Next;
+    Entity := PEntity(Entry^.Value);
+
+    { Remove from entity list }
+    ListRemoveByValue(EntityList, Entity);
+
+    { Free entity memory }
+    Dispose(Entity);
+
+    { Remove from removal list }
+    ListRemove(RemoveEntityList, Entry);
+    Entry := NextEntry;
+  end;
 end;
 
 procedure TPhysics.Update(var EntityManager: TEntityManager; var Entity: TEntity; DeltaTime: LongInt);
@@ -185,14 +210,19 @@ begin
   GetLeft := GetGlobalX shr 8 + AlignH * Width;
 end;
 
+procedure TEntity.PreUpdate(DeltaTime: LongInt);
+begin
+  { Override in derived types if needed }
+end;
+
 procedure TEntity.Update(DeltaTime: LongInt);
 begin
   if Disabled then
 	Exit;
   if Physics <> nil then
-  	Physics.Update(DeltaTime);
+  	Physics^.Update(Self, DeltaTime);
   if SpriteInstance <> nil then
-  	UpdateSprite(SpriteInstance, DeltaTime);
+  	UpdateSprite(SpriteInstance^, DeltaTime);
 end;
 
 procedure TEntity.Draw(FrameBuffer: PFrameBuffer);

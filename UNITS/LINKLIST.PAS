@@ -30,6 +30,9 @@ function ListAdd(var List: TLinkedList; Value: PListValue): PListEntry;
 { Remove an entry from the list }
 procedure ListRemove(var List: TLinkedList; Entry: PListEntry);
 
+{ Search by value and remove an entry from the list  }
+procedure ListRemoveByValue(var List: TLinkedList; Value: PListValue);
+
 { Check if a value exists in the list }
 function ListContains(const List: TLinkedList; Value: PListValue): Boolean;
 
@@ -97,6 +100,23 @@ begin
   { Free the entry }
   Dispose(Entry);
   Dec(List.Count);
+end;
+
+procedure ListRemoveByValue(var List: TLinkedList; Value: PListValue);
+var
+  SearchEntry: PListEntry;
+begin
+  SearchEntry := List.First;
+  while SearchEntry <> nil do
+  begin
+    if SearchEntry^.Value = Value then
+    begin
+      { Found it! Remove it }
+      ListRemove(List, SearchEntry);
+      Exit;
+    end;
+    SearchEntry := SearchEntry^.Next;
+  end;
 end;
 
 { Check if a value exists in the list }

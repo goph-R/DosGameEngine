@@ -270,7 +270,8 @@ SETUP.EXE      - Configure sound card settings
 - **Operations**:
   - `ListInit(var list)`: Initialize empty list
   - `ListAdd(var list, value)`: Add value to end of list, returns PListEntry
-  - `ListRemove(var list, entry)`: Remove entry from list
+  - `ListRemove(var list, entry)`: Remove entry from list by entry pointer
+  - `ListRemoveByValue(var list, value)`: Search by value and remove entry from list
   - `ListContains(list, value)`: Check if value exists in list (returns Boolean)
   - `ListFree(var list)`: Free all entries in list
 - **Memory management**: Uses New/Dispose for entries, caller manages value memory
