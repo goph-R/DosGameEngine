@@ -41,6 +41,9 @@ type TTileMap = record
   TileSets: array[0..TileMap_MaxTileSets] of TTileset;
   Layers: array[0..1] of PWord;   { Back and front layers }
                                   { Every word represents a TileID }
+  BlocksLayer: PByteArray;        { Collision/blocks layer (nil if not present) }
+                                  { Each byte is a block type (0 = passable) }
+  BlocksTilesetFirstGID: Word;    { FirstGID of tileset with 'blocks' property (0 if none) }
 end;
 ```
 
@@ -143,9 +146,28 @@ Renders the specified layer to the framebuffer. Iterates through the specific ti
 
 Note on the `FirstGID`: needs a separate function that has a fast look up algorithm to decide which TileSet should be used, called before every tile render.
 
-`procedure FreeTileMap(var TileMap: TTileMap)`
+```pascal
+procedure FreeTileMap(var TileMap: TTileMap)
+```
 
-Frees dynamically allocated layer memory. Calls `FreeMem` on both layer arrays if they are not `nil`, then sets pointers to `nil`. **Must be called** before program exit to prevent memory leaks. Frees tileset images memory too.
+Frees dynamically allocated layer memory. Calls `FreeMem` on both layer arrays if they are not `nil`, then sets pointers to `nil`. **Must be called** before program exit to prevent memory leaks. Frees tileset images and BlocksLayer memory too.
+
+```pascal
+function IsBlockType(const TileMap: TTileMap; X, Y: Word; BlockType: Byte): Boolean
+```
+
+Checks if the tile at position (X, Y) has the specified block type. Returns `False` if BlocksLayer is nil, coordinates are out of bounds, or block type doesn't match. Returns `True` if the tile at (X, Y) has exactly the specified BlockType value.
+
+**Parameters:**
+- `X, Y`: Tile coordinates (not pixels)
+- `BlockType`: The block type to check (e.g., 1 for solid walls, 2 for platform tops)
+
+**Example:**
+```pascal
+{ Check for solid wall collision }
+if IsBlockType(Map, PlayerTileX, PlayerTileY, 1) then
+  PlayerX := OldPlayerX;  { Revert movement }
+```
 
 ## 📝 Usage Example
 
@@ -231,16 +253,27 @@ SourceY = Row * TileSet.TileHeight
 
 **TMX format info:** https://doc.mapeditor.org/en/stable/reference/tmx-map-format/
 
-## 🚧 TODO: Block Maps
+## 🧱 Blocks Layer (Collision Detection)
 
-**Planned feature:** Support for collision/blocking layers using custom properties.
+**Feature:** Tile-based collision detection using custom layer properties.
 
-**Concept:**
-- Layers with `<property name="blocks">` should be treated as collision maps instead of visual tile layers
-- These layers define which tiles block player movement
-- Block data should be stored separately from visual layers (not merged)
+**How it works:**
+- Layers with `<property name="blocks">` are treated as collision data (not visual tiles)
+- The special tileset named **"Blocks"** stores collision tile definitions
+- Block data is stored separately in `TTileMap.BlocksLayer` (PByteArray)
+- Each byte represents a block type (0 = passable, 1+ = different collision types)
 
-**Example TMX usage:**
+**TMX Configuration:**
+
+1. Create a tileset named exactly **"Blocks"** in your TMX file:
+```xml
+<tileset firstgid="241" name="Blocks" tilewidth="16" tileheight="16"
+         tilecount="16" columns="4">
+  <image source="blocks.png" width="64" height="64"/>
+</tileset>
+```
+
+2. Create a layer with the `blocks` property:
 ```xml
 <layer id="5" name="Collision" width="20" height="15">
   <properties>
@@ -248,22 +281,45 @@ SourceY = Row * TileSet.TileHeight
   </properties>
   <data encoding="csv">
 0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
-0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,
 ...
   </data>
 </layer>
 ```
 
-**Implementation notes:**
-- Detection code already exists in `LoadTileMapLayer` (checks for `blocks` property)
-- Currently marked with `TODO: Handle as block map instead of tile layer` comment
-- Future implementation should:
-  - Add `BlockMap: PByte` field to `TTileMap` record (1 byte per tile, 0=passable, 1=blocked)
-  - Skip block layers during visual layer merging
-  - Provide `IsBlocked(X, Y: Word): Boolean` helper function
-  - Consider using bit-packing for memory efficiency (8 tiles per byte)
+**Block Type Conversion:**
+- Tile IDs in the blocks layer are automatically converted to block types
+- Formula: `BlockType = TileID - BlocksTilesetFirstGID + 1`
+- Example: If "Blocks" tileset FirstGID=241:
+  - Tile ID 241 → Block type 1 (solid wall)
+  - Tile ID 242 → Block type 2 (platform top)
+  - Tile ID 0 → Passable (empty)
 
-**Status:** Detection implemented, data handling not yet implemented.
+**Usage in Code:**
+
+```pascal
+{ Check if tile is solid wall (type 1) }
+if IsBlockType(TileMap, PlayerX, PlayerY, 1) then
+  WriteLn('Hit a wall!');
+
+{ Check if tile is platform top (type 2) }
+if IsBlockType(TileMap, PlayerX, PlayerY, 2) then
+  WriteLn('Standing on platform!');
+
+{ Direct access to block data }
+Index := Y * TileMap.Width + X;
+BlockType := TileMap.BlocksLayer^[Index];
+```
+
+**Memory Usage:**
+- 1 byte per tile (Width × Height bytes)
+- Example: 64×64 map = 4,096 bytes (4 KB)
+- Automatically freed by `FreeTileMap`
+
+**Visualization:**
+See TMXTEST.PAS for an example of rendering block overlay with text labels (press 'B' to toggle visibility).
+
+**Status:** ✅ Fully implemented and working.
 
 ## 📐 Coordinate Systems
 

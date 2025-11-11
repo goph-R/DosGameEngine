@@ -322,8 +322,12 @@ SETUP.EXE      - Configure sound card settings
   - Layers after first `<objectgroup>` → Back layer (TileMapLayer_Back = 1)
   - Higher index layers overwrite lower index when merging (higher priority)
 - **Blocks layer support**: Layers with `blocks` custom property are stored in `BlocksLayer` (PByteArray)
-  - Tile IDs stored as bytes (0-255), values > 255 are ignored
-  - Each byte represents a block/collision type (0 typically = passable)
+  - Requires a tileset named exactly **"Blocks"** for collision tile definitions
+  - Automatically detects "Blocks" tileset and stores its FirstGID in `BlocksTilesetFirstGID`
+  - Tile IDs are converted to block types: `BlockType = TileID - BlocksTilesetFirstGID + 1`
+  - Empty tiles (ID = 0) are skipped during BlocksLayer population
+  - Each byte represents a block/collision type (0 = passable, 1+ = different collision types)
+  - Values > 255 are ignored (BlocksLayer uses byte storage)
   - Used for collision detection, pathfinding, or other game logic
   - Access via `IsBlockType` function or directly via `TileMap.BlocksLayer^[index]`
 - **Tileset support**: Up to 4 tilesets per map (TileMap_MaxTileSets = 4)
