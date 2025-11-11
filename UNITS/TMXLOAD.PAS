@@ -32,6 +32,7 @@ type
                                                             { Every word represents a TileID }
     BlocksLayer: PByteArray;                                { Collision/blocks layer (nil if not present) }
                                                             { Each byte is a block type (0 = passable) }
+    BlocksTilesetFirstGID: Word;                            { FirstGID of tileset with 'blocks' property (0 if none) }
   end;
 
   { Callback for processing objectgroup }
@@ -129,13 +130,6 @@ var
   FullPath: String;
 begin
   LoadTileSet := False;
-
-  { Check for blocks property (TODO: implement block map handling) }
-  if HasProperty(XMLNode, 'blocks') then
-  begin
-    LoadTileSet := True;
-    Exit;
-  end;
 
   { Extract required attributes }
   if not XMLHasAttr(XMLNode, 'firstgid') then
@@ -247,6 +241,13 @@ begin
     begin
       TileID := PWordArray(TileData)^[I];
 
+      { Skip empty tiles }
+      if TileID = 0 then
+        Continue;
+
+      { Convert to block type: subtract FirstGID and add 1 }
+      TileID := TileID - TileMap.BlocksTilesetFirstGID + 1;
+
       { Calculate destination index }
       Y := I div TileMap.Width;
       X := I mod TileMap.Width;
@@ -301,6 +302,7 @@ begin
   TileMap.Layers[0] := nil;
   TileMap.Layers[1] := nil;
   TileMap.BlocksLayer := nil;
+  TileMap.BlocksTilesetFirstGID := 0;
 
   { Load and parse XML, the <map> is the root node }
   XMLLoadFile(FilePath, MapNode);
@@ -344,13 +346,24 @@ begin
   Node := XMLFirstChild(MapNode, 'tileset');
   while (Node <> nil) and (TileMap.TileSetCount < TileMap_MaxTileSets) do
   begin
-    if not LoadTileSet(FolderPath, Node, TileMap.TileSets[TileMap.TileSetCount]) then
+    { Check if this is a `Blocks` named tileset }
+    if XMLAttr(Node, 'name') = 'Blocks' then
     begin
-      XMLFreeTree(MapNode);
-      FreeTileMap(TileMap);
-      Exit;
+      { Store FirstGID for blocks tileset and skip loading image }
+      if XMLHasAttr(Node, 'firstgid') then
+        TileMap.BlocksTilesetFirstGID := StrToInt(XMLAttr(Node, 'firstgid'));
+    end
+    else
+    begin
+      { Normal tileset - load it }
+      if not LoadTileSet(FolderPath, Node, TileMap.TileSets[TileMap.TileSetCount]) then
+      begin
+        XMLFreeTree(MapNode);
+        FreeTileMap(TileMap);
+        Exit;
+      end;
+      Inc(TileMap.TileSetCount);
     end;
-    Inc(TileMap.TileSetCount);
     Node := XMLNextSibling(Node, 'tileset');
   end;
 

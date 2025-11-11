@@ -18,6 +18,7 @@ var
   StatusText: String;
   I: Integer;
   Palette: TPalette;
+  BlocksVisible: Boolean;
 
 procedure UpdateFPS;
 var
@@ -43,8 +44,7 @@ var
   BlockType: Byte;
   TileWidth, TileHeight: Byte;
 begin
-  { Only draw blocks if BlocksLayer exists }
-  if TileMap.BlocksLayer = nil then
+  if not BlocksVisible then
     Exit;
 
   TileWidth := TileMap.TileSets[0].TileWidth;
@@ -64,14 +64,14 @@ begin
           { Block type 1 - display "B" }
           ScreenX := TileX * TileWidth + 4;
           ScreenY := TileY * TileHeight + 4;
-          PrintText(ScreenX, ScreenY, 'B', 10, FrameBuffer);
+          PrintText(ScreenX, ScreenY, 'B', 0, FrameBuffer);
         end
         else if IsBlockType(TileMap, CameraX + TileX, CameraY + TileY, 2) then
         begin
           { Block type 2 - display "T" }
           ScreenX := TileX * TileWidth + 4;
           ScreenY := TileY * TileHeight + 4;
-          PrintText(ScreenX, ScreenY, 'T', 12, FrameBuffer);
+          PrintText(ScreenX, ScreenY, 'T', 0, FrameBuffer);
         end;
       end;
     end;
@@ -104,6 +104,9 @@ begin
   { Instructions }
   PrintText(5, 45, 'Arrow keys: Scroll', 14, FrameBuffer);
   PrintText(5, 55, 'ESC: Exit', 14, FrameBuffer);
+
+  if TileMap.BlocksLayer <> nil then
+    PrintText(5, 65, 'B: Toggle blocks visibility', 14, FrameBuffer);
 end;
 
 begin
@@ -160,6 +163,7 @@ begin
   CameraY := 0;
   FPS := 0.0;
   FrameCount := 0;
+  BlocksVisible := TileMap.BlocksLayer <> nil;
 
   { Initialize keyboard handler }
   InitKeyboard;
@@ -207,6 +211,9 @@ begin
 
     if IsKeyPressed(Key_Down) and (CameraY < MaxCameraY) then
       Inc(CameraY);
+
+    if IsKeyPressed(Key_B) then
+      BlocksVisible := not BlocksVisible;
 
     { Draw background }
     CopyFrameBuffer(BackBuffer, FrameBuffer);
