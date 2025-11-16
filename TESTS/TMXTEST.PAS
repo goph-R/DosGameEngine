@@ -186,12 +186,12 @@ begin
   { Enter VGA mode }
   InitVGA;
   SetPalette(Palette);
-  FrameBuffer := CreateFrameBuffer;
-  BackBuffer := CreateFrameBuffer;
 
+  BackBuffer := CreateFrameBuffer;
   PutImage(Background, 0, 0, False, BackBuffer);
   FreeImage(Background);
 
+  FrameBuffer := CreateFrameBuffer;
 
   { Main loop }
   while Running do
@@ -215,7 +215,7 @@ begin
     if IsKeyPressed(Key_B) then
       BlocksVisible := not BlocksVisible;
 
-    { Draw background }
+    { Render background image }
     CopyFrameBuffer(BackBuffer, FrameBuffer);
 
     { Render back layer (background) }

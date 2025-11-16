@@ -10,8 +10,8 @@ uses
 
 type
   TTestSprite = record
-    X, Y: Real;
-    VX, VY: Real;
+    X, Y: LongInt;
+    VX, VY: LongInt;
     FlipX, FlipY: Boolean;
   end;
 
@@ -20,10 +20,9 @@ var
   Palette: TPalette;
   BackgroundImage: TImage;
   Sprite1, Sprite2: TImage;
-  X, Y: Real;
-  VX, VY: Real;  { Velocity in pixels/second }
   Frame: Integer;
-  LastTime, CurrentTime, DeltaTime: Real;
+  LastTime, CurrentTime: Real;
+  DeltaTime, ElapsedTime: LongInt;
   FPS: Word;
   FPSStr: String;
   UseVSync: Boolean;
@@ -37,7 +36,6 @@ var
   TestSprites: array[1..4] of TTestSprite;
 
 var
-  ElapsedTime: Real;
   i: Integer;
   ExplosionID: Integer;
   Bank: TSoundBank;
@@ -76,11 +74,6 @@ begin
   InterruptsUnhooked := True;
 end;
 {$F-}
-
-function GetHighResTime: Real;
-begin
-  GetHighResTime := RTC_Ticks / 1024.0;
-end;
 
 begin
   ClrScr;
@@ -191,48 +184,43 @@ begin
   Rect.Width := 64;
   Rect.Height := 64; 
 
-  X := 160.0;
-  Y := 100.0;
-  VX := 80.0;   { 80 pixels per second }
-  VY := 60.0;   { 60 pixels per second }
-
   { Initialize test sprites with different trajectories and flip modes }
   { Sprite 1: Top-left, moving down-right, no flip }
-  TestSprites[1].X := -32.0;
-  TestSprites[1].Y := -32.0;
-  TestSprites[1].VX := 50.0;
-  TestSprites[1].VY := 40.0;
+  TestSprites[1].X := -32 shl 10;
+  TestSprites[1].Y := -32 shl 10;
+  TestSprites[1].VX := 50;
+  TestSprites[1].VY := 40;
   TestSprites[1].FlipX := False;
   TestSprites[1].FlipY := False;
 
   { Sprite 2: Top-right, moving down-left, FlipX }
-  TestSprites[2].X := 320.0;
-  TestSprites[2].Y := -32.0;
-  TestSprites[2].VX := -45.0;
-  TestSprites[2].VY := 35.0;
+  TestSprites[2].X := 320 shl 10;
+  TestSprites[2].Y := -32 shl 10;
+  TestSprites[2].VX := -45;
+  TestSprites[2].VY := 35;
   TestSprites[2].FlipX := True;
   TestSprites[2].FlipY := False;
 
   { Sprite 3: Bottom-left, moving up-right, FlipY }
-  TestSprites[3].X := -32.0;
-  TestSprites[3].Y := 200.0;
-  TestSprites[3].VX := 55.0;
-  TestSprites[3].VY := -45.0;
+  TestSprites[3].X := -32 shl 10;
+  TestSprites[3].Y := 200 shl 10;
+  TestSprites[3].VX := 55;
+  TestSprites[3].VY := -45;
   TestSprites[3].FlipX := False;
   TestSprites[3].FlipY := True;
 
   { Sprite 4: Bottom-right, moving up-left, FlipX+FlipY }
-  TestSprites[4].X := 320.0;
-  TestSprites[4].Y := 200.0;
-  TestSprites[4].VX := -60.0;
-  TestSprites[4].VY := -50.0;
+  TestSprites[4].X := 320 shl 10;
+  TestSprites[4].Y := 200 shl 10;
+  TestSprites[4].VX := -60;
+  TestSprites[4].VY := -50;
   TestSprites[4].FlipX := True;
   TestSprites[4].FlipY := True;
 
   ElapsedTime := 0;
   Frame := 0;
   Running := True;
-  CurrentTime := GetHighResTime;
+  CurrentTime := GetTimeSeconds;
 
   while Running do
   begin
@@ -245,7 +233,7 @@ begin
     { Draw all test sprites - they will clip properly at screen edges }
     for i := 1 to 4 do
     begin
-      PutFlippedImage(Sprite1, Trunc(TestSprites[i].X), Trunc(TestSprites[i].Y),
+      PutFlippedImage(Sprite1, Trunc(TestSprites[i].X shr 10), Trunc(TestSprites[i].Y shr 10),
                       TestSprites[i].FlipX, TestSprites[i].FlipY, True, FrontBuffer);
     end;
 
@@ -263,22 +251,23 @@ begin
 
     { Calculate delta time }
     LastTime := CurrentTime;
-    CurrentTime := GetHighResTime;
-    DeltaTime := CurrentTime - LastTime;
+    CurrentTime := GetTimeSeconds;
+    DeltaTime := Trunc((CurrentTime - LastTime) * 1000.0);
 
+    { Calculate FPS }
     ElapsedTime := ElapsedTime + DeltaTime;
-    if ElapsedTime > 1.0 then
+    if ElapsedTime > 1000 then
     begin
       FPS := Frame;
-      ElapsedTime := ElapsedTime - 1.0;
+      ElapsedTime := ElapsedTime - 1000;
       Frame := 0;
     end;
 
     { Protect against negative or invalid delta times }
-    if DeltaTime < 0.0 then
-      DeltaTime := 0.001  { Use small value if time went backwards }
-    else if DeltaTime > 0.5 then
-      DeltaTime := 0.5;   { Prevent huge delta times }
+    if DeltaTime < 0 then
+      DeltaTime := 0  { Use small value if time went backwards }
+    else if DeltaTime > 500 then
+      DeltaTime := 500;   { Prevent huge delta times }
 
     { Update all test sprite positions }
     for i := 1 to 4 do
@@ -287,9 +276,9 @@ begin
       TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTime;
 
       { Bounce off edges - allow sprites to go partially off-screen for clipping test }
-      if (TestSprites[i].X <= -32) or (TestSprites[i].X >= 320) then
+      if (TestSprites[i].X <= -32 shl 10) or (TestSprites[i].X >= 320 shl 10) then
         TestSprites[i].VX := -TestSprites[i].VX;
-      if (TestSprites[i].Y <= -32) or (TestSprites[i].Y >= 200) then
+      if (TestSprites[i].Y <= -32 shl 10) or (TestSprites[i].Y >= 200 shl 10) then
         TestSprites[i].VY := -TestSprites[i].VY;
     end;
 

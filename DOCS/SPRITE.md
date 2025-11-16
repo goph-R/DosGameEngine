@@ -220,24 +220,25 @@ Updates sprite animation time. **MUST be called once per frame** with delta time
 **Example:**
 ```pascal
 var
-  LastTimeMS, CurrentTimeMS, DeltaTimeMS: LongInt;
+  DeltaTimeMS: LongInt;
+  LastTime, CurrentTime: Real;
 
 begin
   InitRTC(1024);
-  LastTimeMS := Round(GetTimeSeconds * 1000);
+  LastTime := GetTimeSeconds;
 
   while GameRunning do
   begin
     { Calculate delta time }
-    CurrentTimeMS := Round(GetTimeSeconds * 1000);
-    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-    LastTimeMS := CurrentTimeMS;
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    LastTime := CurrentTime;
 
     { Update sprite - MUST call every frame }
     UpdateSprite(Player, DeltaTimeMS);
 
     { Render }
-    DrawSprite(Player, BackBuffer);
+    DrawSprite(Player, FrameBuffer);
   end;
 
   DoneRTC;
@@ -261,32 +262,13 @@ Renders current animation frame to framebuffer.
 - `FrameBuffer` - Destination framebuffer
 
 **Behavior:**
-- If `Hidden = True`, does nothing
+- If `Hidden = True`, the draw will not happen
 - Calculates current frame from `CurrentTime`
 - If `CurrentTime = -1`, shows last frame (stopped animation)
 - Applies `FlipX` and `FlipY` transformations
 - Draws with transparency (color 0 is transparent)
 - Automatically clips at screen boundaries
 
-**Example:**
-```pascal
-var
-  Player: TSpriteInstance;
-  Enemy: TSpriteInstance;
-
-begin
-  while GameRunning do
-  begin
-    ClearFrameBuffer(BackBuffer);
-
-    { Draw all sprites }
-    DrawSprite(Player, BackBuffer);
-    DrawSprite(Enemy, BackBuffer);
-
-    RenderFrameBuffer(BackBuffer);
-  end;
-end;
-```
 
 ---
 
@@ -301,14 +283,15 @@ var
   SpriteSheet: TImage;
   PlayerRun: TSprite;
   Player: TSpriteInstance;
-  BackBuffer: PFrameBuffer;
-  LastTimeMS, CurrentTimeMS, DeltaTimeMS: LongInt;
+  FrameBuffer: PFrameBuffer;
+  DeltaTimeMS: LongInt;
+  LastTime, CurrentTime: Real;
   i: Integer;
 
 begin
   InitVGA;
   InitRTC(1024);
-  BackBuffer := CreateFrameBuffer;
+  FrameBuffer := CreateFrameBuffer;
 
   { Load sprite sheet }
   LoadPKM('PLAYER.PKM', SpriteSheet);
@@ -338,25 +321,25 @@ begin
   Player.Hidden := False;
 
   { Animation loop }
-  LastTimeMS := Round(GetTimeSeconds * 1000);
+  LastTime := GetTimeSeconds;
   while not IsKeyPressed(Key_Escape) do
   begin
     { Calculate delta time }
-    CurrentTimeMS := Round(GetTimeSeconds * 1000);
-    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-    LastTimeMS := CurrentTimeMS;
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    LastTime := CurrentTime;
 
     { Update and render }
     UpdateSprite(Player, DeltaTimeMS);
 
-    ClearFrameBuffer(BackBuffer);
-    DrawSprite(Player, BackBuffer);
-    RenderFrameBuffer(BackBuffer);
+    ClearFrameBuffer(FrameBuffer);
+    DrawSprite(Player, FrameBuffer);
+    RenderFrameBuffer(FrameBuffer);
 
     ClearKeyPressed;
   end;
 
-  FreeFrameBuffer(BackBuffer);
+  FreeFrameBuffer(FrameBuffer);
   FreeImage(SpriteSheet);
   DoneRTC;
   CloseVGA;
@@ -830,13 +813,13 @@ uses Sprite, RTCTimer;
 begin
   InitRTC(1024);  { 1024 Hz timer }
 
-  LastTimeMS := Round(GetTimeSeconds * 1000);
+  LastTime := GetTimeSeconds;
 
   while Running do
   begin
-    CurrentTimeMS := Round(GetTimeSeconds * 1000);
-    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-    LastTimeMS := CurrentTimeMS;
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    LastTime := CurrentTime;
 
     UpdateSprite(Player, DeltaTimeMS);
   end;
@@ -869,7 +852,7 @@ begin
     end;
 
     UpdateSprite(Player, DeltaTimeMS);
-    DrawSprite(Player, BackBuffer);
+    DrawSprite(Player, FrameBuffer);
 
     ClearKeyPressed;
   end;
@@ -889,14 +872,14 @@ begin
   while Running do
   begin
     { Draw background }
-    DrawTileMapLayer(Map, TileMapLayer_Back, CameraX, CameraY, 320, 200, BackBuffer);
+    DrawTileMapLayer(Map, TileMapLayer_Back, CameraX, CameraY, 320, 200, FrameBuffer);
 
     { Update and draw player sprite }
     UpdateSprite(Player, DeltaTimeMS);
-    DrawSprite(Player, BackBuffer);
+    DrawSprite(Player, FrameBuffer);
 
     { Draw foreground }
-    DrawTileMapLayer(Map, TileMapLayer_Front, CameraX, CameraY, 320, 200, BackBuffer);
+    DrawTileMapLayer(Map, TileMapLayer_Front, CameraX, CameraY, 320, 200, FrameBuffer);
   end;
 end;
 ```
