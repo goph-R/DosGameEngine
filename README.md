@@ -39,7 +39,6 @@ IMGTEST.EXE
 - **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
 - **[README.md](README.md)** - This file, project overview and quick start
 - **[DOCS/BUILD.md](DOCS/BUILD.md)** - Building and compilation guide
-- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example code patterns
 - **[DOCS/ISSUES.md](DOCS/ISSUES.md)** - Critical cleanup rules, common issues
 - **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
 
@@ -56,9 +55,6 @@ IMGTEST.EXE
 - **[DOCS/SNDBANK.md](DOCS/SNDBANK.md)** - XMS sound bank manager API
 - **[DOCS/SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system API
 - **[DOCS/VGA.md](DOCS/VGA.md)** - VGA graphics API reference
-
-### Third-Party Documentation
-- **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Original Sound Blaster driver documentation
 
 ## ✨ Features
 
