@@ -35,16 +35,30 @@ IMGTEST.EXE
 
 ## 📖 Documentation
 
+### Core Documentation
 - **[CLAUDE.md](CLAUDE.md)** - Detailed technical reference for all units
-- **[DOCS/BUILD.md](DOCS/BUILD.md)** - How to build
+- **[README.md](README.md)** - This file, project overview and quick start
+- **[DOCS/BUILD.md](DOCS/BUILD.md)** - Building and compilation guide
+- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example code patterns
+- **[DOCS/ISSUES.md](DOCS/ISSUES.md)** - Critical cleanup rules, common issues
+- **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
+
+### Format Specifications
 - **[DOCS/PKM.md](DOCS/PKM.md)** - PKM image format specification
 - **[DOCS/HSC.md](DOCS/HSC.md)** - HSC music format specification
-- **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
 - **[DOCS/TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format guide and loader API
-- **[DOCS/DESIGN/TIMING.md](DOCS/DESIGN/TIMING.md)** - Delta-time patterns and sprite animation timing
-- **[DOCS/EXAMPLE.md](DOCS/EXAMPLE.md)** - Example codes for usage
-- **[DOCS/ISSUES.md](DOCS/ISSUES.md)** - Critical cleanup rules, common issues
-- **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Sound Blaster driver documentation
+
+### API References
+- **[DOCS/KEYBOARD.md](DOCS/KEYBOARD.md)** - Keyboard handler API and scan codes
+- **[DOCS/MINIXML.md](DOCS/MINIXML.md)** - XML parser API reference and examples
+- **[DOCS/MOUSE.md](DOCS/MOUSE.md)** - Mouse input API and button handling
+- **[DOCS/SBDSP.md](DOCS/SBDSP.md)** - Sound Blaster DSP API reference
+- **[DOCS/SNDBANK.md](DOCS/SNDBANK.md)** - XMS sound bank manager API
+- **[DOCS/SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system API
+- **[DOCS/VGA.md](DOCS/VGA.md)** - VGA graphics API reference
+
+### Third-Party Documentation
+- **[VENDOR/SBDSP2B/SBDSP.TXT](VENDOR/SBDSP2B/SBDSP.TXT)** - Original Sound Blaster driver documentation
 
 ## ✨ Features
 
@@ -52,8 +66,8 @@ IMGTEST.EXE
 - **VGA Mode 13h**: 320×200 pixels, 256 colors
 - **PKM image loader**: RLE-compressed format from GrafX2
 - **Double-buffering**: Flicker-free rendering with VSync support
-- **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Sprite rendering**: GetImage/PutImage with transparency and horizontal/vertical flipping
+- **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Tilemap support**: TMX tilemap loader and renderer for Tiled Map Editor files
 - **Collision layers**: BlocksLayer support for tile-based collision detection (separate from visual layers)
 - **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
@@ -97,25 +111,33 @@ IMGTEST.EXE
 D:\ENGINE\
 ├── UNITS\          Core engine units
 │   ├── CONFIG.PAS      - INI file configuration
+│   ├── ENTITIES.PAS    - Entity component system
+│   ├── GENTYPES.PAS    - Generic type definitions
 │   ├── KEYBOARD.PAS    - Keyboard interrupt handler
+│   ├── LINKLIST.PAS    - Generic doubly-linked list
 │   ├── MINIXML.PAS     - XML parser with DOM tree
 │   ├── MOUSE.PAS       - Mouse interrupt handler
 │   ├── PKMLOAD.PAS     - PKM image loader
 │   ├── PLAYHSC.PAS     - HSC music player
+│   ├── RESMAN.PAS      - Resource manager
 │   ├── RTCTIMER.PAS    - RTC high-resolution timer
 │   ├── SBDSP.PAS       - Sound Blaster driver
 │   ├── SNDBANK.PAS     - XMS sound bank manager
 │   ├── SPRITE.PAS      - Sprite animation system
 │   ├── STRMAP.PAS      - String hash map
+│   ├── STRUTIL.PAS     - String utility functions
 │   ├── TEXTUI.PAS      - Text mode UI library
 │   ├── TMXLOAD.PAS     - TMX tilemap loader
 │   ├── TMXDRAW.PAS     - TMX tilemap renderer
 │   ├── VGA.PAS         - Mode 13h graphics driver
-│   └── VGAPRINT.PAS    - 8x8 bitmap font text renderer
+│   ├── VGAPRINT.PAS    - 8x8 bitmap font text renderer
+│   └── XMS.PAS         - XMS extended memory driver
 │
 ├── TESTS\          Test programs
 │   ├── C*.BAT          - Compile scripts
+│   ├── DRWTEST.PAS     - VGA drawing primitives demo
 │   ├── IMGTEST.PAS     - Advanced sprite demo with audio
+│   ├── MAPTEST.PAS     - String map (StrMap) demo
 │   ├── MOUTEST.PAS     - Mouse input demo with crosshair
 │   ├── SNDTEST.PAS     - Sound bank demo
 │   ├── SPRTEST.PAS     - Sprite animation system demo

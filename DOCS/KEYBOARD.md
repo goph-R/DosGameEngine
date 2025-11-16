@@ -19,7 +19,7 @@ KEYBOARD.PAS provides hardware-level keyboard input by hooking INT 9h (keyboard 
 
 - **No BIOS delays** - Direct hardware access, faster than BIOS
 - **Continuous input detection** - Check if key is currently held down
-- **Edge detection** - Detect single key presses (fire once on release)
+- **Edge detection** - Detect single key presses (fire once on press dowm)
 - **Multiple simultaneous keys** - Perfect for games (walk + jump)
 - **Scan code based** - Hardware-level key identification
 

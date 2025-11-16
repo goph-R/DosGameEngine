@@ -164,8 +164,8 @@ end;
 
 procedure TEntity.Init;
 begin
-  X := 160 shl 8;
-  Y := 100 shl 8;
+  X := 160 shl 10;
+  Y := 100 shl 10;
   Width := 16;
   Height := 16;
   AlignH := Align_Center;
@@ -192,22 +192,22 @@ end;
 
 function TEntity.GetTop: Integer;
 begin
-  GetTop := GetGlobalY shr 8 + AlignV * Height;
+  GetTop := GetGlobalY shr 10 + AlignV * Height;
 end;
 
 function TEntity.GetRight: Integer;
 begin
-  GetRight := GetGlobalX shr 8 - (AlignH + 2) * Width;
+  GetRight := GetGlobalX shr 10 - (AlignH + 2) * Width;
 end;
 
 function TEntity.GetBottom: Integer;
 begin
-  GetBottom := GetGlobalY shr 8 - (AlignV + 2) * Height;
+  GetBottom := GetGlobalY shr 10 - (AlignV + 2) * Height;
 end;
 
 function TEntity.GetLeft: Integer;
 begin
-  GetLeft := GetGlobalX shr 8 + AlignH * Width;
+  GetLeft := GetGlobalX shr 10 + AlignH * Width;
 end;
 
 procedure TEntity.PreUpdate(DeltaTime: LongInt);
@@ -218,7 +218,7 @@ end;
 procedure TEntity.Update(DeltaTime: LongInt);
 begin
   if Disabled then
-	Exit;
+	  Exit;
   if Physics <> nil then
   	Physics^.Update(Self, DeltaTime);
   if SpriteInstance <> nil then
@@ -229,8 +229,8 @@ procedure TEntity.Draw(FrameBuffer: PFrameBuffer);
 begin
   if (SpriteInstance = nil) or (SpriteInstance.Hidden) then
   	Exit;
-  SpriteInstance.X := GetGlobalX shr 8 + AlignV * SpriteInstance.Sprite^.Width + SpriteOffsetX;
-  SpriteInstance.Y := GetGlobalY shr 8 + AlignH * SpriteInstance.Sprite^.Height + SpriteOffsetY;
+  SpriteInstance.X := GetGlobalX shr 10 + AlignV * SpriteInstance.Sprite^.Width + SpriteOffsetX;
+  SpriteInstance.Y := GetGlobalY shr 10 + AlignH * SpriteInstance.Sprite^.Height + SpriteOffsetY;
   DrawSprite(SpriteInstance, FrameBuffer);
 end;
 

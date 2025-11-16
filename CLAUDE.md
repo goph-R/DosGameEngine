@@ -236,11 +236,11 @@ SETUP.EXE      - Configure sound card settings
 - `InitKeyboard`: Initialize keyboard handler - **MUST call before use**
 - `DoneKeyboard`: Restore original interrupt handler - **MUST call before exit**
 - `IsKeyDown(scancode)`: Returns true while key is physically held down (continuous input)
-- `IsKeyPressed(scancode)`: Returns true once when key is **released** (edge detection)
+- `IsKeyPressed(scancode)`: Returns true once when key is **pressed down** (edge detection)
 - `ClearKeyPressed`: Clears all checked key press flags - call once at end of game loop
 - **Scan code constants**: `Key_A` through `Key_Z`, `Key_0` through `Key_9`, `Key_F1` through `Key_F12`, arrow keys (`Key_Up`, `Key_Down`, `Key_Left`, `Key_Right`), modifiers (`Key_LShift`, `Key_RShift`, `Key_LCtrl`, `Key_LAlt`), special keys (`Key_Escape`, `Key_Enter`, `Key_Space`, `Key_Backspace`, `Key_Tab`)
 - **Key detection behavior**:
-  - `IsKeyPressed` triggers on key **release** (not press) to ensure no quick taps are missed
+  - `IsKeyPressed` triggers on key **press down** (not release) for immediate response
   - Uses `KeyChecked` array to track which keys were queried this frame
   - Only checked keys get cleared by `ClearKeyPressed`, preserving unchecked events
   - Can call `IsKeyPressed` multiple times per frame for same key safely
@@ -291,7 +291,7 @@ SETUP.EXE      - Configure sound card settings
   - `SoundCard_None` (0), `SoundCard_Adlib` (1), `SoundCard_SoundBlaster` (2) for sound card enumeration
   - `ConfigFile`: Filename constant ('CONFIG.INI')
 - **INI Format**: Standard INI-style text file with `[Sound]` section and key=value pairs
-- **Port Value Format**: SBPort stored as base value (e.g., $22 for port $220); SETUP.PAS handles conversion for display
+- **Port Value Format**: SBPort stored as base value (2=$220, 4=$240, 6=$260, 8=$280); SETUP.PAS handles conversion for display
 - Used by SETUP.PAS and can be used by games to detect sound hardware configuration
 
 **TEXTUI.PAS** - Text mode UI library
@@ -371,7 +371,6 @@ SETUP.EXE      - Configure sound card settings
 - **Shared image**: Multiple sprite definitions can reference same TImage (sprite sheet support)
 - **Frame calculation**: `FrameNumber = (CurrentTime × FrameCount) div Duration`
 - **CRITICAL**: Call UpdateSprite every frame with delta time for smooth animation
-- See DOCS\DESIGN\TIMING.md for delta-time patterns and millisecond timing recommendations
 
 ### File Formats
 
@@ -638,13 +637,13 @@ SETUP.EXE
 
 [Sound]
 SoundCard=2
-SBPort=34
+SBPort=2
 SBIRQ=5
 SBDMA=1
 ```
 Notes:
 - SoundCard defaults to 0 (None) if CONFIG.INI doesn't exist
-- SBPort is stored as base value: 34 ($22) represents port $220, 36 ($24) represents port $240, etc.
+- SBPort is stored as base value: 2=$220, 4=$240, 6=$260, 8=$280 (compatible with SBDSP.ResetDSP)
 - SETUP.PAS displays/accepts the actual port value ($220) and converts to/from base value automatically
 
 ### Embedding Music in EXE

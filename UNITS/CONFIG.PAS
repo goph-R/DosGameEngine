@@ -26,9 +26,9 @@ const
 type
   TConfig = record
     SoundCard: Byte;     { 0=None, 1=Adlib, 2=SoundBlaster }
-    SBPort: Word;        { SoundBlaster base (1=$210, 2=$220, 3=$230, 4=$240) }
-    SBIRQ: Byte;         { SoundBlaster IRQ (e.g., 5) }
-    SBDMA: Byte;         { SoundBlaster DMA (e.g., 1) }
+    SBPort: Word;        { SoundBlaster base (2=$220, 4=$240, 6=$260, 8=$280) }
+    SBIRQ: Byte;         { SoundBlaster IRQ (e.g., 5 or 7) }
+    SBDMA: Byte;         { SoundBlaster DMA (1, 2, 3, or 4) }
   end;
 
 { Load configuration from CONFIG.INI file }

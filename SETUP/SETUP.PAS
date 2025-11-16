@@ -83,9 +83,9 @@ begin
     if IsHex then
     begin
       s := ShowInput(37, Row, Width, HexStr(CurrentValue, Width));
-      if (s <> '210') and (s <> '220') and (s <> '230') and (s <> '240') then
+      if (s <> '220') and (s <> '240') and (s <> '260') and (s <> '280') then
       begin
-        m := 'Please use 210, 220, 230 or 240!';
+        m := 'Please use 220, 240, 260 or 280!';
         v := 0;
       end
       else
@@ -168,7 +168,7 @@ begin
   end;
 
   { Initialize Sound Blaster with current configuration }
-  { Note: SBPort is stored as base value (1=$210, 2=$220, 3=$230, 4=$240) }
+  { Note: SBPort is stored as base value (2=$220, 4=$240, 6=$260, 8=$280) }
   if not ResetDSP(GameConfig.SBPort, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
   begin
     ShowMessage(
