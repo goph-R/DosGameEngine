@@ -47,8 +47,9 @@ end;
 
 procedure AdjustSoundBlasterItems;
 begin
-  { Display actual port value (base * $10), e.g., $22 -> $220 }
-  SBPortItem^.Text := 'Port:  ' + HexStr(GameConfig.SBPort * $10, 3);
+  { Display actual port value, e.g., Base 2 -> $220 }
+  { Formula: Port = Base * $10 + $200 }
+  SBPortItem^.Text := 'Port:  ' + HexStr(GameConfig.SBPort * $10 + $200, 3);
   SBDMAItem^.Text  := 'DMA:   ' + IntToStr(GameConfig.SBDMA);
   SBIRQItem^.Text  := 'IRQ:   ' + IntToStr(GameConfig.SBIRQ);
 end;
@@ -82,14 +83,19 @@ begin
     if IsHex then
     begin
       s := ShowInput(37, Row, Width, HexStr(CurrentValue, Width));
-      v := HexStrToWord(s);
-      m := 'Please give a hexadecimal number!';
+      if (s <> '210') and (s <> '220') and (s <> '230') and (s <> '240') then
+      begin
+        m := 'Please use 210, 220, 230 or 240!';
+        v := 0;
+      end
+      else
+        v := HexStrToWord(s);
     end
     else
     begin
       s := ShowInput(37, Row, Width, IntToStr(CurrentValue));
-      v := StrToInt(s);
       m := 'Please give a number!';
+      v := StrToInt(s);
     end;
 
     { Validate }
@@ -162,11 +168,11 @@ begin
   end;
 
   { Initialize Sound Blaster with current configuration }
-  { Note: SBPort is stored as base value (e.g., $22 for port $220) }
+  { Note: SBPort is stored as base value (1=$210, 2=$220, 3=$230, 4=$240) }
   if not ResetDSP(GameConfig.SBPort, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
   begin
     ShowMessage(
-      'Sound Blaster NOT detected at port ' + HexStr(GameConfig.SBPort * $10, 3) + '!',
+      'Sound Blaster NOT detected at port ' + HexStr(GameConfig.SBPort * $10 + $200, 3) + '!',
       'Press any key'
     );
     SetMenu(MainMenu);
@@ -242,10 +248,12 @@ var
   DisplayValue: Word;
 begin
   { Show actual port value to user (e.g., $220) }
-  DisplayValue := GameConfig.SBPort * $10;
+  { Formula: Port = Base * $10 + $200 }
+  DisplayValue := GameConfig.SBPort * $10 + $200;
   DisplayValue := InputNumericValue(10, 3, DisplayValue, True);
-  { Convert back to base value for storage (e.g., $220 -> $22) }
-  GameConfig.SBPort := DisplayValue div $10;
+  { Convert back to base value for storage (e.g., $220 -> Base 2) }
+  { Formula: Base = (Port - $200) div $10 }
+  GameConfig.SBPort := (DisplayValue - $200) div $10;
   AdjustSoundBlasterItems;
   SetMenu(SoundBlasterMenu);
 end;

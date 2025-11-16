@@ -34,6 +34,8 @@ This project requires **Turbo Pascal 7.0** (or compatible version) for DOS.
 
 **IMPORTANT**: Compilation must be performed by the user in a DOS environment (DOSBox-X, FreeDOS, or real DOS hardware). AI agents cannot compile this code directly - they can only provide guidance, write code, and create batch files.
 
+When the user asks for an assembly code solution it means a procedure in Turbo Pascal 7.0 that is using the assembler. The agent has to avoid BP and SP register usage, but can use Turbo Pascal variables instead.
+
 **Automated compilation using batch files (recommended):**
 ```bash
 # Compile test programs with all dependencies

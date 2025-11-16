@@ -37,8 +37,12 @@ procedure CopyFrameBuffer(Source, Dest: PFrameBuffer);  { Fast copy from Source 
 procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
 procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer);
 procedure SetPalette(const Palette: TPalette);
+procedure RotatePalette(var Palette: TPalette; StartColor: Byte; Count: Byte; Direction: ShortInt);
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 procedure WaitForVSync;
+
+{ Drawing primitives }
+procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
 
 { Image operations }
 procedure GetImage(var Image: TImage; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
@@ -156,6 +160,34 @@ procedure SetPalette(const Palette: TPalette); assembler;
   pop ds
 end;
 
+procedure RotatePalette(var Palette: TPalette; StartColor: Byte; Count: Byte; Direction: ShortInt);
+{ Rotates a range of palette colors for animation effects }
+{ Direction: 1 = rotate right (colors shift up), -1 = rotate left (colors shift down) }
+var
+  i: Byte;
+  TempColor: TRGBColor;
+begin
+  if Count <= 1 then
+    Exit;  { Nothing to rotate }
+
+  if Direction > 0 then
+  begin
+    { Rotate right: save last color, shift all down, put saved at start }
+    TempColor := Palette[StartColor + Count - 1];
+    for i := Count - 1 downto 1 do
+      Palette[StartColor + i] := Palette[StartColor + i - 1];
+    Palette[StartColor] := TempColor;
+  end
+  else if Direction < 0 then
+  begin
+    { Rotate left: save first color, shift all up, put saved at end }
+    TempColor := Palette[StartColor];
+    for i := 0 to Count - 2 do
+      Palette[StartColor + i] := Palette[StartColor + i + 1];
+    Palette[StartColor + Count - 1] := TempColor;
+  end;
+end;
+
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 var
   F: File;
@@ -192,6 +224,67 @@ procedure WaitForVSync; assembler;
   test al, 08h      { Wait for bit 3 to set (VBlank started) }
   jz @wait2
 end;
+
+{ Drawing primitives }
+
+procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+{ Bresenham's line drawing algorithm with clipping }
+var
+  dx, dy, sx, sy, err, e2: Integer;
+  Offset: Word;
+begin
+  { Calculate dx = Abs(X2 - X1) }
+  dx := X2 - X1;
+  if dx < 0 then
+  begin
+    dx := -dx;
+    sx := -1;
+  end
+  else
+    sx := 1;
+
+  { Calculate dy = Abs(Y2 - Y1) }
+  dy := Y2 - Y1;
+  if dy < 0 then
+  begin
+    dy := -dy;
+    sy := -1;
+  end
+  else
+    sy := 1;
+
+  { Initial error }
+  err := dx - dy;
+
+  { Main loop }
+  while True do
+  begin
+    { Plot pixel if within bounds }
+    if (X1 >= 0) and (X1 < 320) and (Y1 >= 0) and (Y1 < 200) then
+    begin
+      Offset := Word(Y1) * 320 + Word(X1);
+      FrameBuffer^[Offset] := Color;
+    end;
+
+    { Check if we've reached the end point }
+    if (X1 = X2) and (Y1 = Y2) then
+      Break;
+
+    { Calculate error and adjust coordinates }
+    e2 := err * 2;
+    if e2 > -dy then
+    begin
+      err := err - dy;
+      X1 := X1 + sx;
+    end;
+    if e2 < dx then
+    begin
+      err := err + dx;
+      Y1 := Y1 + sy;
+    end;
+  end;
+end;
+
 
 { Image operations }
 

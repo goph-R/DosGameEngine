@@ -498,22 +498,20 @@ begin
       Done := True;
 
     { Character input - scan through all possible keys }
-    if Length(Value) < Width then
+    { IMPORTANT: Always check keys even at max length to consume them! }
+    for ScanCode := 0 to 127 do
     begin
-      for ScanCode := 0 to 127 do
+      if IsKeyPressed(ScanCode) then
       begin
-        if IsKeyPressed(ScanCode) then
-        begin
-          { Look up character from appropriate map }
-          if ShiftPressed then
-            Ch := CharMapShift[ScanCode]
-          else
-            Ch := CharMapNormal[ScanCode];
+        { Look up character from appropriate map }
+        if ShiftPressed then
+          Ch := CharMapShift[ScanCode]
+        else
+          Ch := CharMapNormal[ScanCode];
 
-          { Add character if printable }
-          if Ch <> #0 then
-            Value := Value + Ch;
-        end;
+        { Add character if printable AND there's room }
+        if (Ch <> #0) and (Length(Value) < Width) then
+          Value := Value + Ch;
       end;
     end;
 

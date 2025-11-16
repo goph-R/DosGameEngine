@@ -26,7 +26,7 @@ const
 type
   TConfig = record
     SoundCard: Byte;     { 0=None, 1=Adlib, 2=SoundBlaster }
-    SBPort: Word;        { SoundBlaster port (e.g., $220) }
+    SBPort: Word;        { SoundBlaster base (1=$210, 2=$220, 3=$230, 4=$240) }
     SBIRQ: Byte;         { SoundBlaster IRQ (e.g., 5) }
     SBDMA: Byte;         { SoundBlaster DMA (e.g., 1) }
   end;
@@ -51,7 +51,7 @@ var
 begin
   { Defaults }
   Config.SoundCard := SoundCard_None;
-  Config.SBPort := $22;  { Base value: $22 * $10 = $220 }
+  Config.SBPort := 2;  { Base value 2 = port $220 (most common) }
   Config.SBIRQ := 5;
   Config.SBDMA := 1;
 
