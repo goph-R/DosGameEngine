@@ -14,7 +14,7 @@ Delta-time sprite animation system for VGA Mode 13h.
 
 ---
 
-## Overview
+## Overview 
 
 SPRITE.PAS provides a frame-rate independent sprite animation system using delta-time updates. This approach ensures smooth animation regardless of CPU speed or frame rate.
 
