@@ -1,0 +1,13 @@
+# DOS project - use CRLF line endings for all text files
+* text eol=crlf
+
+# Explicitly mark binary files
+*.exe binary
+*.obj binary
+*.tpu binary
+*.pkm binary
+*.hsc binary
+*.voc binary
+*.wav binary
+*.pal binary
+*.png binary
