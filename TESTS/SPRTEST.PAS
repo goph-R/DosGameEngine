@@ -20,6 +20,7 @@ var
   CurrentTime: Real;
   LastTime: Real;
   DeltaTimeMS: LongInt;
+  DeltaTimeAccum: Real;  { Accumulator for fractional milliseconds }
 
   { FPS calculation }
   FPS: Real;
@@ -29,6 +30,7 @@ var
   { State }
   Running: Boolean;
   CurrentAnimation: Byte; { 0 = Idle, 1 = Run }
+  VsyncEnabled: Boolean;
   StatusText: String;
   I: Integer;
 
@@ -137,11 +139,28 @@ begin
   CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
 end;
 
+procedure DrawVsyncText;
+var
+  R: TRectangle;
+begin
+  R.X := 210;
+  R.Y := 5;
+  R.Width := 105;
+  R.Height := 8;
+  ClearRect(FrameBuffer, R);
+  if VsyncEnabled then
+    PrintText(210, 5, 'VSync: ON', 15, FrameBuffer)
+  else
+    PrintText(210, 5, 'VSync: OFF', 15, FrameBuffer);
+  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
+end;
+
 procedure DrawUI;
 var
   FreeMem: LongInt;
 begin
   DrawAnimationText;
+  DrawVsyncText;
   DrawFPS;
 
   { Display free memory }
@@ -151,7 +170,7 @@ begin
   PrintText(5, 25, StatusText, 15, FrameBuffer);
 
   { Instructions }
-  PrintText(5, 180, '1: Idle  2: Run  F: Flip', 14, FrameBuffer);
+  PrintText(5, 180, '1: Idle  2: Run  F: Flip  V: VSync', 14, FrameBuffer);
   PrintText(5, 190, 'ESC: Exit', 14, FrameBuffer);
 
   RenderFrameBuffer(FrameBuffer);
@@ -193,8 +212,10 @@ begin
   { Initialize state }
   Running := True;
   CurrentAnimation := 0;
+  VsyncEnabled := False;
   FPS := 0.0;
   FrameCount := 0;
+  DeltaTimeAccum := 0.0;
 
   WriteLn('Press any key to start...');
   ReadLn;
@@ -216,9 +237,9 @@ begin
   { Main loop }
   while Running do
   begin
-    { Calculate delta time }
+    { Calculate delta time and accumulate fractional milliseconds }
     CurrentTime := GetTimeSeconds;
-    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    DeltaTimeAccum := DeltaTimeAccum + ((CurrentTime - LastTime) * 1000.0);
     LastTime := CurrentTime;
 
     { Handle input }
@@ -246,8 +267,20 @@ begin
     if IsKeyPressed(Key_F) then
       Player.FlipX := not Player.FlipX;
 
-    { Update sprite animation }
-    UpdateSprite(Player, DeltaTimeMS);
+    if IsKeyPressed(Key_V) then
+    begin
+      VsyncEnabled := not VsyncEnabled;
+      DrawVsyncText;
+    end;
+
+    { Update sprite animation only when we have at least 1ms accumulated }
+    { This prevents animation freezing on fast CPUs (100MHz+ 486/Pentium) }
+    if DeltaTimeAccum >= 1.0 then
+    begin
+      DeltaTimeMS := Trunc(DeltaTimeAccum);
+      DeltaTimeAccum := DeltaTimeAccum - DeltaTimeMS;
+      UpdateSprite(Player, DeltaTimeMS);
+    end;
 
     { Clear only the sprite area }
     ClearRect(FrameBuffer, SpriteRect);
@@ -257,6 +290,10 @@ begin
 
     { Copy only sprite region to screen }
     CopyFrameBufferRect(FrameBuffer, SpriteRect, ScreenBuffer, SpriteRect.X, SpriteRect.Y);
+
+    { Wait for vertical blank if VSync enabled (caps at ~60-70 FPS) }
+    if VsyncEnabled then
+      WaitForVSync;
 
     { Update FPS }
     UpdateFPS;
