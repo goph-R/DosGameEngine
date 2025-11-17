@@ -10,7 +10,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 
 ### Prerequisites
 - [Turbo Pascal 7.0](https://winworldpc.com/product/turbo-pascal/7x) (TPC.EXE)
-- [DOSBox-X](https://dosbox-x.com/) or real DOS/FreeDOS
+- [DOSBox-X](https://dosbox-x.com/), [86Box](https://86box.net/) or real DOS/FreeDOS
 - HIMEM.SYS loaded (for XMS extended memory support, default in DOSBox)
 
 ### First Run
@@ -67,8 +67,8 @@ IMGTEST.EXE
 - **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Tilemap support**: TMX tilemap loader and renderer for Tiled Map Editor files
 - **Collision layers**: BlocksLayer support for tile-based collision detection (separate from visual layers)
-- **Text rendering**: Embedded 8x8 bitmap font (VGAPRINT) for debug text, variable-width fonts (VGAFONT) for game UI
-- **Variable-width fonts**: Professional proportional fonts with XML metadata and PKM sprite sheets
+- **Text rendering**: Embedded 8x8 bitmap font (VGAPRINT) for debug texts
+- **Variable-width fonts**: Proportional fonts with XML metadata and PKM sprite sheets
 - **Palette support**: Direct VGA DAC programming (0-63 RGB), 768 Byte PAL loader
 
 ### 🎵 Audio
@@ -109,7 +109,7 @@ IMGTEST.EXE
 D:\ENGINE\
 ├── UNITS\          Core engine units
 │   ├── CONFIG.PAS      - INI file configuration
-│   ├── ENTITIES.PAS    - Entity component system
+│   ├── ENTITIES.PAS    - Entity component system (WIP)
 │   ├── GENTYPES.PAS    - Generic type definitions
 │   ├── KEYBOARD.PAS    - Keyboard interrupt handler
 │   ├── LINKLIST.PAS    - Generic doubly-linked list
@@ -128,6 +128,7 @@ D:\ENGINE\
 │   ├── TMXLOAD.PAS     - TMX tilemap loader
 │   ├── TMXDRAW.PAS     - TMX tilemap renderer
 │   ├── VGA.PAS         - Mode 13h graphics driver
+│   ├── VGAFONT.PAS     - Variable-width font text renderer
 │   ├── VGAPRINT.PAS    - 8x8 bitmap font text renderer
 │   └── XMS.PAS         - XMS extended memory driver
 │
