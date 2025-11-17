@@ -21,12 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------
+
 NON-CODE ASSETS NOTICE
 
 The files located in the /DATA directory:
 
+    DATA/BG.PKM
     DATA/PLAYER.PKM
     DATA/TILESET.PKM
+    DATA/TILESET.PNG
 
 are © 2025 by Dynart Kft.
 
@@ -39,4 +42,3 @@ is obtained from Dynart Kft.
 
 For commercial licensing, contact:
 info@dynart.net
-------------------------------------------------------------

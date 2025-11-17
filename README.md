@@ -251,7 +251,8 @@ Contributions welcome! This engine aims to preserve 1990s DOS demoscene programm
 
 ## 🔒 Asset Licensing Notes
 
-The PKM files in the `DATA` folder (`PLAYER.PKM` and `TILESET.PKM`) are not MIT-licensed.
+The PKM files in the `DATA` folder (`BG.PKM`, `PLAYER.PKM`, `TILESET.PKM` and `TILESET.PNG`) are not MIT-licensed.
+
 They are © 2025 Dynart Kft. Free for non-commercial use with credits.
 
 Commercial use requires a separate license.  
