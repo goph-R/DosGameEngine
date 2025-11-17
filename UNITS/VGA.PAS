@@ -34,6 +34,7 @@ function CreateFrameBuffer: PFrameBuffer;  { Allocates off-screen buffer for dou
 function GetScreenBuffer: PFrameBuffer;    { Returns pointer to VGA memory for direct drawing }
 procedure ClearFrameBuffer(FrameBuffer: PFrameBuffer);
 procedure CopyFrameBuffer(Source, Dest: PFrameBuffer);  { Fast copy from Source to Dest }
+procedure CopyFrameBufferRect(Source: PFrameBuffer; var SourceRect: TRectangle; Dest: PFrameBuffer; DestX, DestY: Word);
 procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
 procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer);
 procedure SetPalette(const Palette: TPalette);
@@ -114,6 +115,95 @@ procedure CopyFrameBuffer(Source, Dest: PFrameBuffer); assembler;
   cld
   rep movsw           { Copy CX words from DS:SI to ES:DI }
   pop ds              { Restore Pascal's DS }
+end;
+
+procedure CopyFrameBufferRect(Source: PFrameBuffer; var SourceRect: TRectangle;
+                               Dest: PFrameBuffer; DestX, DestY: Word); assembler;
+{ Fast assembly rectangle copy using REP MOVSW }
+{ Copies a rectangular region from Source to Dest }
+{ Width is made even for word-aligned copy (odd widths rounded down) }
+asm
+  push ds
+  push es
+
+  { Load rectangle dimensions }
+  les di, SourceRect
+  mov ax, es:[di]         { AX = SourceRect.X }
+  mov bx, es:[di+2]       { BX = SourceRect.Y }
+  mov cx, es:[di+4]       { CX = SourceRect.Width }
+  mov dx, es:[di+6]       { DX = SourceRect.Height }
+
+  { Check for zero width or height - exit if so }
+  test cx, cx
+  jz @Done
+  test dx, dx
+  jz @Done
+
+  { Make width even for word copy }
+  and cx, 0FFFEh          { CX = Width & ~1 (clear lowest bit) }
+  jz @Done                { Exit if width became 0 }
+
+  { Save width (in words) and height }
+  push cx               { Save width in bytes }
+  shr cx, 1             { CX = width / 2 (word count) }
+  push cx               { Save word count }
+  pop cx                { Restore to CX }
+  pop ax                { Get byte width back }
+  push ax               { Save byte width }
+  push cx               { Save word count }
+  push dx               { Save height }
+
+  { Calculate source offset = SourceRect.Y * 320 + SourceRect.X }
+  mov ax, bx            { AX = SourceRect.Y }
+  mov bx, 320
+  mul bx                { DX:AX = SourceRect.Y * 320 }
+  les di, SourceRect
+  add ax, es:[di]       { AX += SourceRect.X }
+
+  { Load source buffer pointer and add offset }
+  lds si, Source        { DS:SI = Source base }
+  add si, ax            { DS:SI = Source + offset }
+
+  { Calculate destination offset = DestY * 320 + DestX }
+  mov ax, DestY
+  mov bx, 320
+  mul bx                { DX:AX = DestY * 320 }
+  add ax, DestX         { AX += DestX }
+
+  { Load destination buffer pointer and add offset }
+  les di, Dest          { ES:DI = Dest base }
+  add di, ax            { ES:DI = Dest + offset }
+
+  { Restore height, word count, and byte width }
+  pop dx                { DX = height }
+  pop cx                { CX = word count }
+  pop bx                { BX = byte width }
+
+  { Main copy loop }
+@RowLoop:
+  push cx               { Save word count }
+  push si               { Save source position }
+  push di               { Save dest position }
+
+  { Copy one row using words }
+  cld
+  rep movsw             { Copy CX words from DS:SI to ES:DI }
+
+  { Restore positions and move to next row }
+  pop di                { Restore dest position }
+  pop si                { Restore source position }
+  pop cx                { Restore word count }
+
+  { Move to next row }
+  add si, 320           { Next source row }
+  add di, 320           { Next dest row }
+
+  dec dx
+  jnz @RowLoop
+
+@Done:
+  pop es
+  pop ds
 end;
 
 procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);

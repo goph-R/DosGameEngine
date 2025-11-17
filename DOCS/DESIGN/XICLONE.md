@@ -86,12 +86,14 @@ uses VGA;
 - CopyFrameBufferRect: Copy rectangular region (FAST!)
 
   procedure CopyFrameBufferRect(
-    SourceBuf: PFrameBuffer;
-    DestBuf: PFrameBuffer;
-    SourceX, SourceY: Integer;
-    DestX, DestY: Integer;
-    Width, Height: Integer
+    Source: PFrameBuffer;
+    var SourceRect: TRectangle;
+    Dest: PFrameBuffer;
+    DestX, DestY: Word
   );
+
+  { Uses REP MOVSW for fast word-aligned copying }
+  { Width is rounded down to even (odd widths become Width-1) }
 
 { Strategy: }
 { - Render to off-screen buffer }
@@ -319,7 +321,7 @@ uses VGA;
 
 type
   TDirtyRect = record
-    X, Y, Width, Height: Integer;
+    Rect: TRectangle;
     Dirty: Boolean;
   end;
 
@@ -329,15 +331,12 @@ var
   DirtyRects: array[0..31] of TDirtyRect;
   DirtyCount: Integer;
 
-procedure AddDirtyRect(X, Y, Width, Height: Integer);
+procedure AddDirtyRect(const Rect: TRectangle);
 begin
   if DirtyCount >= 32 then Exit;
   with DirtyRects[DirtyCount] do
   begin
-    X := X;
-    Y := Y;
-    Width := Width;
-    Height := Height;
+    Rect := Rect;
     Dirty := True;
   end;
   Inc(DirtyCount);
@@ -354,13 +353,14 @@ begin
     with DirtyRects[i] do
     begin
       if Dirty then
+      begin
         CopyFrameBufferRect(
           BackBuffer,    { Source: off-screen buffer }
+          Rect,          { Source rectangle }
           ScreenBuffer,  { Dest: VGA memory }
-          X, Y,          { Source position }
-          X, Y,          { Dest position (same) }
-          Width, Height  { Size }
+          Rect.X, Rect.Y { Dest position (same as source) }
         );
+      end;
     end;
   end;
 
@@ -390,11 +390,17 @@ end;
 ```pascal
 { Zone 1: HUD - Only redraw when score/level changes }
 procedure UpdateHUD;
+var
+  R: TRectangle;
 begin
   if ScoreChanged then
   begin
     PrintText(10, 10, 'SCORE: ' + IntToStr(Score), 15, BackBuffer);
-    AddDirtyRect(10, 10, 100, 8);  { Mark HUD region dirty }
+    R.X := 10;
+    R.Y := 10;
+    R.Width := 100;
+    R.Height := 8;
+    AddDirtyRect(R);  { Mark HUD region dirty }
   end;
 end;
 
@@ -402,6 +408,7 @@ end;
 procedure UpdatePlayfield;
 var
   X, Y: Integer;
+  R: TRectangle;
 begin
   for Y := 0 to 11 do
   begin
@@ -410,11 +417,11 @@ begin
       if TileChanged[X, Y] then
       begin
         DrawTile(X, Y, BackBuffer);
-        AddDirtyRect(
-          PlayfieldX + X * 16,
-          PlayfieldY + Y * 16,
-          16, 16
-        );
+        R.X := PlayfieldX + X * 16;
+        R.Y := PlayfieldY + Y * 16;
+        R.Width := 16;
+        R.Height := 16;
+        AddDirtyRect(R);
         TileChanged[X, Y] := False;
       end;
     end;
@@ -423,14 +430,24 @@ end;
 
 { Zone 3: Falling stack - Always redraw (moving every frame) }
 procedure UpdateFallingStack;
+var
+  R: TRectangle;
 begin
   { Clear old position }
   DrawBackground(OldStackX, OldStackY, 16, 48, BackBuffer);
-  AddDirtyRect(OldStackX, OldStackY, 16, 48);
+  R.X := OldStackX;
+  R.Y := OldStackY;
+  R.Width := 16;
+  R.Height := 48;
+  AddDirtyRect(R);
 
   { Draw new position }
   DrawStack(StackX, StackY, BackBuffer);
-  AddDirtyRect(StackX, StackY, 16, 48);
+  R.X := StackX;
+  R.Y := StackY;
+  R.Width := 16;
+  R.Height := 48;
+  AddDirtyRect(R);
 end;
 ```
 
@@ -473,6 +490,8 @@ Actual framerate with game logic: 60 FPS
 ```pascal
 { Pre-render static background once }
 procedure InitBackground;
+var
+  FullScreenRect: TRectangle;
 begin
   { Draw playfield border, decorations, etc. to BackBuffer }
   LoadPKM('BACKGROUND.PKM', BackgroundImage);
@@ -480,18 +499,22 @@ begin
 
   { Copy to screen once }
   ScreenBuffer := GetScreenBuffer;
-  CopyFrameBufferRect(BackBuffer, ScreenBuffer, 0, 0, 0, 0, 320, 200);
+  FullScreenRect.X := 0;
+  FullScreenRect.Y := 0;
+  FullScreenRect.Width := 320;
+  FullScreenRect.Height := 200;
+  CopyFrameBufferRect(BackBuffer, FullScreenRect, ScreenBuffer, 0, 0);
 end;
 
 { When redrawing a tile, restore background first }
-procedure RestoreBackground(X, Y, Width, Height: Integer);
+procedure RestoreBackground(const Rect: TRectangle);
 begin
   { Copy from pre-rendered background image }
   CopyFrameBufferRect(
     BackgroundBuffer,  { Source: clean background }
+    Rect,              { Source rectangle }
     BackBuffer,        { Dest: working buffer }
-    X, Y, X, Y,
-    Width, Height
+    Rect.X, Rect.Y     { Dest position }
   );
 end;
 ```
@@ -675,6 +698,7 @@ procedure UpdateFallingStack(DeltaTimeMS: LongInt);
 var
   OldY: Integer;
   PixelsFallen: Integer;
+  R: TRectangle;
 begin
   if not CurrentStack.Active then Exit;
 
@@ -702,8 +726,14 @@ begin
   { Mark dirty rect if position changed }
   if CurrentStack.Y <> OldY then
   begin
-    AddDirtyRect(OldY, CurrentStack.PixelX, 16, 48);       { Old position }
-    AddDirtyRect(CurrentStack.Y, CurrentStack.PixelX, 16, 48); { New position }
+    R.X := CurrentStack.PixelX;
+    R.Y := OldY;
+    R.Width := 16;
+    R.Height := 48;
+    AddDirtyRect(R);  { Old position }
+
+    R.Y := CurrentStack.Y;
+    AddDirtyRect(R);  { New position }
   end;
 end;
 ```
@@ -756,6 +786,7 @@ end;
 procedure RotateStackUp(var Stack: TGemStack);
 var
   Temp: TGemColor;
+  R: TRectangle;
 begin
   { Rotate: Bottom → Middle → Top → Bottom }
   Temp := Stack.Gems[2];  { Save bottom }
@@ -764,12 +795,17 @@ begin
   Stack.Gems[0] := Temp;           { Bottom → Top }
 
   SoundBank.PlaySound(SoundIDs.GemRotate);
-  AddDirtyRect(Stack.PixelX, Stack.Y, 16, 48);
+  R.X := Stack.PixelX;
+  R.Y := Stack.Y;
+  R.Width := 16;
+  R.Height := 48;
+  AddDirtyRect(R);
 end;
 
 procedure RotateStackDown(var Stack: TGemStack);
 var
   Temp: TGemColor;
+  R: TRectangle;
 begin
   { Rotate: Top → Middle → Bottom → Top }
   Temp := Stack.Gems[0];  { Save top }
@@ -778,7 +814,11 @@ begin
   Stack.Gems[2] := Temp;           { Top → Bottom }
 
   SoundBank.PlaySound(SoundIDs.GemRotate);
-  AddDirtyRect(Stack.PixelX, Stack.Y, 16, 48);
+  R.X := Stack.PixelX;
+  R.Y := Stack.Y;
+  R.Width := 16;
+  R.Height := 48;
+  AddDirtyRect(R);
 end;
 ```
 
@@ -864,6 +904,7 @@ end;
 procedure RemoveMatches(const Matches: TMatchList);
 var
   i, X, Y: Integer;
+  R: TRectangle;
 begin
   { Remove matched gems }
   for i := 0 to Matches.Count - 1 do
@@ -873,11 +914,11 @@ begin
 
     Playfield.Tiles[X, Y] := Gem_Empty;
     Playfield.TileChanged[X, Y] := True;
-    AddDirtyRect(
-      PlayfieldX + X * TileSize,
-      PlayfieldY + Y * TileSize,
-      TileSize, TileSize
-    );
+    R.X := PlayfieldX + X * TileSize;
+    R.Y := PlayfieldY + Y * TileSize;
+    R.Width := TileSize;
+    R.Height := TileSize;
+    AddDirtyRect(R);
   end;
 
   { Update score }
@@ -932,6 +973,8 @@ end;
 
 ```pascal
 procedure ProcessInput;
+var
+  R: TRectangle;
 begin
   { Horizontal movement (continuous) }
   if IsKeyDown(Key_Left) then
@@ -939,8 +982,13 @@ begin
     if CanMoveLeft(CurrentStack) then
     begin
       MoveStackLeft(CurrentStack);
-      AddDirtyRect(OldStackX, StackY, 16, 48);
-      AddDirtyRect(StackX, StackY, 16, 48);
+      R.X := OldStackX;
+      R.Y := StackY;
+      R.Width := 16;
+      R.Height := 48;
+      AddDirtyRect(R);
+      R.X := StackX;
+      AddDirtyRect(R);
     end;
   end;
 
