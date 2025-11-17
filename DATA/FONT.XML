@@ -17,10 +17,10 @@
   <char code="77" x="108" y="0" width="13" /> <!-- M -->
   <char code="78" x="122" y="0" width="18" /> <!-- N -->
   <char code="79" x="133" y="0" width="10" /> <!-- O -->
-  <char code="80" x="144" y="0" width="10" /> <!-- P -->
-  <char code="81" x="153" y="0" width="8" />  <!-- Q -->
+  <char code="80" x="144" y="0" width="8" />  <!-- P -->
+  <char code="81" x="153" y="0" width="10" /> <!-- Q -->
   <char code="82" x="164" y="0" width="10" /> <!-- R -->
-  <char code="83" x="174" y="0" width="9" />  <!-- S -->
+  <char code="83" x="174" y="0" width="7" />  <!-- S -->
   <char code="84" x="0" y="20" width="9" />   <!-- T -->
   <char code="85" x="10" y="20" width="9" />  <!-- U -->
   <char code="86" x="20" y="20" width="11" /> <!-- V -->
@@ -84,8 +84,8 @@
   <char code="43" x="92" y="60" width="6" />   <!-- + -->
   <char code="44" x="99" y="60" width="3" />   <!-- , -->
   <char code="45" x="103" y="60" width="4" />  <!-- - -->
-  <char code="46" x="108" y="60" width="6" />  <!-- . -->
-  <char code="47" x="111" y="60" width="10" /> <!-- / -->
+  <char code="46" x="108" y="60" width="3" />  <!-- . -->
+  <char code="47" x="111" y="60" width="8" />  <!-- / -->
   <char code="58" x="120" y="60" width="6" />  <!-- : -->
   <char code="59" x="123" y="60" width="3" />  <!-- ; -->
   <char code="63" x="127" y="60" width="7" />  <!-- ? -->
