@@ -41,6 +41,26 @@ A falling-block puzzle game where players arrange stacks of three gems to match 
 - **Tile size:** 16×16 pixels (from CONFIG.PAS TileSize constant)
 - **Playfield area:** 80×192 pixels (5×16 × 12×16)
 
+### Difficulty Levels & Gem Colors
+
+The number of colored gems available in the game varies depending on the difficulty setting:
+
+- **Novice difficulty:** Uses 4 different colors of gems (Red, Green, Blue, Yellow)
+- **Amateur difficulty:** Uses 5 different colors of gems (Red, Orange, Green, Blue, Yellow)
+- **Pro difficulty** (standard/arcade mode): Uses 6 different colors of gems (Red, Orange, Green, Blue, Yellow, Purple)
+
+### Magic Jewel
+
+A special **Magic Jewel** (multi-colored) occasionally appears in falling stacks. When it lands on the playfield, it eliminates all other gems of the color it lands on, creating powerful chain reactions and scoring opportunities.
+
+**Magic Jewel behavior:**
+- Appears randomly with a 3% chance per stack (~3 in 100)
+- **Guaranteed spawn:** If you eliminate three sets of jewels simultaneously or consecutively (a combo), a Magic Jewel is guaranteed to appear in your next set of jewels
+- Replaces one gem in the falling stack
+- When placed, destroys all gems of the same color as the tile it occupies
+- Does not count as a match by itself
+- Creates opportunities for cascading combos
+
 ---
 
 ## Technical Specifications
@@ -243,6 +263,7 @@ var
     GemFall: Integer;
     GemRotate: Integer;
     GemMatch: Integer;
+    MagicJewel: Integer;
   end;
 
 { Initialization }
@@ -255,6 +276,7 @@ SoundIDs.MenuEnter := SoundBank.LoadSound('SOUNDS\ENTER.VOC');
 SoundIDs.GemFall := SoundBank.LoadSound('SOUNDS\FALL.VOC');
 SoundIDs.GemRotate := SoundBank.LoadSound('SOUNDS\ROTATE.VOC');
 SoundIDs.GemMatch := SoundBank.LoadSound('SOUNDS\MATCH.VOC');
+SoundIDs.MagicJewel := SoundBank.LoadSound('SOUNDS\MAGIC.VOC');
 
 { Play sounds }
 SoundBank.PlaySound(SoundIDs.GemRotate);
@@ -527,14 +549,21 @@ end;
 
 ```pascal
 type
+  TDifficulty = (
+    Difficulty_Novice,   { 4 colors: Red, Green, Blue, Yellow }
+    Difficulty_Amateur,  { 5 colors: + Orange }
+    Difficulty_Pro       { 6 colors: + Purple }
+  );
+
   TGemColor = (
     Gem_Empty,
     Gem_Red,
-    Gem_Blue,
+    Gem_Orange,
     Gem_Green,
+    Gem_Blue,
     Gem_Yellow,
     Gem_Purple,
-    Gem_Cyan
+    Gem_MagicJewel       { Special gem that clears matching colors }
   );
 
   TGemStack = record
@@ -557,6 +586,9 @@ type
     NextStack: TGemStack;  { Preview }
     Score: LongInt;
     Level: Integer;
+    Difficulty: TDifficulty;
+    ComboCount: Integer;           { Number of consecutive/simultaneous matches }
+    GuaranteeMagicJewel: Boolean;  { Force Magic Jewel in next stack }
     GameOver: Boolean;
   end;
 ```
@@ -584,9 +616,18 @@ const
   { Match detection }
   MinMatchLength = 3;      { Minimum gems to match }
 
+  { Difficulty settings }
+  NoviceColorCount = 4;    { Red, Green, Blue, Yellow }
+  AmateurColorCount = 5;   { + Orange }
+  ProColorCount = 6;       { + Purple }
+
+  { Magic Jewel }
+  MagicJewelChance = 3;    { 3% chance per stack (~3 in 100) }
+
   { Scoring }
   PointsPerGem = 10;
   BonusMultiplier = 2;     { For chains/combos }
+  MagicJewelBonus = 50;    { Bonus points when Magic Jewel activates }
 ```
 
 ---
@@ -658,6 +699,7 @@ end;
 
 **Options:**
 - Start Game
+- Select Difficulty (Novice / Amateur / Pro)
 - Options (sound on/off, music track selection)
 - Exit
 
@@ -824,6 +866,95 @@ end;
 
 ---
 
+### Gem Generation & Stack Spawning
+
+```pascal
+function GetColorCountForDifficulty(Difficulty: TDifficulty): Integer;
+begin
+  case Difficulty of
+    Difficulty_Novice:  GetColorCountForDifficulty := NoviceColorCount;
+    Difficulty_Amateur: GetColorCountForDifficulty := AmateurColorCount;
+    Difficulty_Pro:     GetColorCountForDifficulty := ProColorCount;
+  end;
+end;
+
+function RandomGemColor(Difficulty: TDifficulty): TGemColor;
+var
+  ColorCount: Integer;
+  ColorIndex: Integer;
+  ColorMap: array[0..5] of TGemColor;
+begin
+  { Setup color map based on difficulty }
+  ColorMap[0] := Gem_Red;
+  ColorMap[1] := Gem_Green;
+  ColorMap[2] := Gem_Blue;
+  ColorMap[3] := Gem_Yellow;
+  ColorMap[4] := Gem_Orange;   { Available in Amateur+ }
+  ColorMap[5] := Gem_Purple;   { Available in Pro only }
+
+  ColorCount := GetColorCountForDifficulty(Difficulty);
+  ColorIndex := Random(ColorCount);
+  RandomGemColor := ColorMap[ColorIndex];
+end;
+
+procedure SpawnNewStack(var Stack: TGemStack; Difficulty: TDifficulty;
+                        var GuaranteeMagicJewel: Boolean);
+var
+  i: Integer;
+  UseMagicJewel: Boolean;
+  MagicJewelPos: Integer;
+begin
+  { Check for guaranteed Magic Jewel (from combo) }
+  if GuaranteeMagicJewel then
+  begin
+    UseMagicJewel := True;
+    GuaranteeMagicJewel := False;  { Reset flag }
+  end
+  else
+  begin
+    { Randomly determine if this stack gets a Magic Jewel }
+    UseMagicJewel := (Random(100) < MagicJewelChance);
+  end;
+
+  if UseMagicJewel then
+  begin
+    { Pick random position for Magic Jewel (0-2) }
+    MagicJewelPos := Random(3);
+
+    { Fill stack with random gems }
+    for i := 0 to 2 do
+    begin
+      if i = MagicJewelPos then
+        Stack.Gems[i] := Gem_MagicJewel
+      else
+        Stack.Gems[i] := RandomGemColor(Difficulty);
+    end;
+  end
+  else
+  begin
+    { Normal stack - all random colored gems }
+    for i := 0 to 2 do
+      Stack.Gems[i] := RandomGemColor(Difficulty);
+  end;
+
+  { Initialize stack position }
+  Stack.X := PlayfieldCols div 2;  { Center column }
+  Stack.Y := PlayfieldY - 48;      { Above playfield }
+  Stack.PixelX := PlayfieldX + Stack.X * TileSize;
+  Stack.Active := True;
+end;
+```
+
+**Key points:**
+- Difficulty determines available color pool (4, 5, or 6 colors)
+- Magic Jewel has 3% random spawn chance (~3 in 100 stacks)
+- Magic Jewel is **guaranteed** after achieving a 3-match combo
+- Magic Jewel replaces one random gem in the stack
+- Random number generator should be seeded on game start
+- Combo counter tracks consecutive/simultaneous match eliminations
+
+---
+
 ### Match Detection
 
 ```pascal
@@ -852,6 +983,7 @@ begin
     for X := 0 to PlayfieldCols - 1 do
     begin
       if Playfield.Tiles[X, Y] = Gem_Empty then Continue;
+      if Playfield.Tiles[X, Y] = Gem_MagicJewel then Continue;
 
       { Check each direction }
       for DirIdx := 0 to 3 do
@@ -901,11 +1033,21 @@ end;
 ### Gem Removal and Gravity
 
 ```pascal
-procedure RemoveMatches(const Matches: TMatchList);
+procedure RemoveMatches(const Matches: TMatchList; var ComboCount: Integer;
+                        var GuaranteeMagicJewel: Boolean);
 var
   i, X, Y: Integer;
   R: TRectangle;
+  SetCount: Integer;
 begin
+  if Matches.Count = 0 then Exit;
+
+  { Count number of separate match sets (groups of 3+) }
+  SetCount := CountMatchSets(Matches);
+
+  { Increment combo counter }
+  Inc(ComboCount);
+
   { Remove matched gems }
   for i := 0 to Matches.Count - 1 do
   begin
@@ -921,13 +1063,20 @@ begin
     AddDirtyRect(R);
   end;
 
-  { Update score }
-  Score := Score + Matches.Count * PointsPerGem;
+  { Update score (with combo multiplier) }
+  Score := Score + (Matches.Count * PointsPerGem * ComboCount);
+
+  { Check for Magic Jewel unlock (3 or more combos) }
+  if ComboCount >= 3 then
+  begin
+    GuaranteeMagicJewel := True;
+    { Optional: Display "MAGIC JEWEL UNLOCKED!" message }
+  end;
 
   { Play match sound }
   SoundBank.PlaySound(SoundIDs.GemMatch);
 
-  { Apply gravity }
+  { Apply gravity (may trigger more matches) }
   ApplyGravity;
 end;
 
@@ -963,7 +1112,186 @@ begin
   { Check for new matches after gravity }
   CheckForMatches;
 end;
+
+function CountMatchSets(const Matches: TMatchList): Integer;
+var
+  i: Integer;
+  { Implementation counts unique match groups }
+  { For simplicity, can estimate based on match count }
+begin
+  { Simplified: assume each 3 gems = 1 set }
+  { More accurate implementation would track unique groups }
+  CountMatchSets := (Matches.Count + 2) div 3;
+end;
 ```
+
+---
+
+### Combo System
+
+The combo system tracks consecutive or simultaneous matches and rewards players with a guaranteed Magic Jewel after achieving 3 combos.
+
+```pascal
+{ Called when a new stack is placed }
+procedure PlaceStackOnPlayfield(var Stack: TGemStack);
+var
+  i, GridY: Integer;
+begin
+  { Calculate grid row for bottom gem }
+  GridY := (Stack.Y - PlayfieldY) div TileSize + 2;
+
+  { Place each gem on the playfield (bottom to top) }
+  for i := 2 downto 0 do
+  begin
+    if GridY - (2 - i) >= 0 then
+    begin
+      Playfield.Tiles[Stack.X, GridY - (2 - i)] := Stack.Gems[i];
+      Playfield.TileChanged[Stack.X, GridY - (2 - i)] := True;
+    end;
+  end;
+
+  { IMPORTANT: Reset combo counter when new stack is placed }
+  { This ensures combos only count consecutive chain reactions }
+  ComboCount := 0;
+
+  { Check for Magic Jewels and activate them }
+  ActivateMagicJewels;
+
+  { Then check for normal matches (this will increment ComboCount) }
+  CheckForMatches;
+end;
+```
+
+**Combo counting logic:**
+- ComboCount is reset to 0 when a new stack is placed
+- Each match removal increments ComboCount by 1
+- Gravity can trigger additional matches (chain reactions)
+- If ComboCount reaches 3 or more, set GuaranteeMagicJewel flag
+- Next spawned stack will have a Magic Jewel guaranteed
+- Combo multiplier increases score for each consecutive match
+
+**Example combo sequence:**
+1. Player places stack → ComboCount = 0
+2. First match detected and removed → ComboCount = 1
+3. Gems fall, second match detected → ComboCount = 2
+4. Gems fall, third match detected → ComboCount = 3, GuaranteeMagicJewel = True
+5. Next stack spawned with guaranteed Magic Jewel
+
+---
+
+### Magic Jewel Activation
+
+When a stack is placed on the playfield, Magic Jewels are detected and activated (see PlaceStackOnPlayfield in Combo System section above).
+
+```pascal
+procedure ActivateMagicJewels;
+var
+  X, Y, ScanX, ScanY: Integer;
+  TargetColor: TGemColor;
+  GemsRemoved: Integer;
+  R: TRectangle;
+begin
+  { Scan playfield for Magic Jewels }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      if Playfield.Tiles[X, Y] = Gem_MagicJewel then
+      begin
+        { Determine which color to eliminate }
+        { Use the color of the tile the Magic Jewel landed on }
+        { This is the previous color before the jewel replaced it }
+        { Alternative: Use color of adjacent gem (implementation choice) }
+
+        { For simplicity: eliminate random color on playfield }
+        TargetColor := FindMostCommonColor;
+
+        if TargetColor <> Gem_Empty then
+        begin
+          GemsRemoved := 0;
+
+          { Remove all gems of target color }
+          for ScanY := 0 to PlayfieldRows - 1 do
+          begin
+            for ScanX := 0 to PlayfieldCols - 1 do
+            begin
+              if Playfield.Tiles[ScanX, ScanY] = TargetColor then
+              begin
+                Playfield.Tiles[ScanX, ScanY] := Gem_Empty;
+                Playfield.TileChanged[ScanX, ScanY] := True;
+                R.X := PlayfieldX + ScanX * TileSize;
+                R.Y := PlayfieldY + ScanY * TileSize;
+                R.Width := TileSize;
+                R.Height := TileSize;
+                AddDirtyRect(R);
+                Inc(GemsRemoved);
+              end;
+            end;
+          end;
+
+          { Remove the Magic Jewel itself }
+          Playfield.Tiles[X, Y] := Gem_Empty;
+          Playfield.TileChanged[X, Y] := True;
+
+          { Update score }
+          Score := Score + MagicJewelBonus + (GemsRemoved * PointsPerGem);
+
+          { Play special sound }
+          SoundBank.PlaySound(SoundIDs.MagicJewel);
+
+          { Apply gravity after removal }
+          ApplyGravity;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function FindMostCommonColor: TGemColor;
+var
+  X, Y: Integer;
+  ColorCounts: array[TGemColor] of Integer;
+  Color: TGemColor;
+  MaxCount: Integer;
+  MostCommon: TGemColor;
+begin
+  { Count occurrences of each color }
+  for Color := Gem_Red to Gem_Purple do
+    ColorCounts[Color] := 0;
+
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      Color := Playfield.Tiles[X, Y];
+      if (Color <> Gem_Empty) and (Color <> Gem_MagicJewel) then
+        Inc(ColorCounts[Color]);
+    end;
+  end;
+
+  { Find color with highest count }
+  MaxCount := 0;
+  MostCommon := Gem_Empty;
+  for Color := Gem_Red to Gem_Purple do
+  begin
+    if ColorCounts[Color] > MaxCount then
+    begin
+      MaxCount := ColorCounts[Color];
+      MostCommon := Color;
+    end;
+  end;
+
+  FindMostCommonColor := MostCommon;
+end;
+```
+
+**Magic Jewel activation:**
+- Activates immediately when stack lands (before normal match detection)
+- Finds most common color on playfield
+- Removes all gems of that color
+- Awards bonus points (MagicJewelBonus + cleared gems)
+- Triggers gravity, which may create chain reactions
+- Plays special sound effect
 
 ---
 
@@ -1101,11 +1429,17 @@ end;
 
 **Gem Sprite Sheet (GEMS.PKM)**
 ```
-16×16 tiles, 7 gems + empty
+16×16 tiles, 8 gem types
 
 Layout:
-[Empty][Red][Blue][Green][Yellow][Purple][Cyan][...]
-  0      1     2     3      4       5       6
+[Empty][Red][Orange][Green][Blue][Yellow][Purple][MagicJewel]
+  0      1     2       3      4     5       6        7
+
+Difficulty usage:
+- Novice:  Uses tiles 0-5 (Red, Green, Blue, Yellow)
+- Amateur: Uses tiles 0-6 (+ Orange)
+- Pro:     Uses tiles 0-7 (+ Purple)
+- Magic Jewel (tile 7): Multi-colored/rainbow appearance, used in all difficulties
 
 Total size: 128×16 pixels (8 tiles)
 Palette: 256 colors (can share with background)
@@ -1146,6 +1480,7 @@ SOUNDS\ENTER.VOC  - Menu confirm (upward chime, ~0.3s)
 SOUNDS\FALL.VOC   - Gem lands (thud, ~0.2s)
 SOUNDS\ROTATE.VOC - Stack rotates (click, ~0.1s)
 SOUNDS\MATCH.VOC  - Gems matched (sparkle/explosion, ~0.5s)
+SOUNDS\MAGIC.VOC  - Magic Jewel activates (magical chime/whoosh, ~0.7s)
 
 Sample rate: 11025 Hz (standard)
 Format: 8-bit mono PCM
