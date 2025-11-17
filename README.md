@@ -194,8 +194,10 @@ D:\ENGINE\
 │   ├── BLOCKS.PNG      - Blocks image only used by TEST.TMX
 │   ├── EXPLODE.VOC     - Example sound effect
 │   ├── FANTASY.HSC     - Example Adlib music
-│   ├── FONT.PKM        - Example font image
-│   ├── FONT.XML        - Example font metadata
+│   ├── FONT-LG.PKM     - Example large font image
+│   ├── FONT-LG.XML     - Example large font metadata
+│   ├── FONT-SM.PKM     - Example small font image
+│   ├── FONT-SM.XML     - Example small font metadata
 │   ├── PLAYER.PKM      - Example sprite sheet (192×64)
 │   ├── RES.XML         - Example resources file (WIP)
 │   ├── TEST.PAL        - Example PAL file for the TMXTEST
