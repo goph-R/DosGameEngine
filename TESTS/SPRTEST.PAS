@@ -129,7 +129,7 @@ var
 begin
   R.X := 5;
   R.Y := 5;
-  R.Width := 310;
+  R.Width := 150;
   R.Height := 8;
   ClearRect(FrameBuffer, R);
   if CurrentAnimation = 0 then
