@@ -7,6 +7,7 @@ var
   PlayerImage: TImage;
   Palette: TPalette;
   FrameBuffer: PFrameBuffer;
+  ScreenBuffer: PFrameBuffer;
 
   { Sprite definitions }
   SpriteIdle: TSprite;
@@ -16,9 +17,9 @@ var
   Player: TSpriteInstance;
 
   { Timing }
-  CurrentTimeMS: LongInt;
-  LastTimeMS: LongInt;
-  DeltaTimeMS: Word;
+  CurrentTime: Real;
+  LastTime: Real;
+  DeltaTimeMS: LongInt;
 
   { FPS calculation }
   FPS: Real;
@@ -30,6 +31,9 @@ var
   CurrentAnimation: Byte; { 0 = Idle, 1 = Run }
   StatusText: String;
   I: Integer;
+
+  { Sprite draw rectangle }
+  SpriteRect: TRectangle;
 
 procedure InitSprites;
 var
@@ -70,13 +74,42 @@ begin
   end;
 end;
 
+procedure ClearRect(Buffer: PFrameBuffer; var Rect: TRectangle);
+{ Clear a rectangular region in the framebuffer }
+var
+  Row: Integer;
+  Offset: Word;
+begin
+  for Row := 0 to Rect.Height - 1 do
+  begin
+    Offset := (Rect.Y + Row) * 320 + Rect.X;
+    FillChar(Buffer^[Offset], Rect.Width, 0);
+  end;
+end;
+
+procedure DrawFPS;
+var
+  R: TRectangle;
+begin
+  R.X := 5;
+  R.Y := 15;
+  R.Width := 100;
+  R.Height := 8;
+  ClearRect(FrameBuffer, R);
+
+  { Display FPS }
+  Str(FPS:0:1, StatusText);
+  StatusText := 'FPS: ' + StatusText;
+  PrintText(5, 15, StatusText, 15, FrameBuffer);
+
+  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
+end;
+
 procedure UpdateFPS;
 var
-  CurrentTime: Real;
   Elapsed: Real;
 begin
   Inc(FrameCount);
-  CurrentTime := GetTimeSeconds;
   Elapsed := CurrentTime - LastFPSUpdate;
 
   if Elapsed >= 1.0 then
@@ -84,23 +117,32 @@ begin
     FPS := FrameCount / Elapsed;
     FrameCount := 0;
     LastFPSUpdate := CurrentTime;
+    DrawFPS;
   end;
+end;
+
+procedure DrawAnimationText;
+var
+  R: TRectangle;
+begin
+  R.X := 5;
+  R.Y := 5;
+  R.Width := 310;
+  R.Height := 8;
+  ClearRect(FrameBuffer, R);
+  if CurrentAnimation = 0 then
+    PrintText(5, 5, 'Animation: IDLE', 15, FrameBuffer)
+  else
+    PrintText(5, 5, 'Animation: RUN', 15, FrameBuffer);
+  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
 end;
 
 procedure DrawUI;
 var
   FreeMem: LongInt;
 begin
-  { Display current animation }
-  if CurrentAnimation = 0 then
-    PrintText(5, 5, 'Animation: IDLE', 15, FrameBuffer)
-  else
-    PrintText(5, 5, 'Animation: RUN', 15, FrameBuffer);
-
-  { Display FPS }
-  Str(FPS:0:1, StatusText);
-  StatusText := 'FPS: ' + StatusText;
-  PrintText(5, 15, StatusText, 15, FrameBuffer);
+  DrawAnimationText;
+  DrawFPS;
 
   { Display free memory }
   FreeMem := MemAvail;
@@ -111,6 +153,8 @@ begin
   { Instructions }
   PrintText(5, 180, '1: Idle  2: Run  F: Flip', 14, FrameBuffer);
   PrintText(5, 190, 'ESC: Exit', 14, FrameBuffer);
+
+  RenderFrameBuffer(FrameBuffer);
 end;
 
 begin
@@ -141,6 +185,11 @@ begin
   Player.CurrentTime := 0;
   Player.PlayBackward := False;
 
+  SpriteRect.X := Player.X;
+  SpriteRect.Y := Player.Y;
+  SpriteRect.Width := 32;
+  SpriteRect.Height := 32;
+
   { Initialize state }
   Running := True;
   CurrentAnimation := 0;
@@ -154,20 +203,23 @@ begin
   InitKeyboard;
   InitRTC(1024);
   LastFPSUpdate := GetTimeSeconds;
-  LastTimeMS := Round(GetTimeSeconds * 1000);
+  LastTime := GetTimeSeconds;
 
   { Enter VGA mode }
   InitVGA;
   SetPalette(Palette);
   FrameBuffer := CreateFrameBuffer;
+  ScreenBuffer := GetScreenBuffer;
+
+  DrawUI;
 
   { Main loop }
   while Running do
   begin
     { Calculate delta time }
-    CurrentTimeMS := Round(GetTimeSeconds * 1000);
-    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-    LastTimeMS := CurrentTimeMS;
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    LastTime := CurrentTime;
 
     { Handle input }
     if IsKeyPressed(Key_Escape) then
@@ -179,6 +231,7 @@ begin
       Player.Sprite := @SpriteIdle;
       Player.CurrentTime := 0;
       Player.PlayBackward := False;
+      DrawAnimationText;
     end;
 
     if IsKeyPressed(Key_2) then
@@ -187,6 +240,7 @@ begin
       Player.Sprite := @SpriteRun;
       Player.CurrentTime := 0;
       Player.PlayBackward := False;
+      DrawAnimationText;
     end;
 
     if IsKeyPressed(Key_F) then
@@ -195,13 +249,14 @@ begin
     { Update sprite animation }
     UpdateSprite(Player, DeltaTimeMS);
 
-    { Render }
-    ClearFrameBuffer(FrameBuffer);
-    DrawSprite(Player, FrameBuffer);
-    DrawUI;
+    { Clear only the sprite area }
+    ClearRect(FrameBuffer, SpriteRect);
 
-    { Display }
-    RenderFrameBuffer(FrameBuffer);
+    { Render only the sprite }
+    DrawSprite(Player, FrameBuffer);
+
+    { Copy only sprite region to screen }
+    CopyFrameBufferRect(FrameBuffer, SpriteRect, ScreenBuffer, SpriteRect.X, SpriteRect.Y);
 
     { Update FPS }
     UpdateFPS;
