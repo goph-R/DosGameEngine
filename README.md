@@ -174,6 +174,7 @@ D:\ENGINE\
 ├── TESTS\          Test programs
 │   ├── C*.BAT          - Compile scripts
 │   ├── DRWTEST.PAS     - VGA drawing primitives demo
+│   ├── FNTTEST.PAS     - Variable-width font demo
 │   ├── IMGTEST.PAS     - Advanced sprite demo with audio
 │   ├── MAPTEST.PAS     - String map (StrMap) demo
 │   ├── MOUTEST.PAS     - Mouse input demo with crosshair
