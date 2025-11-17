@@ -249,6 +249,13 @@ See the restrictions at the [tilemap documentation](DOCS/TILEMAP.md).
 
 Contributions welcome! This engine aims to preserve 1990s DOS demoscene programming techniques while remaining hackable and educational.
 
+## 🔒 Asset Licensing Notes
+
+The PKM files in the `DATA` folder (`PLAYER.PKM` and `TILESET.PKM`) are not MIT-licensed.
+They are © 2025 Dynart Kft. Free for non-commercial use with credits.  
+Commercial use requires a separate license.
+See `ASSETS_LICENSE.md` for full details.
+
 ---
 
 **Made with 💾 for retro DOS enthusiasts**

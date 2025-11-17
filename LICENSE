@@ -19,3 +19,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+------------------------------------------------------------
+NON-CODE ASSETS NOTICE
+
+The files located in the /DATA directory:
+
+    DATA/PLAYER.PKM
+    DATA/TILESET.PKM
+
+are © 2025 by Dynart Kft.
+
+These assets are NOT licensed under the MIT license.
+They may be used freely for non-commercial and open-source projects
+with proper credit given (“Graphics © 2025 Dynart Kft.”).
+
+Commercial use is prohibited unless a separate commercial license
+is obtained from Dynart Kft.
+
+For commercial licensing, contact:
+info@dynart.net
+------------------------------------------------------------
