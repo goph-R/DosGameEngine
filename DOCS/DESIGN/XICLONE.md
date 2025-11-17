@@ -37,9 +37,9 @@ A falling-block puzzle game where players arrange stacks of three gems to match 
 - Game ends when tower reaches the top
 
 **Playfield:**
-- **5 columns × 12 rows** (5×12 grid)
+- **6 columns × 12 rows** (6×12 grid)
 - **Tile size:** 16×16 pixels (from CONFIG.PAS TileSize constant)
-- **Playfield area:** 80×192 pixels (5×16 × 12×16)
+- **Playfield area:** 96×192 pixels (6×16 × 12×16)
 
 ### Difficulty Levels & Gem Colors
 
@@ -402,7 +402,7 @@ end;
 ├────────┬───────────────┤
 │ Play   │ Next Gem      │ ← Zone 2: Dynamic (redraw every frame)
 │ Field  │ Preview       │ ← Zone 3: Static (redraw on change)
-│ 5×12   │               │
+│ 6×12   │               │
 │        │               │
 └────────┴───────────────┘
 ```
@@ -434,7 +434,7 @@ var
 begin
   for Y := 0 to 11 do
   begin
-    for X := 0 to 4 do
+    for X := 0 to 5 do
     begin
       if TileChanged[X, Y] then
       begin
@@ -497,9 +497,9 @@ end;
 Full screen copy: 64000 bytes = 100ms (10 FPS)
 Dirty rect copy:
   - HUD: 100×8 = 800 bytes (when changed)
-  - Playfield: 5×16×16 = 1280 bytes (average 2 tiles changed)
+  - Playfield: 6×16×16 = 1536 bytes (average 2 tiles changed)
   - Stack: 16×48 = 768 bytes (every frame)
-  - Total: ~2850 bytes = 4.4ms (227 FPS!)
+  - Total: ~3104 bytes = 4.9ms (204 FPS!)
 
 Actual framerate with game logic: 60 FPS
 ```
@@ -568,7 +568,7 @@ type
 
   TGemStack = record
     Gems: array[0..2] of TGemColor;  { Top, Middle, Bottom }
-    X: Integer;         { Grid column (0-4) }
+    X: Integer;         { Grid column (0-5) }
     Y: Integer;         { Pixel Y position (smooth falling) }
     PixelX: Integer;    { Pixel X position (for rendering) }
     FallSpeed: Integer; { Pixels per second }
@@ -576,8 +576,8 @@ type
   end;
 
   TPlayfield = record
-    Tiles: array[0..4, 0..11] of TGemColor;  { 5×12 grid }
-    TileChanged: array[0..4, 0..11] of Boolean;
+    Tiles: array[0..5, 0..11] of TGemColor;  { 6×12 grid }
+    TileChanged: array[0..5, 0..11] of Boolean;
   end;
 
   TGameState = record
@@ -600,7 +600,7 @@ type
 ```pascal
 const
   { Playfield dimensions }
-  PlayfieldCols = 5;
+  PlayfieldCols = 6;
   PlayfieldRows = 12;
   TileSize = 16;  { From CONFIG.PAS }
 
@@ -1460,6 +1460,12 @@ Palette: 256 colors (can share with background)
 - Game logo
 - Copyright info
 - Background art
+```
+
+**Fonts**
+```
+LargeFont - Large bitmap font for titles and scores
+SmallFont - Small bitmap font for HUD and general text
 ```
 
 ---

@@ -6,7 +6,8 @@ program FontTest;
 uses VGA, VGAFont;
 
 var
-  TestFont: TFont;
+  LargeFont: TFont;
+  SmallFont: TFont;
   ScreenBuffer: PFrameBuffer;
   Running: Boolean;
 
@@ -16,23 +17,28 @@ begin
   WriteLn;
 
   { Load font }
-  WriteLn('Loading font...');
-  if not LoadFont('..\DATA\FONT.XML', '..\DATA\FONT.PKM', TestFont) then
+  WriteLn('Loading large font...');
+  if not LoadFont('..\DATA\FONT-LG.XML', '..\DATA\FONT-LG.PKM', LargeFont) then
   begin
     WriteLn;
-    WriteLn('ERROR: Failed to load font!');
+    WriteLn('ERROR: Failed to large load font!');
     WriteLn('Reason: ', GetLoadFontError);
-    WriteLn;
-    WriteLn('To create a test font:');
-    WriteLn('1. Create DATA\FONT.PKM in GrafX2 (sprite sheet with characters)');
-    WriteLn('2. Create DATA\FONT.XML with character positions and widths');
-    WriteLn('3. See DOCS\VGAFONT.md for format specification');
     Halt(1);
   end;
 
-  WriteLn('Font loaded successfully!');
-  WriteLn('Font height: ', TestFont.Height, ' pixels');
-  WriteLn('Font padding: ', TestFont.Padding, ' pixels');
+  WriteLn('Loading small font...');
+  if not LoadFont('..\DATA\FONT-SM.XML', '..\DATA\FONT-SM.PKM', SmallFont) then
+  begin
+    FreeFont(LargeFont);
+    WriteLn;
+    WriteLn('ERROR: Failed to small load font!');
+    WriteLn('Reason: ', GetLoadFontError);
+    Halt(1);
+  end;
+
+  WriteLn('Fonts loaded successfully!');
+  WriteLn('Large font height: ', LargeFont.Height, ' pixels');
+  WriteLn('Small font height: ', SmallFont.Height, ' pixels');
   WriteLn;
   WriteLn('Press enter to continue...');
   ReadLn;
@@ -45,28 +51,30 @@ begin
   ClearFrameBuffer(ScreenBuffer);
 
   { Test text rendering at different positions }
-  PrintFontText(10, 10, 'Hello World!', TestFont, ScreenBuffer);
-  PrintFontText(10, 10 + TestFont.Height + 5, 'Variable Width Font Test', TestFont, ScreenBuffer);
+  PrintFontText(10, 10, 'Hello World!', LargeFont, ScreenBuffer);
+  PrintFontText(10, 10 + LargeFont.Height, 'Variable Width Font Test', SmallFont, ScreenBuffer);
 
   { Test centered text }
-  PrintFontTextCentered(160, 80, 'Centered Text', TestFont, ScreenBuffer);
+  PrintFontTextCentered(160, 50, 'Centered Text', SmallFont, ScreenBuffer);
 
-  { Test all uppercase letters }
-  PrintFontText(10, 100, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', TestFont, ScreenBuffer);
-
-  { Test all lowercase letters (if font has them) }
-  PrintFontText(10, 100 + TestFont.Height + 5, 'abcdefghijklmnopqrstuvwxyz', TestFont, ScreenBuffer);
+  { Test all letters }
+  PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', LargeFont, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont.Height - 5, 'abcdefghijklmnopqrstuvwxyz', LargeFont, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SmallFont, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont.Height * 2 + SmallFont.Height, 'abcdefghijklmnopqrstuvwxyz', SmallFont, ScreenBuffer);
 
   { Test numbers and symbols }
-  PrintFontText(10, 140, '0123456789 !?.,:', TestFont, ScreenBuffer);
+  PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', LargeFont, ScreenBuffer);
+  PrintFontText(10, 130 + LargeFont.Height, '0123456789 `~!@#$%^&*()_+-{}[]', SmallFont, ScreenBuffer);
 
   { Test right-aligned text }
-  PrintFontTextRight(310, 180, 'Right Align', TestFont, ScreenBuffer);
+  PrintFontTextRight(310, 170, 'Right Align', LargeFont, ScreenBuffer);
 
   ReadLn;
 
   { Cleanup }
-  FreeFont(TestFont);
+  FreeFont(LargeFont);
+  FreeFont(SmallFont);
   CloseVGA;
 
   WriteLn;

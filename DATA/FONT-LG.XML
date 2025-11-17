@@ -15,7 +15,7 @@
   <char code="75" x="90" y="0" width="9" />   <!-- K -->
   <char code="76" x="100" y="0" width="7" />  <!-- L -->
   <char code="77" x="108" y="0" width="13" /> <!-- M -->
-  <char code="78" x="122" y="0" width="18" /> <!-- N -->
+  <char code="78" x="122" y="0" width="10" /> <!-- N -->
   <char code="79" x="133" y="0" width="10" /> <!-- O -->
   <char code="80" x="144" y="0" width="8" />  <!-- P -->
   <char code="81" x="153" y="0" width="10" /> <!-- Q -->
@@ -69,7 +69,7 @@
   <char code="56" x="0" y="60" width="8" />   <!-- 8 -->
   <char code="57" x="9" y="60" width="8" />   <!-- 9 -->
 
-  <!-- Special chars (basic punctuation) -->
+  <!-- Special chars -->
   <char code="32" x="190" y="0" width="5" />   <!-- Space (no glyph, just width) -->
   <char code="33" x="18" y="60" width="3" />   <!-- ! -->
   <char code="34" x="22" y="60" width="5" />   <!-- " -->
