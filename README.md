@@ -6,6 +6,43 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="DOCS/SCREENS/TMXTEST.png">
+        <img src="DOCS/SCREENS/TMXTEST-thumb.png" alt="TMX Tilemap Test">
+      </a>
+      <br>
+      <strong>Tilemap Rendering</strong>
+    </td>
+    <td align="center">
+      <a href="DOCS/SCREENS/FNTTEST.png">
+        <img src="DOCS/SCREENS/FNTTEST-thumb.png" alt="Variable-Width Font Test">
+      </a>
+      <br>
+      <strong>Variable-Width Fonts</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="DOCS/SCREENS/SPRTEST.png">
+        <img src="DOCS/SCREENS/SPRTEST-thumb.png" alt="Sprite Animation Test">
+      </a>
+      <br>
+      <strong>Sprite Animation</strong>
+    </td>
+    <td align="center">
+      <a href="DOCS/SCREENS/SETUP.png">
+        <img src="DOCS/SCREENS/SETUP-thumb.png" alt="Setup Utility">
+      </a>
+      <br>
+      <strong>Setup Utility</strong>
+    </td>
+  </tr>
+</table>
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -117,7 +154,7 @@ D:\ENGINE\
 │   ├── MOUSE.PAS       - Mouse interrupt handler
 │   ├── PKMLOAD.PAS     - PKM image loader
 │   ├── PLAYHSC.PAS     - HSC music player
-│   ├── RESMAN.PAS      - Resource manager
+│   ├── RESMAN.PAS      - Resource manager (WIP)
 │   ├── RTCTIMER.PAS    - RTC high-resolution timer
 │   ├── SBDSP.PAS       - Sound Blaster driver
 │   ├── SNDBANK.PAS     - XMS sound bank manager
@@ -150,11 +187,21 @@ D:\ENGINE\
 │   └── VOCLOAD.PAS     - VOC file loader
 │
 ├── DATA\           Sample assets
+│   ├── BG.PKM          - Background image for the TMXTEST
+│   ├── BLOCKS.PNG      - Blocks image only used by TEST.TMX
 │   ├── EXPLODE.VOC     - Example sound effect
 │   ├── FANTASY.HSC     - Example Adlib music
+│   ├── FONT.PKM        - Example font image
+│   ├── FONT.XML        - Example font metadata
 │   ├── PLAYER.PKM      - Example sprite sheet (192×64)
+│   ├── RES.XML         - Example resources file (WIP)
+│   ├── TEST.PAL        - Example PAL file for the TMXTEST
 │   ├── TEST.PKM        - Example 289×171 image
 │   ├── TEST.TMX        - Example tilemap
+│   ├── TEST.XML        - Example game configuration
+│   ├── TILESET.PKM     - Example tileset image for TMXTEST
+│   ├── TILESET.PNG     - Tileset image only used by TEST.TMX
+│   ├── TEST.TMX        - Example TMX file
 │   └── TEST.XML        - Example game configuration
 │
 ├── DOCS\           Documentation, see the links above
