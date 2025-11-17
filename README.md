@@ -8,40 +8,42 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 
 ## 📸 Screenshots
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="DOCS/SCREENS/TMXTEST.png">
-        <img src="DOCS/SCREENS/TMXTEST-thumb.png" alt="TMX Tilemap Test">
-      </a>
-      <br>
-      <strong>Tilemap Rendering</strong>
-    </td>
-    <td align="center">
-      <a href="DOCS/SCREENS/FNTTEST.png">
-        <img src="DOCS/SCREENS/FNTTEST-thumb.png" alt="Variable-Width Font Test">
-      </a>
-      <br>
-      <strong>Variable-Width Fonts</strong>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="DOCS/SCREENS/SPRTEST.png">
-        <img src="DOCS/SCREENS/SPRTEST-thumb.png" alt="Sprite Animation Test">
-      </a>
-      <br>
-      <strong>Sprite Animation</strong>
-    </td>
-    <td align="center">
-      <a href="DOCS/SCREENS/SETUP.png">
-        <img src="DOCS/SCREENS/SETUP-thumb.png" alt="Setup Utility">
-      </a>
-      <br>
-      <strong>Setup Utility</strong>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <a href="DOCS/SCREENS/TMXTEST.png">
+          <img src="DOCS/SCREENS/TMXTEST-thumb.png" alt="TMX Tilemap Test">
+        </a>
+        <br>
+        <strong>Tilemap Rendering</strong>
+      </td>
+      <td align="center">
+        <a href="DOCS/SCREENS/FNTTEST.png">
+          <img src="DOCS/SCREENS/FNTTEST-thumb.png" alt="Variable-Width Font Test">
+        </a>
+        <br>
+        <strong>Variable-Width Fonts</strong>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <a href="DOCS/SCREENS/SPRTEST.png">
+          <img src="DOCS/SCREENS/SPRTEST-thumb.png" alt="Sprite Animation Test">
+        </a>
+        <br>
+        <strong>Sprite Animation</strong>
+      </td>
+      <td align="center">
+        <a href="DOCS/SCREENS/SETUP.png">
+          <img src="DOCS/SCREENS/SETUP-thumb.png" alt="Setup Utility">
+        </a>
+        <br>
+        <strong>Setup Utility</strong>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## 🚀 Quick Start
 
