@@ -55,6 +55,7 @@ IMGTEST.EXE
 - **[DOCS/SNDBANK.md](DOCS/SNDBANK.md)** - XMS sound bank manager API
 - **[DOCS/SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system API
 - **[DOCS/VGA.md](DOCS/VGA.md)** - VGA graphics API reference
+- **[DOCS/VGAFONT.md](DOCS/VGAFONT.md)** - Variable-width font system API
 
 ## ✨ Features
 
@@ -66,7 +67,8 @@ IMGTEST.EXE
 - **Sprite animation**: Delta-time based system with 3 play modes (Forward, PingPong, Once)
 - **Tilemap support**: TMX tilemap loader and renderer for Tiled Map Editor files
 - **Collision layers**: BlocksLayer support for tile-based collision detection (separate from visual layers)
-- **Text rendering**: Embedded 8x8 bitmap font for on-screen text overlays
+- **Text rendering**: Embedded 8x8 bitmap font (VGAPRINT) for debug text, variable-width fonts (VGAFONT) for game UI
+- **Variable-width fonts**: Professional proportional fonts with XML metadata and PKM sprite sheets
 - **Palette support**: Direct VGA DAC programming (0-63 RGB), 768 Byte PAL loader
 
 ### 🎵 Audio

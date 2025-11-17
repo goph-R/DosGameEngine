@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a retro DOS multimedia engine written in Turbo Pascal (1994-era codebase), featuring VGA Mode 13h graphics (320x200 256-color) and HSC (Adlib/OPL2) music playback. The codebase represents vintage demoscene-style programming with direct hardware access, assembly code, and real-mode DOS conventions.
 
+## DOS Filename Convention (8.3 Format)
+
+**CRITICAL**: All files in this project MUST follow the DOS 8.3 filename format, **EXCEPT** files in the `DOCS\` and `TOOLS\` folders.
+
+**8.3 Format Rules:**
+- **Filename**: Maximum 8 characters
+- **Extension**: Maximum 3 characters (e.g., .PAS, .BAT, .EXE)
+- **No spaces**: Use underscores or remove spaces
+- **Valid characters**: A-Z, 0-9, underscore, hyphen only
+
+**Examples:**
+- ✅ CORRECT: `VGATEST.PAS`, `CFNTTEST.BAT`, `IMGTEST.EXE`, `FONT.XML`
+- ❌ WRONG: `VGATEST_FULL.PAS` (9 chars), `COMPILE_FONT_TEST.BAT` (17 chars)
+
+**Naming convention for compile batch files:**
+- Prefix with `C` (for "Compile")
+- Example: `CVGATEST.BAT` compiles `VGATEST.PAS`
+- Example: `CFNTTEST.BAT` compiles `FNTTEST.PAS`
+
+**Exceptions (long names allowed):**
+- `DOCS\*.md` - Documentation files
+- `TOOLS\*.*` - Development tools
+- `.gitignore`, `README.md`, `CLAUDE.md` - Root repository files
+
 ## Folder Structure
 
 ```

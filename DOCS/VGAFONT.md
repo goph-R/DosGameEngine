@@ -81,12 +81,14 @@ Example: 32-pixel tall font
 
 Each character:
 - Fixed height (e.g., 32 pixels)
+- Fixed right padding (e.g., 1 pixel)
 - Variable width (e.g., 'i' = 8px, 'W' = 24px)
 - Position defined in XML
 ```
 
 **Dimensions:**
 - **Height**: Fixed for all characters (defined in XML)
+- **Padding**: Fixed for all characters (defined in XML)
 - **Width**: Variable per character (defined in XML)
 - **Sheet size**: Depends on character count and sizes
 - **Typical**: 512×64 pixels for full ASCII set
@@ -99,23 +101,23 @@ Character positions and widths are defined in an XML file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<font height="32">
+<font height="32" padding="1">
   <!-- Uppercase letters -->
-  <character code="65" x="0" y="0" width="18" />    <!-- A -->
-  <character code="66" x="18" y="0" width="16" />   <!-- B -->
-  <character code="67" x="34" y="0" width="17" />   <!-- C -->
+  <char code="65" x="0" y="0" width="18" />    <!-- A -->
+  <char code="66" x="18" y="0" width="16" />   <!-- B -->
+  <char code="67" x="34" y="0" width="17" />   <!-- C -->
 
   <!-- Lowercase letters -->
-  <character code="97" x="0" y="32" width="15" />   <!-- a -->
-  <character code="98" x="15" y="32" width="15" />  <!-- b -->
+  <char code="97" x="0" y="32" width="15" />   <!-- a -->
+  <char code="98" x="15" y="32" width="15" />  <!-- b -->
 
   <!-- Numbers -->
-  <character code="48" x="200" y="0" width="14" />  <!-- 0 -->
-  <character code="49" x="214" y="0" width="10" />  <!-- 1 -->
+  <char code="48" x="200" y="0" width="14" />  <!-- 0 -->
+  <char code="49" x="214" y="0" width="10" />  <!-- 1 -->
 
   <!-- Special characters -->
-  <character code="32" x="0" y="0" width="8" />     <!-- Space (no glyph) -->
-  <character code="33" x="300" y="0" width="8" />   <!-- ! -->
+  <char code="32" x="0" y="0" width="8" />     <!-- Space (no glyph) -->
+  <char code="33" x="300" y="0" width="8" />   <!-- ! -->
 
   <!-- Characters not defined have width=0 and are skipped -->
 </font>
@@ -152,10 +154,11 @@ type
   end;
 
   TFont = record
-    Image: TImage;                           { Font sprite sheet }
-    Height: Byte;                            { Height of all characters }
+    Image: TImage;                            { Font sprite sheet }
+    Height: Byte;                             { Height of all characters }
+    Padding: Byte;                            { Right padding of all characters }
     Chars: array[0..MaxChars-1] of TCharInfo; { Character metadata }
-    Loaded: Boolean;                         { True if font successfully loaded }
+    Loaded: Boolean;                          { True if font successfully loaded }
   end;
   PFont = ^TFont;
 ```
@@ -178,8 +181,8 @@ Total: ~900 bytes + image data
 
 ```pascal
 function LoadFont(
-  const ImageFile: string;
   const XMLFile: string;
+  const ImageFile: string;
   var Font: TFont
 ): Boolean;
 ```
@@ -187,8 +190,8 @@ function LoadFont(
 Loads a font from PKM image and XML metadata files.
 
 **Parameters:**
-- `ImageFile` - Path to PKM sprite sheet (e.g., 'FONTS\MAIN.PKM')
 - `XMLFile` - Path to XML metadata (e.g., 'FONTS\MAIN.XML')
+- `ImageFile` - Path to PKM sprite sheet (e.g., 'FONTS\MAIN.PKM')
 - `Font` - TFont structure to populate
 
 **Returns:**
@@ -201,7 +204,7 @@ var
   GameFont: TFont;
 
 begin
-  if not LoadFont('FONTS\MAIN.PKM', 'FONTS\MAIN.XML', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PKM', GameFont) then
   begin
     WriteLn('Error loading font: ', GetLoadFontError);
     Halt(1);
@@ -215,7 +218,7 @@ end;
 1. Load PKM image into `Font.Image`
 2. Parse XML file using MINIXML.PAS
 3. Extract `height` attribute from `<font>` element
-4. Parse each `<character>` element:
+4. Parse each `<char>` element:
    - Read `code`, `x`, `y`, `width` attributes
    - Store in `Font.Chars[code]`
    - Set `Defined := True`
@@ -245,7 +248,7 @@ Returns the last error message from `LoadFont`.
 
 **Example:**
 ```pascal
-if not LoadFont('FONT.PKM', 'FONT.XML', Font) then
+if not LoadFont('FONT.XML', 'FONT.PKM', Font) then
 begin
   WriteLn('Font loading failed:');
   WriteLn(GetLoadFontError);
@@ -254,7 +257,7 @@ end;
 
 **Typical error messages:**
 - `"PKM file not found: FONT.PKM"`
-- `"XML file not found: FONT.XML"`
+- `"XML file could not be loaded: FONT.XML"`
 - `"Invalid XML format"`
 - `"Missing height attribute in <font> element"`
 - `"Invalid character code: 200 (must be 0-127)"`
@@ -279,7 +282,7 @@ var
   GameFont: TFont;
 
 begin
-  LoadFont('FONT.PKM', 'FONT.XML', GameFont);
+  LoadFont('FONT.XML', 'FONT.PKM', GameFont);
 
   { Use font... }
 
@@ -322,17 +325,15 @@ Renders text using a loaded font.
 ```pascal
 var
   GameFont: TFont;
-  BackBuffer: PFrameBuffer;
+  ScreenBuffer: PFrameBuffer;
 
 begin
-  LoadFont('FONT.PKM', 'FONT.XML', GameFont);
-  BackBuffer := CreateFrameBuffer;
+  LoadFont('FONT.XML', 'FONT.PKM', GameFont);
+  ScreenBuffer := GetScreenBuffer;
 
   { Draw text }
-  PrintFontText(100, 50, 'SCORE: 12345', GameFont, BackBuffer);
-  PrintFontText(100, 90, 'LEVEL: 5', GameFont, BackBuffer);
-
-  RenderFrameBuffer(BackBuffer);
+  PrintFontText(100, 50, 'SCORE: 12345', GameFont, ScreenBuffer);
+  PrintFontText(100, 90, 'LEVEL: 5', GameFont, ScreenBuffer);
 end;
 ```
 
@@ -341,8 +342,7 @@ end;
 2. For each character in text:
    - Get ASCII code
    - Look up character info in `Font.Chars[code]`
-   - If `Defined = False`, skip character
-   - If `Width = 0`, advance cursor by width (space)
+   - If `Defined = False` or `Width = 0`, skip character
    - Otherwise, call `PutImageRect` to draw character:
      ```pascal
      PutImageRect(
@@ -367,14 +367,7 @@ begin
 
   CharInfo := Font.Chars[CharCode];
 
-  if not CharInfo.Defined then Continue;  { Undefined character }
-
-  if CharInfo.Width = 0 then
-  begin
-    { Space or zero-width character }
-    CursorX := CursorX + CharInfo.Width;
-    Continue;
-  end;
+  if (not CharInfo.Defined) or (CharInfo.Width = 0) then Continue;
 
   { Draw character }
   SourceRect.X := CharInfo.X;
@@ -390,7 +383,7 @@ begin
     FrameBuffer
   );
 
-  CursorX := CursorX + CharInfo.Width;
+  CursorX := CursorX + CharInfo.Width + Font.Padding;
 end;
 ```
 
@@ -436,7 +429,7 @@ begin
   begin
     CharCode := Ord(Text[i]);
     if (CharCode <= 127) and Font.Chars[CharCode].Defined then
-      Width := Width + Font.Chars[CharCode].Width;
+      Width := Width + Font.Chars[CharCode].Width + Font.Padding;
   end;
   GetTextWidth := Width;
 end;
@@ -466,7 +459,7 @@ end;
 ### Font Element
 
 ```xml
-<font height="HEIGHT">
+<font height="HEIGHT" padding="PADDING">
   <!-- Character definitions -->
 </font>
 ```
@@ -476,15 +469,19 @@ end;
   - Height of all characters in pixels
   - All characters in font have same height
 
+- `padding` (optional): Integer, 1-255
+  - Right padding of all characters in pixel
+  - All characters in font have same padding
+
 **Child elements:**
-- One or more `<character>` elements
+- One or more `<char>` elements
 
 ---
 
 ### Character Element
 
 ```xml
-<character code="CODE" x="X" y="Y" width="WIDTH" />
+<char code="CODE" x="X" y="Y" width="WIDTH" />
 ```
 
 **Attributes:**
@@ -506,7 +503,7 @@ end;
 
 **Example:**
 ```xml
-<character code="65" x="0" y="0" width="18" />  <!-- 'A' -->
+<char code="65" x="0" y="0" width="18" />  <!-- 'A' -->
 ```
 
 ---
@@ -517,31 +514,31 @@ end;
 <?xml version="1.0" encoding="UTF-8"?>
 <font height="32">
   <!-- Uppercase A-Z -->
-  <character code="65" x="0" y="0" width="18" />    <!-- A -->
-  <character code="66" x="18" y="0" width="16" />   <!-- B -->
-  <character code="67" x="34" y="0" width="17" />   <!-- C -->
+  <char code="65" x="0" y="0" width="18" />    <!-- A -->
+  <char code="66" x="18" y="0" width="16" />   <!-- B -->
+  <char code="67" x="34" y="0" width="17" />   <!-- C -->
   <!-- ... Z -->
 
   <!-- Lowercase a-z -->
-  <character code="97" x="0" y="32" width="15" />   <!-- a -->
-  <character code="98" x="15" y="32" width="15" />  <!-- b -->
+  <char code="97" x="0" y="32" width="15" />   <!-- a -->
+  <char code="98" x="15" y="32" width="15" />  <!-- b -->
   <!-- ... z -->
 
   <!-- Numbers 0-9 -->
-  <character code="48" x="200" y="0" width="14" />  <!-- 0 -->
-  <character code="49" x="214" y="0" width="10" />  <!-- 1 -->
-  <character code="50" x="224" y="0" width="14" />  <!-- 2 -->
+  <char code="48" x="200" y="0" width="14" />  <!-- 0 -->
+  <char code="49" x="214" y="0" width="10" />  <!-- 1 -->
+  <char code="50" x="224" y="0" width="14" />  <!-- 2 -->
   <!-- ... 9 -->
 
   <!-- Special characters -->
-  <character code="32" x="0" y="0" width="8" />     <!-- Space -->
-  <character code="33" x="300" y="0" width="8" />   <!-- ! -->
-  <character code="46" x="308" y="0" width="6" />   <!-- . -->
-  <character code="58" x="314" y="0" width="6" />   <!-- : -->
+  <char code="32" x="0" y="0" width="8" />     <!-- Space -->
+  <char code="33" x="300" y="0" width="8" />   <!-- ! -->
+  <char code="46" x="308" y="0" width="6" />   <!-- . -->
+  <char code="58" x="314" y="0" width="6" />   <!-- : -->
 
   <!-- Extended special characters -->
-  <character code="44" x="320" y="0" width="6" />   <!-- , -->
-  <character code="63" x="326" y="0" width="14" />  <!-- ? -->
+  <char code="44" x="320" y="0" width="6" />   <!-- , -->
+  <char code="63" x="326" y="0" width="14" />  <!-- ? -->
 </font>
 ```
 
@@ -558,15 +555,15 @@ uses VGA, VGAFont, PKMLoad;
 
 var
   GameFont: TFont;
-  BackBuffer: PFrameBuffer;
+  ScreenBuffer: PFrameBuffer;
   Running: Boolean;
 
 begin
   InitVGA;
-  BackBuffer := CreateFrameBuffer;
+  ScreenBuffer := GetScreenBuffer;
 
   { Load font }
-  if not LoadFont('FONTS\MAIN.PKM', 'FONTS\MAIN.XML', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PKM', GameFont) then
   begin
     CloseVGA;
     WriteLn('Error: ', GetLoadFontError);
@@ -577,74 +574,15 @@ begin
   ClearFrameBuffer(BackBuffer);
 
   { Draw text }
-  PrintFontText(10, 10, 'Hello, World!', GameFont, BackBuffer);
-  PrintFontText(10, 50, 'Variable Width Font!', GameFont, BackBuffer);
-
-  { Display }
-  RenderFrameBuffer(BackBuffer);
+  PrintFontText(10, 10, 'Hello, World!', GameFont, ScreenBuffer);
+  PrintFontText(10, 50, 'Variable Width Font!', GameFont, ScreenBuffer);
 
   ReadLn;
 
   { Cleanup }
   FreeFont(GameFont);
-  FreeFrameBuffer(BackBuffer);
   CloseVGA;
 end.
-```
-
----
-
-### HUD Rendering (Game UI)
-
-```pascal
-procedure RenderHUD(Score, Lives: Integer);
-var
-  ScoreText, LivesText: string;
-begin
-  { Format text }
-  ScoreText := 'SCORE: ' + IntToStr(Score);
-  LivesText := 'LIVES: ' + IntToStr(Lives);
-
-  { Draw HUD elements }
-  PrintFontText(10, 10, ScoreText, GameFont, BackBuffer);
-  PrintFontText(10, 45, LivesText, GameFont, BackBuffer);
-
-  { Mark HUD region dirty for selective redraw }
-  AddDirtyRect(10, 10, GetTextWidth(ScoreText, GameFont), GameFont.Height);
-  AddDirtyRect(10, 45, GetTextWidth(LivesText, GameFont), GameFont.Height);
-end;
-```
-
----
-
-### Dialogue System
-
-```pascal
-procedure ShowDialogue(const Speaker, Text: string);
-var
-  BoxX, BoxY, BoxWidth, BoxHeight: Integer;
-  TextY: Integer;
-begin
-  { Draw dialogue box background }
-  BoxX := 20;
-  BoxY := 140;
-  BoxWidth := 280;
-  BoxHeight := 50;
-
-  DrawBox(BoxX, BoxY, BoxWidth, BoxHeight, BackBuffer);
-
-  { Draw speaker name }
-  PrintFontText(BoxX + 10, BoxY + 5, Speaker, BoldFont, BackBuffer);
-
-  { Draw dialogue text }
-  TextY := BoxY + 5 + BoldFont.Height + 5;
-  PrintFontText(BoxX + 10, TextY, Text, NormalFont, BackBuffer);
-
-  RenderFrameBuffer(BackBuffer);
-end;
-
-{ Usage }
-ShowDialogue('HERO', 'I must find the ancient gem!');
 ```
 
 ---
@@ -659,13 +597,13 @@ var
 
 begin
   { Load different fonts for different purposes }
-  LoadFont('FONTS\TITLE.PKM', 'FONTS\TITLE.XML', TitleFont);
-  LoadFont('FONTS\NORMAL.PKM', 'FONTS\NORMAL.XML', NormalFont);
-  LoadFont('FONTS\SMALL.PKM', 'FONTS\SMALL.XML', SmallFont);
+  LoadFont('FONTS\TITLE.XML', 'FONTS\TITLE.PKM', TitleFont);
+  LoadFont('FONTS\NORMAL.XML', 'FONTS\NORMAL.PKM', NormalFont);
+  LoadFont('FONTS\SMALL.XML', 'FONTS\SMALL.PKM', SmallFont);
 
   { Use appropriate font for each element }
-  PrintFontTextCentered(50, 'XICLONE', TitleFont, BackBuffer);
-  PrintFontTextCentered(100, 'Press ENTER to start', NormalFont, BackBuffer);
+  PrintFontTextCentered(160, 50, 'XICLONE', TitleFont, BackBuffer);
+  PrintFontTextCentered(160, 100, 'Press ENTER to start', NormalFont, BackBuffer);
   PrintFontText(10, 190, 'v1.0', SmallFont, BackBuffer);
 
   { Cleanup all fonts }
@@ -761,98 +699,13 @@ end;
 
 ### Step 2: Generate XML Metadata
 
-**Option A: Manual creation**
-
 Create `MYFONT.XML`:
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<font height="32">
-  <character code="65" x="0" y="0" width="18" />  <!-- A -->
+<?xml version="1.0" encoding="US-ASCII"?>
+<font height="32" padding="1">
+  <char code="65" x="0" y="0" width="18" />  <!-- A -->
   <!-- Add all characters... -->
 </font>
-```
-
-**Option B: DOS tool (recommended)**
-
-Write a helper program `FONTGEN.PAS`:
-```pascal
-program FontGen;
-
-{ Generates XML from user input }
-
-var
-  OutFile: Text;
-  CharCode: Integer;
-  X, Y, Width: Integer;
-  Height: Integer;
-  Done: Boolean;
-
-begin
-  Assign(OutFile, 'FONT.XML');
-  Rewrite(OutFile);
-
-  WriteLn('Font height (pixels): ');
-  ReadLn(Height);
-
-  WriteLn(OutFile, '<?xml version="1.0" encoding="UTF-8"?>');
-  WriteLn(OutFile, '<font height="', Height, '">');
-
-  Done := False;
-  while not Done do
-  begin
-    Write('Character code (0-127, -1 to finish): ');
-    ReadLn(CharCode);
-
-    if CharCode = -1 then
-    begin
-      Done := True;
-      Continue;
-    end;
-
-    Write('X position: ');
-    ReadLn(X);
-    Write('Y position: ');
-    ReadLn(Y);
-    Write('Width: ');
-    ReadLn(Width);
-
-    WriteLn(OutFile, '  <character code="', CharCode,
-            '" x="', X, '" y="', Y, '" width="', Width, '" />');
-  end;
-
-  WriteLn(OutFile, '</font>');
-  Close(OutFile);
-
-  WriteLn('XML file generated: FONT.XML');
-end.
-```
-
-**Option C: Python script**
-
-```python
-# fontgen.py - Generate XML from measurements
-
-import xml.etree.ElementTree as ET
-
-font = ET.Element('font', height='32')
-
-# Define characters (code, x, y, width)
-chars = [
-    (65, 0, 0, 18),    # A
-    (66, 18, 0, 16),   # B
-    (67, 34, 0, 17),   # C
-    # ... add all characters
-]
-
-for code, x, y, width in chars:
-    ET.SubElement(font, 'character',
-                  code=str(code),
-                  x=str(x),
-                  y=str(y),
-                  width=str(width))
-
-tree = ET.ElementTree(font)
-tree.write('FONT.XML', encoding='UTF-8', xml_declaration=True)
 ```
 
 ---
@@ -964,218 +817,6 @@ Acceptable for:
 
 ---
 
-## Implementation Details
-
-### Error Message Storage
-
-```pascal
-var
-  LastError: string;  { Global in implementation section }
-
-procedure SetError(const Msg: string);
-begin
-  LastError := Msg;
-end;
-
-function GetLoadFontError: string;
-begin
-  GetLoadFontError := LastError;
-end;
-```
-
----
-
-### XML Parsing with MINIXML
-
-```pascal
-uses MiniXML;
-
-function LoadFont(const ImageFile, XMLFile: string; var Font: TFont): Boolean;
-var
-  Doc: PXMLDocument;
-  FontNode, CharNode: PXMLNode;
-  HeightStr, CodeStr, XStr, YStr, WidthStr: string;
-  Height, Code, X, Y, Width: Integer;
-  i: Integer;
-begin
-  LoadFont := False;
-
-  { Initialize font structure }
-  for i := 0 to MaxChars - 1 do
-  begin
-    Font.Chars[i].Defined := False;
-    Font.Chars[i].Width := 0;
-  end;
-  Font.Loaded := False;
-
-  { Load image }
-  if not LoadPKM(ImageFile, Font.Image) then
-  begin
-    SetError('PKM file not found: ' + ImageFile);
-    Exit;
-  end;
-
-  { Load XML }
-  Doc := LoadXMLDocument(XMLFile);
-  if Doc = nil then
-  begin
-    SetError('XML file not found: ' + XMLFile);
-    FreeImage(Font.Image);
-    Exit;
-  end;
-
-  { Get root <font> element }
-  FontNode := Doc^.Root;
-  if FontNode = nil then
-  begin
-    SetError('Invalid XML: Missing root element');
-    FreeXMLDocument(Doc);
-    FreeImage(Font.Image);
-    Exit;
-  end;
-
-  { Read height attribute }
-  HeightStr := GetAttribute(FontNode, 'height');
-  if HeightStr = '' then
-  begin
-    SetError('Missing height attribute in <font> element');
-    FreeXMLDocument(Doc);
-    FreeImage(Font.Image);
-    Exit;
-  end;
-
-  Height := StrToInt(HeightStr);
-  if (Height <= 0) or (Height > 255) then
-  begin
-    SetError('Invalid height: ' + HeightStr);
-    FreeXMLDocument(Doc);
-    FreeImage(Font.Image);
-    Exit;
-  end;
-
-  Font.Height := Height;
-
-  { Parse each <character> element }
-  CharNode := FontNode^.FirstChild;
-  while CharNode <> nil do
-  begin
-    if CharNode^.Name = 'character' then
-    begin
-      { Read attributes }
-      CodeStr := GetAttribute(CharNode, 'code');
-      XStr := GetAttribute(CharNode, 'x');
-      YStr := GetAttribute(CharNode, 'y');
-      WidthStr := GetAttribute(CharNode, 'width');
-
-      { Validate required attributes }
-      if (CodeStr = '') or (XStr = '') or (YStr = '') or (WidthStr = '') then
-      begin
-        SetError('Missing required attribute in <character> element');
-        FreeXMLDocument(Doc);
-        FreeImage(Font.Image);
-        Exit;
-      end;
-
-      { Parse values }
-      Code := StrToInt(CodeStr);
-      X := StrToInt(XStr);
-      Y := StrToInt(YStr);
-      Width := StrToInt(WidthStr);
-
-      { Validate ranges }
-      if (Code < 0) or (Code > 127) then
-      begin
-        SetError('Invalid character code: ' + CodeStr + ' (must be 0-127)');
-        FreeXMLDocument(Doc);
-        FreeImage(Font.Image);
-        Exit;
-      end;
-
-      { Store character info }
-      with Font.Chars[Code] do
-      begin
-        X := X;
-        Y := Y;
-        Width := Width;
-        Defined := True;
-      end;
-    end;
-
-    CharNode := CharNode^.NextSibling;
-  end;
-
-  { Cleanup }
-  FreeXMLDocument(Doc);
-
-  Font.Loaded := True;
-  LoadFont := True;
-end;
-```
-
----
-
-### PrintFontText Implementation
-
-```pascal
-procedure PrintFontText(
-  X, Y: Integer;
-  const Text: string;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-var
-  i: Integer;
-  CharCode: Byte;
-  CharInfo: TCharInfo;
-  SourceRect: TRectangle;
-  CursorX: Integer;
-begin
-  if not Font.Loaded then Exit;
-
-  CursorX := X;
-
-  for i := 1 to Length(Text) do
-  begin
-    CharCode := Ord(Text[i]);
-
-    { Skip extended ASCII }
-    if CharCode > 127 then Continue;
-
-    CharInfo := Font.Chars[CharCode];
-
-    { Skip undefined characters }
-    if not CharInfo.Defined then Continue;
-
-    { Handle zero-width characters (advance cursor but don't draw) }
-    if CharInfo.Width = 0 then
-    begin
-      CursorX := CursorX + CharInfo.Width;
-      Continue;
-    end;
-
-    { Setup source rectangle }
-    SourceRect.X := CharInfo.X;
-    SourceRect.Y := CharInfo.Y;
-    SourceRect.Width := CharInfo.Width;
-    SourceRect.Height := Font.Height;
-
-    { Draw character }
-    PutImageRect(
-      Font.Image,      { Source sprite sheet }
-      SourceRect,      { Source rectangle }
-      CursorX, Y,      { Destination position }
-      True,            { Transparent (color 0) }
-      FrameBuffer      { Target buffer }
-    );
-
-    { Advance cursor }
-    CursorX := CursorX + CharInfo.Width;
-  end;
-end;
-```
-
----
-
 ## Error Handling
 
 ### Error Categories
@@ -1202,7 +843,7 @@ end;
 
 ```
 "PKM file not found: FONTS\MAIN.PKM"
-"XML file not found: FONTS\MAIN.XML"
+"XML file could not be loaded: FONTS\MAIN.XML"
 "Invalid XML format"
 "Missing root <font> element"
 "Missing height attribute in <font> element"
@@ -1241,30 +882,3 @@ VGAFONT.PAS provides a professional variable-width font system that:
 - Debug output, FPS counters
 - Quick prototypes
 - Minimal memory footprint
-
----
-
-## Integration with XICLONE
-
-**Font usage in puzzle game:**
-```pascal
-var
-  TitleFont: TFont;   { 48px tall, decorative }
-  UIFont: TFont;      { 24px tall, clean }
-  ScoreFont: TFont;   { 32px tall, bold numbers }
-
-procedure RenderGameUI;
-begin
-  { Title screen }
-  PrintFontTextCentered(50, 'XICLONE', TitleFont, BackBuffer);
-
-  { Game HUD }
-  PrintFontText(10, 10, 'SCORE:', UIFont, BackBuffer);
-  PrintFontText(70, 10, IntToStr(Score), ScoreFont, BackBuffer);
-
-  PrintFontText(10, 40, 'LEVEL:', UIFont, BackBuffer);
-  PrintFontText(70, 40, IntToStr(Level), ScoreFont, BackBuffer);
-end;
-```
-
-**Ready to implement!** 🎨✨
