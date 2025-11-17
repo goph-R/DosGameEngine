@@ -1,4 +1,4 @@
-uses Keyboard, VGA, VGALine;
+uses Keyboard, VGA;
 
 var
   FB: PFrameBuffer;
