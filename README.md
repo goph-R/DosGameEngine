@@ -191,23 +191,21 @@ D:\ENGINE\
 │
 ├── DATA\           Sample assets
 │   ├── BG.PKM          - Background image for the TMXTEST
-│   ├── BLOCKS.PNG      - Blocks image only used by TEST.TMX
+│   ├── BLOCKS.PNG      - Blocks image only used by TEST.TMX (in Tiled)
 │   ├── EXPLODE.VOC     - Example sound effect
 │   ├── FANTASY.HSC     - Example Adlib music
 │   ├── FONT-LG.PKM     - Example large font image
 │   ├── FONT-LG.XML     - Example large font metadata
 │   ├── FONT-SM.PKM     - Example small font image
 │   ├── FONT-SM.XML     - Example small font metadata
-│   ├── PLAYER.PKM      - Example sprite sheet (192×64)
+│   ├── PLAYER.PKM      - Example sprite sheet (192×64) for SPRTEST
 │   ├── RES.XML         - Example resources file (WIP)
 │   ├── TEST.PAL        - Example PAL file for the TMXTEST
-│   ├── TEST.PKM        - Example 289×171 image
+│   ├── TEST.PKM        - Example 289×171 image for IMGTEST and VGATEST
 │   ├── TEST.TMX        - Example tilemap
 │   ├── TEST.XML        - Example game configuration
 │   ├── TILESET.PKM     - Example tileset image for TMXTEST
-│   ├── TILESET.PNG     - Tileset image only used by TEST.TMX
-│   ├── TEST.TMX        - Example TMX file
-│   └── TEST.XML        - Example game configuration
+│   └── TILESET.PNG     - Tileset image only used by TEST.TMX (in Tiled)
 │
 ├── DOCS\           Documentation, see the links above
 └── VENDOR\         Third-party libraries (not used), only for credits
