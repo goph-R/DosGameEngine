@@ -9,7 +9,7 @@ Open `Debug` > `Start the DOSBox-X debugger`
 
 ## 2️⃣ Dump the current VGA palette
 
-`Once the debugger window is open and your game/program is at the desired point, enter:
+Once the debugger window is open and your game/program is at the desired point, enter:
 
 ```text
 VGA DACPAL
