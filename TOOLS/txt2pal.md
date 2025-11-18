@@ -5,16 +5,11 @@ DOSBox-X’s built-in debugger can display the full **256-color VGA DAC palette*
 
 ## 1️⃣ Start DOSBox-X with the debugger
 
-You can launch it directly:
-
-```text
-dosbox-x -startdebug
-```
----
+Open `Debug` > `Start the DOSBox-X debugger`
 
 ## 2️⃣ Dump the current VGA palette
 
-Once the debugger window is open and your game/program is at the desired point, enter:
+`Once the debugger window is open and your game/program is at the desired point, enter:
 
 ```text
 VGA DACPAL
@@ -22,8 +17,6 @@ VGA DACPAL
 
 This prints all **256 DAC entries** in `RRGGBB` hex format (each channel is 0–3F).
 Copy this output and save it as a text file, e.g. `dacpal.txt`.
-
----
 
 ## 3️⃣ Convert the text dump to a `.PAL` file
 
