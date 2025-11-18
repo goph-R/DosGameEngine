@@ -1,6 +1,3 @@
-Here is a polished, nicely formatted version of your Markdown — with improved wording, consistent style, and tasteful UTF-8 icons (terminal-safe). I kept it clean and not overly emoji-heavy, just enough to make it friendly:
-
----
 
 # 🎨 Save the Current VGA Palette from DOSBox-X
 
@@ -54,7 +51,3 @@ Wrote dacpal.pal (768 bytes)
 ```
 
 🎉 Your Mode 13h VGA palette is now saved in standard 768-byte raw PAL format.
-
----
-
-If you want, I can also prepare a **GIMP (.gpl)** or **JASC-PAL** export section, or add optional color previews in the terminal.
