@@ -1,11 +1,9 @@
 
 # 🎨 Save the Current VGA Palette from DOSBox-X
 
-## 🛠️ Method 1: Using **DOSBox-X Debugger** (no coding)
-
 DOSBox-X’s built-in debugger can display the full **256-color VGA DAC palette** (perfect for mode 13h).
 
-### 1️⃣ Start DOSBox-X with the debugger
+## 1️⃣ Start DOSBox-X with the debugger
 
 You can launch it directly:
 
@@ -23,7 +21,7 @@ Recent DOSBox-X builds include extra VGA-related commands (ref: [Model3210][1]).
 
 ---
 
-### 2️⃣ Dump the current VGA palette
+## 2️⃣ Dump the current VGA palette
 
 Once the debugger window is open and your game/program is at the desired point, enter:
 
@@ -36,7 +34,7 @@ Copy this output and save it as a text file, e.g. `dacpal.txt`.
 
 ---
 
-### 3️⃣ Convert the text dump to a `.PAL` file
+## 3️⃣ Convert the text dump to a `.PAL` file
 
 Run your converter tool:
 
