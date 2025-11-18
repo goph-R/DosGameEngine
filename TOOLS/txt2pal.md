@@ -10,15 +10,6 @@ You can launch it directly:
 ```text
 dosbox-x -startdebug
 ```
-
-Or, from inside DOSBox-X:
-
-```text
-DEBUGBOX
-```
-
-Recent DOSBox-X builds include extra VGA-related commands (ref: [Model3210][1]).
-
 ---
 
 ## 2️⃣ Dump the current VGA palette
