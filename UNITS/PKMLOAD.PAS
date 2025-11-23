@@ -18,8 +18,19 @@ type
 function LoadPKM(const FileName: string; var Image: TImage): Boolean;
 function LoadPKMWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
+function GetLastErrorMessage: string;
 
 implementation
+
+uses StrUtil;
+
+var
+  LastErrorMessage: string;
+
+function GetLastErrorMessage: string;
+begin
+  GetLastErrorMessage := LastErrorMessage;
+end;
 
 function LoadPKMWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
@@ -41,19 +52,23 @@ var
   ImageBuffer: PByteArray;
 begin
   LoadPKMWithPalette := False;
+  LastErrorMessage := '';
 
   { Initialize Image structure }
   Image.Width := 0;
   Image.Height := 0;
   Image.Data := nil;
-  
+
   { Open file }
   Assign(F, FileName);
   {$I-}
   Reset(F, 1);
   {$I+}
   if IOResult <> 0 then
+  begin
+    LastErrorMessage := 'File not found or cannot open: ' + FileName;
     Exit;
+  end;
   
   { Get file size }
   FileSizeBytes := FileSize(F);
@@ -62,6 +77,7 @@ begin
   BlockRead(F, Header.Signature, 3, BytesRead);
   if (BytesRead <> 3) or (Header.Signature <> 'PKM') then
   begin
+    LastErrorMessage := 'Invalid PKM signature (not a valid PKM file)';
     Close(F);
     Exit;
   end;
@@ -70,6 +86,7 @@ begin
   BlockRead(F, Header.Version, 1, BytesRead);
   if BytesRead <> 1 then
   begin
+    LastErrorMessage := 'Error reading PKM header version';
     Close(F);
     Exit;
   end;
@@ -85,6 +102,7 @@ begin
   { Verify dimensions are valid and within 64K limit }
   if (Header.Width = 0) or (Header.Height = 0) then
   begin
+    LastErrorMessage := 'Invalid image dimensions (width or height is 0)';
     Close(F);
     Exit;
   end;
@@ -92,6 +110,9 @@ begin
   Image_size := LongInt(Header.Width) * LongInt(Header.Height);
   if Image_size > 65520 then  { Maximum GetMem block size in real mode }
   begin
+    LastErrorMessage := 'Image too large: ' + IntToStr(Header.Width) + 'x' +
+                        IntToStr(Header.Height) + ' (' + IntToStr(Image_size) +
+                        ' bytes, max 65520)';
     Close(F);
     Exit;
   end;
@@ -100,6 +121,7 @@ begin
   BlockRead(F, Palette, 768, BytesRead);
   if BytesRead <> 768 then
   begin
+    LastErrorMessage := 'Error reading palette data';
     Close(F);
     Exit;
   end;
@@ -108,6 +130,7 @@ begin
   BlockRead(F, Header.PH_size, 2, BytesRead);
   if BytesRead <> 2 then
   begin
+    LastErrorMessage := 'Error reading post-header size';
     Close(F);
     Exit;
   end;
@@ -120,6 +143,7 @@ begin
       BlockRead(F, TempByte, 1, BytesRead);
       if BytesRead <> 1 then
       begin
+        LastErrorMessage := 'Error reading post-header data';
         Close(F);
         Exit;
       end;
@@ -205,7 +229,17 @@ begin
   end;
   
   Close(F);
-  LoadPKMWithPalette := (Pixels_counter = Image_size);
+
+  if Pixels_counter <> Image_size then
+  begin
+    LastErrorMessage := 'Incomplete decompression: expected ' + IntToStr(Image_size) +
+                        ' pixels, got ' + IntToStr(Pixels_counter);
+    LoadPKMWithPalette := False;
+  end
+  else
+  begin
+    LoadPKMWithPalette := True;
+  end;
 end;
 
 function LoadPKM(const FileName: string; var Image: TImage): Boolean;

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<font height="19" padding="1">
+
+  <!-- Uppercase letters A-Z -->
+  <char code="65" x="0" y="0" width="10" />   <!-- A -->
+  <char code="66" x="11" y="0" width="9" />   <!-- B -->
+  <char code="67" x="21" y="0" width="8" />   <!-- C -->
+  <char code="68" x="30" y="0" width="10" />  <!-- D -->
+  <char code="69" x="41" y="0" width="7" />   <!-- E -->
+  <char code="70" x="49" y="0" width="7" />   <!-- F -->
+  <char code="71" x="57" y="0" width="9" />   <!-- G -->
+  <char code="72" x="67" y="0" width="10" />  <!-- H -->
+  <char code="73" x="78" y="0" width="3" />   <!-- I -->
+  <char code="74" x="82" y="0" width="7" />   <!-- J -->
+  <char code="75" x="90" y="0" width="9" />   <!-- K -->
+  <char code="76" x="100" y="0" width="7" />  <!-- L -->
+  <char code="77" x="108" y="0" width="13" /> <!-- M -->
+  <char code="78" x="122" y="0" width="10" /> <!-- N -->
+  <char code="79" x="133" y="0" width="10" /> <!-- O -->
+  <char code="80" x="144" y="0" width="8" />  <!-- P -->
+  <char code="81" x="153" y="0" width="10" /> <!-- Q -->
+  <char code="82" x="164" y="0" width="10" /> <!-- R -->
+  <char code="83" x="174" y="0" width="7" />  <!-- S -->
+  <char code="84" x="0" y="20" width="9" />   <!-- T -->
+  <char code="85" x="10" y="20" width="9" />  <!-- U -->
+  <char code="86" x="20" y="20" width="11" /> <!-- V -->
+  <char code="87" x="32" y="20" width="13" /> <!-- W -->
+  <char code="88" x="46" y="20" width="11" /> <!-- X -->
+  <char code="89" x="58" y="20" width="9" />  <!-- Y -->
+  <char code="90" x="68" y="20" width="10" /> <!-- Z -->
+
+  <!-- Lowercase letters a-z -->
+  <char code="97" x="79" y="20" width="8" />    <!-- a -->
+  <char code="98" x="88" y="20" width="9" />    <!-- b -->
+  <char code="99" x="98" y="20" width="7" />    <!-- c -->
+  <char code="100" x="106" y="20" width="9" />  <!-- d -->
+  <char code="101" x="116" y="20" width="9" />  <!-- e -->
+  <char code="102" x="126" y="20" width="6" />  <!-- f -->
+  <char code="103" x="133" y="20" width="9" />  <!-- g -->
+  <char code="104" x="143" y="20" width="8" />  <!-- h -->
+  <char code="105" x="152" y="20" width="3" />  <!-- i -->
+  <char code="106" x="156" y="20" width="5" />  <!-- j -->
+  <char code="107" x="162" y="20" width="8" />  <!-- k -->
+  <char code="108" x="171" y="20" width="3" />  <!-- l -->
+  <char code="109" x="175" y="20" width="13" /> <!-- m -->
+  <char code="110" x="0" y="40" width="8" />    <!-- n -->
+  <char code="111" x="9" y="40" width="8" />    <!-- o -->
+  <char code="112" x="18" y="40" width="8" />   <!-- p -->
+  <char code="113" x="27" y="40" width="8" />   <!-- q -->
+  <char code="114" x="36" y="40" width="6" />   <!-- r -->
+  <char code="115" x="43" y="40" width="6" />   <!-- s -->
+  <char code="116" x="50" y="40" width="6" />   <!-- t -->
+  <char code="117" x="57" y="40" width="8" />   <!-- u -->
+  <char code="118" x="66" y="40" width="9" />   <!-- v -->
+  <char code="119" x="76" y="40" width="11" />  <!-- w -->
+  <char code="120" x="88" y="40" width="9" />   <!-- x -->
+  <char code="121" x="98" y="40" width="9" />   <!-- y -->
+  <char code="122" x="108" y="40" width="8" />  <!-- z -->
+
+  <!-- Numbers 0-9 -->
+  <char code="48" x="117" y="40" width="8" /> <!-- 0 -->
+  <char code="49" x="126" y="40" width="5" /> <!-- 1 -->
+  <char code="50" x="132" y="40" width="7" /> <!-- 2 -->
+  <char code="51" x="140" y="40" width="7" /> <!-- 3 -->
+  <char code="52" x="148" y="40" width="9" /> <!-- 4 -->
+  <char code="53" x="158" y="40" width="7" /> <!-- 5 -->
+  <char code="54" x="166" y="40" width="8" /> <!-- 6 -->
+  <char code="55" x="175" y="40" width="8" /> <!-- 7 -->
+  <char code="56" x="0" y="60" width="8" />   <!-- 8 -->
+  <char code="57" x="9" y="60" width="8" />   <!-- 9 -->
+
+  <!-- Special chars -->
+  <char code="32" x="190" y="0" width="5" />   <!-- Space (no glyph, just width) -->
+  <char code="33" x="18" y="60" width="3" />   <!-- ! -->
+  <char code="34" x="22" y="60" width="5" />   <!-- " -->
+  <char code="35" x="28" y="60" width="10" />  <!-- # -->
+  <char code="36" x="39" y="60" width="7" />   <!-- $ -->
+  <char code="37" x="47" y="60" width="12" />  <!-- % -->
+  <char code="38" x="59" y="60" width="11" />  <!-- & -->
+  <char code="39" x="71" y="60" width="3" />   <!-- ' -->
+  <char code="40" x="74" y="60" width="4" />   <!-- ( -->
+  <char code="41" x="79" y="60" width="4" />   <!-- ) -->
+  <char code="42" x="84" y="60" width="7" />   <!-- * -->
+  <char code="43" x="92" y="60" width="6" />   <!-- + -->
+  <char code="44" x="99" y="60" width="3" />   <!-- , -->
+  <char code="45" x="103" y="60" width="4" />  <!-- - -->
+  <char code="46" x="108" y="60" width="3" />  <!-- . -->
+  <char code="47" x="111" y="60" width="8" />  <!-- / -->
+  <char code="58" x="120" y="60" width="6" />  <!-- : -->
+  <char code="59" x="123" y="60" width="3" />  <!-- ; -->
+  <char code="63" x="127" y="60" width="7" />  <!-- ? -->
+  <char code="64" x="135" y="60" width="13" /> <!-- @ -->
+  <char code="91" x="149" y="60" width="3" />  <!-- [ -->
+  <char code="92" x="153" y="60" width="8" />  <!-- \ -->
+  <char code="93" x="162" y="60" width="3" />  <!-- ] -->
+  <char code="94" x="166" y="60" width="5" />  <!-- ^ -->
+  <char code="96" x="172" y="60" width="4" />  <!-- ` -->
+  <char code="123" x="177" y="60" width="4" /> <!-- { -->
+  <char code="124" x="182" y="60" width="2" /> <!-- | -->
+  <char code="125" x="185" y="60" width="4" /> <!-- } -->
+  <char code="126" x="190" y="60" width="7" /> <!-- ~ -->
+
+  <!-- chars not defined will be skipped when rendering -->
+</font>

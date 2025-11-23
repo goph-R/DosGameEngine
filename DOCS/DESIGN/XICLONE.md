@@ -46,8 +46,8 @@ A falling-block puzzle game where players arrange stacks of three gems to match 
 The number of colored gems available in the game varies depending on the difficulty setting:
 
 - **Novice difficulty:** Uses 4 different colors of gems (Red, Green, Blue, Yellow)
-- **Amateur difficulty:** Uses 5 different colors of gems (Red, Orange, Green, Blue, Yellow)
-- **Pro difficulty** (standard/arcade mode): Uses 6 different colors of gems (Red, Orange, Green, Blue, Yellow, Purple)
+- **Amateur difficulty:** Uses 5 different colors of gems (Red, Pink, Green, Blue, Yellow)
+- **Pro difficulty** (standard/arcade mode): Uses 6 different colors of gems (Red, Pink, Green, Blue, Yellow, Purple)
 
 ### Magic Jewel
 
@@ -139,8 +139,8 @@ uses PKMLoad;
 ```
 
 **Assets:**
-- `GEMS.PKM` - Gem sprite sheet (16×16 tiles)
-- `BACKGROUND.PKM` - Static playfield background
+- `GEMS1.PKM` - Gem sprite sheet (16×16 tiles)
+- `BG1.PKM` - Static playfield background #1 (maybe later more)
 - `TITLE.PKM` - Title screen
 
 ---
@@ -235,7 +235,7 @@ var
 Music.Init(0);  { Auto-detect Adlib at $388 }
 
 { Playback }
-Music.LoadFile('MUSIC\GAME1.HSC');
+Music.LoadFile('MUSIC\ADTHELIB.HSC.HSC');
 Music.Start;
 Music.Poll;  { Call regularly in game loop }
 
@@ -244,9 +244,9 @@ Music.Done;  { CRITICAL: Unhook IRQ0 before exit }
 ```
 
 **Music tracks:**
-1. `MENU.HSC` - Title screen music
-2. `GAME1.HSC` - Gameplay music (track 1)
-3. `GAME2.HSC` - Gameplay music (track 2, faster tempo)
+1. `INTRO.HSC`        - Title screen music
+2. `ADTHELIB.HSC.HSC` - Gameplay music (track 1)
+3. `TECHNO.HSC`       - Gameplay music (track 2, faster tempo)
 
 ---
 
@@ -451,26 +451,89 @@ begin
 end;
 
 { Zone 3: Falling stack - Always redraw (moving every frame) }
-procedure UpdateFallingStack;
+{ CRITICAL: Track LastStackX/LastStackY to clear old rendered position! }
 var
-  R: TRectangle;
-begin
-  { Clear old position }
-  DrawBackground(OldStackX, OldStackY, 16, 48, BackBuffer);
-  R.X := OldStackX;
-  R.Y := OldStackY;
-  R.Width := 16;
-  R.Height := 48;
-  AddDirtyRect(R);
+  LastStackX: Integer;
+  LastStackY: Real;
 
-  { Draw new position }
-  DrawStack(StackX, StackY, BackBuffer);
-  R.X := StackX;
-  R.Y := StackY;
-  R.Width := 16;
-  R.Height := 48;
-  AddDirtyRect(R);
+procedure RenderStack;
+var
+  I: Integer;
+  GemY: Integer;
+  R: TRectangle;
+  ClipOffset: Integer;
+begin
+  if not CurrentStack.Active then Exit;
+
+  { --- STEP 1: CLEAR OLD POSITION --- }
+  { Use LastStackX/LastStackY (last rendered position), not CurrentStack values! }
+  { CurrentStack.PixelY may have jumped during collision/snapping, causing artifacts }
+
+  R.X := LastStackX;
+  R.Y := Trunc(LastStackY) + PlayfieldY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+
+  { Clipping Logic: Handle if the stack is partially off the top of the screen }
+  if R.Y < 0 then
+  begin
+    ClipOffset := -R.Y;  { How many pixels are off-screen }
+    R.Y := 0;            { Move to top of screen }
+    R.Height := R.Height - ClipOffset;  { Reduce height }
+  end;
+
+  { Only clear if there is actually something visible to clear }
+  if R.Height > 0 then
+  begin
+    CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
+    AddDirtyRect(R);
+  end;
+
+  { --- STEP 2: DRAW NEW POSITION --- }
+
+  for I := 0 to 2 do
+  begin
+    GemY := Trunc(CurrentStack.PixelY) + (I * TileSize);
+
+    { Only draw if gem would be visible (not off top of screen) }
+    if (GemY + PlayfieldY) >= 0 then
+      DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY, BackBuffer);
+  end;
+
+  { --- STEP 3: MARK DIRTY RECT FOR NEW POSITION --- }
+
+  R.X := CurrentStack.PixelX;
+  R.Y := Trunc(CurrentStack.PixelY) + PlayfieldY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+
+  { Apply same clipping logic for the dirty rect }
+  if R.Y < 0 then
+  begin
+    ClipOffset := -R.Y;
+    R.Y := 0;
+    R.Height := R.Height - ClipOffset;
+  end;
+
+  if R.Height > 0 then
+    AddDirtyRect(R);
+
+  { CRITICAL: Save current position for next frame! }
+  LastStackX := CurrentStack.PixelX;
+  LastStackY := CurrentStack.PixelY;
 end;
+```
+
+**Critical fixes for visual artifacts:**
+
+1. **Track last rendered position:** Use `LastStackX` and `LastStackY` to store where the stack was **actually drawn** on the previous frame. When `CurrentStack.PixelY` snaps during collision detection, it can jump by several pixels, but we must clear the **old visual position**, not the current internal position.
+
+2. **Clipping for off-screen stacks:** When the stack spawns above the playfield (negative Y), handle clipping correctly:
+   - Don't try to clear/draw negative Y coordinates
+   - Calculate `ClipOffset` to adjust rectangle dimensions
+   - Only process dirty rects when `R.Height > 0`
+
+3. **Save position after rendering:** At the end of `RenderStack`, save the current position to `LastStackX`/`LastStackY` for the next frame's cleanup.
 ```
 
 ---
@@ -543,6 +606,41 @@ end;
 
 ---
 
+### Visual Artifact Fixes Summary
+
+The smooth pixel-by-pixel falling animation introduces several subtle rendering bugs that manifest as visual artifacts. All fixes involve tracking the **last rendered position** separately from the **current physics position**.
+
+**Root cause:** When collision detection snaps `CurrentStack.PixelY` (e.g., from 143.7 to 128), the internal position jumps instantly, but we must clear the **old visual position** (143) from the previous frame, not the new snapped position (128).
+
+**Solution:** Track `LastStackX` and `LastStackY` variables that store where the stack was **actually rendered** on the previous frame.
+
+**All affected procedures:**
+
+1. **RenderStack:**
+   - Clear old position using `LastStackX` / `LastStackY`
+   - Draw new position at `CurrentStack.PixelX` / `CurrentStack.PixelY`
+   - Save current position to `LastStackX` / `LastStackY` for next frame
+   - Apply clipping when stack is off-screen (negative Y)
+
+2. **LandStack:**
+   - Clear old position using `LastStackX` / `LastStackY` (not current position!)
+   - Place gems on grid using snapped `CurrentStack.PixelY`
+   - Apply clipping for off-screen stacks
+
+3. **UpdateFallingStack:**
+   - **Lookahead collision check** when `PixelOffset > 0.1`
+   - Prevents visual "overshoot" by one tile before landing
+   - Snaps to grid line when next row is blocked
+
+4. **HandleStackInput:**
+   - **Dangling collision check** when `PixelOffset > 0`
+   - Checks both `GridY` AND `GridY + 1` for horizontal movement
+   - Prevents stack from moving "through" gems when partially fallen
+
+**Without these fixes:** Gem trails, ghost images, overshoot artifacts, and collision bugs occur.
+
+---
+
 ## Game Architecture
 
 ### Core Data Structures
@@ -551,14 +649,14 @@ end;
 type
   TDifficulty = (
     Difficulty_Novice,   { 4 colors: Red, Green, Blue, Yellow }
-    Difficulty_Amateur,  { 5 colors: + Orange }
+    Difficulty_Amateur,  { 5 colors: + Pink }
     Difficulty_Pro       { 6 colors: + Purple }
   );
 
   TGemColor = (
     Gem_Empty,
     Gem_Red,
-    Gem_Orange,
+    Gem_Pink,
     Gem_Green,
     Gem_Blue,
     Gem_Yellow,
@@ -618,7 +716,7 @@ const
 
   { Difficulty settings }
   NoviceColorCount = 4;    { Red, Green, Blue, Yellow }
-  AmateurColorCount = 5;   { + Orange }
+  AmateurColorCount = 5;   { + Pink }
   ProColorCount = 6;       { + Purple }
 
   { Magic Jewel }
@@ -673,7 +771,7 @@ end;
 **Features:**
 - Static PKM image with title/logo
 - "Press any key" text blinking
-- HSC music playing (`MENU.HSC`)
+- HSC music playing (`INTRO.HSC`)
 
 **Rendering:**
 ```pascal
@@ -738,47 +836,82 @@ end;
 ```pascal
 procedure UpdateFallingStack(DeltaTimeMS: LongInt);
 var
-  OldY: Integer;
-  PixelsFallen: Integer;
+  OldY: Real;
+  NewY: Real;
+  GridY: Integer;
+  PixelsFallen: Real;
+  NextStepBlocked: Boolean;
   R: TRectangle;
 begin
   if not CurrentStack.Active then Exit;
 
-  OldY := CurrentStack.Y;
-
   { Calculate pixels to fall this frame }
   if IsKeyDown(Key_Down) or IsKeyDown(Key_Space) then
-    PixelsFallen := (FastFallSpeed * DeltaTimeMS) div 1000
+    PixelsFallen := (FastFallSpeed * DeltaTimeMS) / 1000.0
   else
-    PixelsFallen := (CurrentStack.FallSpeed * DeltaTimeMS) div 1000;
+    PixelsFallen := (CurrentStack.FallSpeed * DeltaTimeMS) / 1000.0;
 
-  { Update Y position }
-  CurrentStack.Y := CurrentStack.Y + PixelsFallen;
+  { Calculate tentative new position }
+  NewY := CurrentStack.PixelY + PixelsFallen;
 
-  { Check for landing }
-  if HasStackLanded(CurrentStack) then
+  { Calculate the primary grid row }
+  GridY := Trunc(NewY) div TileSize;
+
+  { CHECK 1: HARD COLLISION }
+  { If we moved a full tile and hit something strictly at this new GridY }
+  if (GridY + 3 > PlayfieldRows) or CheckStackCollision(CurrentStack.GridX, GridY) then
   begin
-    SnapStackToGrid(CurrentStack);
-    PlaceStackOnPlayfield(CurrentStack);
-    SoundBank.PlaySound(SoundIDs.GemFall);
-    CheckForMatches;
-    SpawnNewStack;
+    { We hit something. Back up to the previous valid row (GridY - 1) and land. }
+    CurrentStack.PixelY := (GridY - 1) * TileSize;
+    LandStack;
+  end
+  else
+  begin
+    { CHECK 2: LOOKAHEAD (Critical for smooth falling) }
+    { If the stack is not perfectly aligned (fraction > 0), it means the bottom }
+    { of the stack is visually entering the territory of the NEXT row (GridY+3). }
+    { Without this check, the stack appears to "overshoot" by one tile before landing. }
+
+    if (NewY - (GridY * TileSize)) > 0.1 then
+    begin
+      { Check if the NEXT grid position down is blocked }
+      NextStepBlocked := (GridY + 1 + 3 > PlayfieldRows) or
+                         CheckStackCollision(CurrentStack.GridX, GridY + 1);
+
+      if NextStepBlocked then
+      begin
+        { The space we are trying to slide into is blocked. }
+        { Force snap to the current integer grid line and land immediately. }
+        CurrentStack.PixelY := GridY * TileSize;
+        LandStack;
+        Exit;
+      end;
+    end;
+
+    { No collision detected, allow movement }
+    CurrentStack.PixelY := NewY;
   end;
 
   { Mark dirty rect if position changed }
-  if CurrentStack.Y <> OldY then
+  if CurrentStack.PixelY <> OldY then
   begin
     R.X := CurrentStack.PixelX;
-    R.Y := OldY;
+    R.Y := Trunc(OldY) + PlayfieldY;
     R.Width := 16;
     R.Height := 48;
     AddDirtyRect(R);  { Old position }
 
-    R.Y := CurrentStack.Y;
+    R.Y := Trunc(CurrentStack.PixelY) + PlayfieldY;
     AddDirtyRect(R);  { New position }
   end;
 end;
 ```
+
+**Key insight - Pixel Offset Lookahead:**
+
+The critical fix is the **lookahead collision check** when the stack has a fractional pixel offset. When `PixelY` is not grid-aligned (e.g., `PixelY = 32.5`), the visual bottom of the 3-gem stack is entering the territory of the next row down. Without lookahead, the stack would render one frame "inside" the blocked tile before detecting collision, causing a visual "overshoot" artifact.
+
+**The solution:** When the stack has any fractional offset (`NewY - (GridY * TileSize) > 0.1`), we check if `GridY + 1` is blocked. If so, we snap to the current grid line (`GridY * TileSize`) and land immediately, preventing the visual overshoot.
 
 ---
 
@@ -819,6 +952,71 @@ begin
   Stack.Y := PlayfieldY + ((Stack.Y - PlayfieldY) div TileSize) * TileSize;
 end;
 ```
+
+---
+
+### Stack Landing and Placement
+
+```pascal
+procedure LandStack;
+var
+  i: Integer;
+  GridY: Integer;
+  R: TRectangle;
+  ClipOffset: Integer;
+begin
+  { --- FIX: Clear the LAST RENDERED position, not the current internal position --- }
+  { This is critical because CurrentStack.PixelY may have been snapped/adjusted }
+  { during collision detection, but LastStackY holds where it was ACTUALLY drawn }
+
+  R.X := LastStackX;
+  R.Y := Trunc(LastStackY) + PlayfieldY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+
+  { Apply Clipping (Safety for top of screen) }
+  if R.Y < 0 then
+  begin
+    ClipOffset := -R.Y;
+    R.Y := 0;
+    R.Height := R.Height - ClipOffset;
+  end;
+
+  { Restore background over the old visual artifact }
+  if R.Height > 0 then
+  begin
+    CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
+    AddDirtyRect(R);
+  end;
+
+  { --- Logic to place gems in grid --- }
+
+  { Convert the SNAPPED pixel Y to grid Y }
+  GridY := Trunc(CurrentStack.PixelY) div TileSize;
+
+  { Place gems on playfield }
+  for i := 0 to 2 do
+  begin
+    if (GridY + i >= 0) and (GridY + i < PlayfieldRows) then
+    begin
+      Playfield.Tiles[CurrentStack.GridX, GridY + i] := CurrentStack.Gems[i];
+      Playfield.TileChanged[CurrentStack.GridX, GridY + i] := True;
+    end;
+  end;
+
+  { Deactivate stack and spawn new one }
+  CurrentStack.Active := False;
+  SpawnNewStack;
+end;
+```
+
+**Critical fixes in LandStack:**
+
+1. **Clear last rendered position:** When landing, we must clear where the stack was **visually drawn** on the last frame (`LastStackX`, `LastStackY`), NOT where the internal physics position is (`CurrentStack.PixelY`). The physics position may have been snapped back during collision detection.
+
+2. **Same clipping logic:** Apply the same off-screen clipping as `RenderStack` to handle stacks that are partially above the playfield.
+
+3. **Use snapped position for grid placement:** Use the current (snapped) `CurrentStack.PixelY` to calculate `GridY` for placing gems on the playfield grid.
 
 ---
 
@@ -889,7 +1087,7 @@ begin
   ColorMap[1] := Gem_Green;
   ColorMap[2] := Gem_Blue;
   ColorMap[3] := Gem_Yellow;
-  ColorMap[4] := Gem_Orange;   { Available in Amateur+ }
+  ColorMap[4] := Gem_Pink;     { Available in Amateur+ }
   ColorMap[5] := Gem_Purple;   { Available in Pro only }
 
   ColorCount := GetColorCountForDifficulty(Difficulty);
@@ -1300,42 +1498,75 @@ end;
 ### Input Mapping
 
 ```pascal
-procedure ProcessInput;
+procedure HandleStackInput;
 var
-  R: TRectangle;
+  NewX: Integer;
+  GridY: Integer;
+  PixelOffset: Integer;
+  CanMove: Boolean;
 begin
-  { Horizontal movement (continuous) }
-  if IsKeyDown(Key_Left) then
+  if not CurrentStack.Active then Exit;
+
+  GridY := Trunc(CurrentStack.PixelY) div TileSize;
+
+  { Calculate how deep we are into the current tile }
+  PixelOffset := Trunc(CurrentStack.PixelY) mod TileSize;
+
+  { --- Left Movement --- }
+  if IsKeyPressed(Key_Left) then
   begin
-    if CanMoveLeft(CurrentStack) then
+    NewX := CurrentStack.GridX - 1;
+
+    { 1. Check if the stack fits in the new column at the current Grid Y }
+    CanMove := not CheckStackCollision(NewX, GridY);
+
+    { 2. CRITICAL: If we are partially fallen into the next row, we must also check }
+    {    if the stack fits one row lower in the new column. }
+    {    Without this, the stack can move horizontally "through" gems when dangling. }
+    if CanMove and (PixelOffset > 0) then
     begin
-      MoveStackLeft(CurrentStack);
-      R.X := OldStackX;
-      R.Y := StackY;
-      R.Width := 16;
-      R.Height := 48;
-      AddDirtyRect(R);
-      R.X := StackX;
-      AddDirtyRect(R);
+      if CheckStackCollision(NewX, GridY + 1) then
+        CanMove := False;
+    end;
+
+    if CanMove then
+    begin
+      CurrentStack.GridX := NewX;
+      CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
     end;
   end;
 
-  if IsKeyDown(Key_Right) then
+  { --- Right Movement --- }
+  if IsKeyPressed(Key_Right) then
   begin
-    if CanMoveRight(CurrentStack) then
-      MoveStackRight(CurrentStack);
+    NewX := CurrentStack.GridX + 1;
+
+    { 1. Check main position }
+    CanMove := not CheckStackCollision(NewX, GridY);
+
+    { 2. Check 'dangling' position if not grid aligned }
+    if CanMove and (PixelOffset > 0) then
+    begin
+      if CheckStackCollision(NewX, GridY + 1) then
+        CanMove := False;
+    end;
+
+    if CanMove then
+    begin
+      CurrentStack.GridX := NewX;
+      CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
+    end;
   end;
 
   { Rotation (single-tap) }
-  if IsKeyPressed(Key_Up) then
-    RotateStackUp(CurrentStack);
-
-  if IsKeyPressed(Key_Down) then
-    RotateStackDown(CurrentStack);
-
-  { Hard drop }
   if IsKeyPressed(Key_Space) then
-    CurrentStack.FallSpeed := FastFallSpeed;
+    RotateStack(CurrentStack);
+
+  { Fast fall }
+  if IsKeyDown(Key_Down) then
+    CurrentStack.FallSpeed := FastFallSpeed
+  else
+    CurrentStack.FallSpeed := InitialFallSpeed;
 
   { Pause }
   if IsKeyPressed(Key_Escape) then
@@ -1345,6 +1576,14 @@ begin
   end;
 end;
 ```
+
+**Key insight - Dangling Stack Collision:**
+
+When a stack is falling with smooth pixel-by-pixel movement, it's often not perfectly aligned to the grid. When `PixelOffset > 0` (meaning the stack has fallen partially into the next row), the visual representation of the 3-gem stack is "dangling" into `GridY + 1`.
+
+**The problem:** If you only check collision at `GridY`, the stack can move horizontally even when the bottom gems would visually overlap with gems in row `GridY + 1`.
+
+**The solution:** Always check collision at **both** `GridY` AND `GridY + 1` when `PixelOffset > 0`. This ensures the stack can only move horizontally when the entire visual representation (including the dangling portion) is clear.
 
 ---
 
@@ -1367,9 +1606,9 @@ var
 procedure PlayMusic(Track: TMusicTrack);
 const
   MusicFiles: array[TMusicTrack] of string = (
-    'MUSIC\MENU.HSC',
-    'MUSIC\GAME1.HSC',
-    'MUSIC\GAME2.HSC'
+    'MUSIC\INTRO.HSC',
+    'MUSIC\ADTHELIB.HSC',
+    'MUSIC\TECHNO.HSC'
   );
 begin
   if not MusicEnabled then Exit;
@@ -1427,17 +1666,17 @@ end;
 
 ### Graphics Assets
 
-**Gem Sprite Sheet (GEMS.PKM)**
+**Gem Sprite Sheet (GEMS1.PKM)**
 ```
 16×16 tiles, 8 gem types
 
 Layout:
-[Empty][Red][Orange][Green][Blue][Yellow][Purple][MagicJewel]
+[Empty][Red][Yellow][Green][Blue][Pink][Purple][MagicJewel]
   0      1     2       3      4     5       6        7
 
 Difficulty usage:
-- Novice:  Uses tiles 0-5 (Red, Green, Blue, Yellow)
-- Amateur: Uses tiles 0-6 (+ Orange)
+- Novice:  Uses tiles 0-5 (Red, Yellow, Green, Blue)
+- Amateur: Uses tiles 0-6 (+ Pink)
 - Pro:     Uses tiles 0-7 (+ Purple)
 - Magic Jewel (tile 7): Multi-colored/rainbow appearance, used in all difficulties
 
@@ -1445,7 +1684,7 @@ Total size: 128×16 pixels (8 tiles)
 Palette: 256 colors (can share with background)
 ```
 
-**Background (BACKGROUND.PKM)**
+**Background (BG1.PKM)**
 ```
 320×200 pixels
 - Playfield border/grid
@@ -1464,8 +1703,11 @@ Palette: 256 colors (can share with background)
 
 **Fonts**
 ```
-LargeFont - Large bitmap font for titles and scores
-SmallFont - Small bitmap font for HUD and general text
+- LG-FONT.XML, LG-FONT.PKM
+  Large bitmap font for titles and scores
+
+- SM-FONT.XML, SM-FONT.PKM
+  Small bitmap font for HUD and general text
 ```
 
 ---
@@ -1474,9 +1716,9 @@ SmallFont - Small bitmap font for HUD and general text
 
 **Music (HSC format)**
 ```
-MUSIC\MENU.HSC    - Title/menu music (calm, inviting)
-MUSIC\GAME1.HSC   - Gameplay music (medium tempo)
-MUSIC\GAME2.HSC   - Gameplay music (fast tempo, higher levels)
+MUSIC\INTRO.HSC    - Title/menu music (calm, inviting)
+MUSIC\ADTHELIB.HSC - Gameplay music (medium tempo)
+MUSIC\TECHNO.HSC   - Gameplay music (fast tempo, higher levels)
 ```
 
 **Sound Effects (VOC format)**
@@ -1522,7 +1764,7 @@ Conventional Memory (640KB):
 - Program code: ~50KB
 - Framebuffer (BackBuffer): 64KB
 - Background buffer: 64KB
-- Sprite data (GEMS.PKM): ~1KB
+- Sprite data (GEMS1.PKM): ~1KB
 - Sound playback buffer: ~8KB (largest sound)
 - Music data (HSC): ~10KB
 - XMS sounds: Stored in extended memory
@@ -1574,7 +1816,7 @@ Worst case (full playfield redraw):
 ### Phase 2: Playfield & Rendering (Week 2)
 
 **Goals:**
-- Load gem sprites (GEMS.PKM)
+- Load gem sprites (GEMS1.PKM)
 - Draw playfield grid
 - Implement tile rendering with dirty rects
 - Add HUD text rendering

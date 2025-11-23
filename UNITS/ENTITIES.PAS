@@ -16,7 +16,7 @@ type
     Disabled: Boolean;
     Parent: PEntity;
 
-    { Only position is precise: pixel position multiplied by 256 (shl 8) }
+    { Only position is precise: pixel position multiplied and divided by 1024 (shl 10, shr 10) }
     X: LongInt;
     Y: LongInt;
 

@@ -346,9 +346,19 @@ SETUP.EXE      - Configure sound card settings
 
 **PKMLOAD.PAS** - PKM image format loader
 - PKM format: RLE-compressed paletted image format from GrafX2 drawing program (http://grafx2.chez.com/)
-- `LoadPKM(filename, buffer)`: Decompresses image to framebuffer (palette discarded)
-- `LoadPKMWithPalette(filename, buffer, palette)`: Decompresses image and extracts palette
-- Supports arbitrary image dimensions (images loaded at their native size)
+- `LoadPKM(filename, var image)`: Loads and decompresses PKM file into TImage structure (palette discarded)
+- `LoadPKMWithPalette(filename, var image, var palette)`: Loads image into TImage and extracts palette
+- `GetLastErrorMessage`: Returns detailed error message if loading fails
+- Returns Boolean (True on success, False on failure)
+- **TImage structure**: Contains Width, Height, and Data pointer (allocated by loader)
+- **Usage pattern**: Load into TImage, then use `PutImage()` to copy to framebuffer
+- **Error handling**: Call `GetLastErrorMessage` after failed load for detailed error info
+- **Memory management**: Call `FreeImage()` to deallocate TImage.Data when done
+- Supports arbitrary image dimensions (images loaded at their native size, max 65520 bytes)
+- **Common errors**:
+  - "Image too large": File dimensions exceed 65520 bytes (320×204 max for 320-width images)
+  - "File not found": Path is incorrect or file doesn't exist
+  - "Invalid PKM signature": File is not a valid PKM format
 - Header structure:
   - Signature: "PKM" (3 bytes)
   - Version, pack markers (Pack_byte/Pack_word for RLE)

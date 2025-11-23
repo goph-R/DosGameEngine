@@ -21,4 +21,4 @@ These files are © 2025 Dynart Kft.
 
 ## Commercial Licensing
 For commercial licensing please contact Dynart Kft.
-Email: info@dynart.hu
+Email: info@dynart.net
