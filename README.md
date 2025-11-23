@@ -16,14 +16,16 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
           <img src="DOCS/SCREENS/TMXTEST-thumb.png" alt="TMX Tilemap Test">
         </a>
         <br>
-        <strong>Tilemap Rendering</strong>
+        <strong>Tilemap Rendering</strong><br>
+        TMXTEST.PAS
       </td>
       <td align="center">
         <a href="DOCS/SCREENS/FNTTEST.png">
           <img src="DOCS/SCREENS/FNTTEST-thumb.png" alt="Variable-Width Font Test">
         </a>
         <br>
-        <strong>Variable-Width Fonts</strong>
+        <strong>Variable-Width Fonts</strong><br>
+        FNTTEST.PAS
       </td>
     </tr>
     <tr>
@@ -32,14 +34,16 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
           <img src="DOCS/SCREENS/SPRTEST-thumb.png" alt="Sprite Animation Test">
         </a>
         <br>
-        <strong>Sprite Animation</strong>
+        <strong>Sprite Animation</strong><br>
+        SPRTEST.PAS
       </td>
       <td align="center">
         <a href="DOCS/SCREENS/SETUP.png">
           <img src="DOCS/SCREENS/SETUP-thumb.png" alt="Setup Utility">
         </a>
         <br>
-        <strong>Setup Utility</strong>
+        <strong>Setup Utility</strong><br>
+        SETUP.PAS
       </td>
     </tr>
   </table>
