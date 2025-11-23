@@ -4,7 +4,7 @@
 program XICLONE;
 
 uses
-  VGA, PKMLoad, Keyboard, RTCTimer, VGAPrint, StrUtil;
+  Crt, VGA, PKMLoad, Keyboard, RTCTimer, VGAPrint, StrUtil;
 
 const
   { Data path - all resources are in DATA\ subfolder }
@@ -1020,10 +1020,12 @@ begin
 
       { Render frame }
       RenderFrame;
+
+      { Wait for VSync to throttle frame rate }
+      WaitForVSync; { TODO: make it optional }
     end;
 
-    { Wait for VSync to throttle frame rate }
-    WaitForVSync; { TODO: make it optional }
+    Delay(1);
 
     { Clear key pressed flags }
     ClearKeyPressed;

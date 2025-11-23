@@ -119,16 +119,10 @@ end;
 
 procedure CopyFrameBufferRect(Source: PFrameBuffer; var SourceRect: TRectangle;
                                Dest: PFrameBuffer; DestX, DestY: Word);
-{ Copies a rectangular region from Source to Dest with automatic clipping }
-{ Clips to 320x200 screen bounds to prevent buffer overruns }
 var
   SrcX, SrcY: Integer;
   DstX, DstY: Integer;
   Width, Height: Integer;
-  RowWidth: Word;
-  Y: Integer;
-  SrcOffset, DstOffset: Word;
-  SrcPtr, DstPtr: ^Byte;
 begin
   { Start with source rectangle coordinates }
   SrcX := SourceRect.X;
@@ -141,7 +135,9 @@ begin
   { Early exit for zero dimensions }
   if (Width <= 0) or (Height <= 0) then Exit;
 
-  { Clip source rectangle to source buffer bounds (0, 0, 320, 200) }
+  { --- Clipping Logic (Preserved from original) --- }
+  
+  { Clip source rectangle to source buffer bounds }
   if SrcX < 0 then
   begin
     Width := Width + SrcX;
@@ -162,7 +158,7 @@ begin
   if SrcY + Height > 200 then
     Height := 200 - SrcY;
 
-  { Clip destination to destination buffer bounds (0, 0, 320, 200) }
+  { Clip destination to destination buffer bounds }
   if DstX < 0 then
   begin
     Width := Width + DstX;
@@ -183,24 +179,54 @@ begin
   if DstY + Height > 200 then
     Height := 200 - DstY;
 
-  { Exit if nothing to copy after clipping }
+  { --- Final Validation and Optimization --- }
+
+  { Make width even for Word-aligned copy (truncates odd pixel) }
+  Width := Width and $FFFE;
+
+  { Exit if nothing to copy }
   if (Width <= 0) or (Height <= 0) then Exit;
 
-  { Make width even for faster word-aligned copy }
-  RowWidth := Word(Width) and $FFFE;
-  if RowWidth = 0 then Exit;
+  { --- Assembly Blit --- }
+  asm
+    push ds             { Save Pascal's Data Segment }
+    cld                 { Clear Direction Flag (Forward copy) }
 
-  { Copy row by row }
-  for Y := 0 to Height - 1 do
-  begin
-    SrcOffset := Word(SrcY + Y) * 320 + Word(SrcX);
-    DstOffset := Word(DstY + Y) * 320 + Word(DstX);
+    { 1. Setup Destination Pointer (ES:DI) }
+    les di, Dest        { Load Dest pointer segment:offset into ES:DI }
+    mov ax, 320         { Screen Width }
+    mul DstY            { DX:AX = DstY * 320 }
+    add di, ax          { Add Y offset }
+    add di, DstX        { Add X offset }
 
-    SrcPtr := @Source^[SrcOffset];
-    DstPtr := @Dest^[DstOffset];
+    { 2. Setup Source Pointer (DS:SI) }
+    lds si, Source      { Load Source pointer segment:offset into DS:SI }
+    mov ax, 320         { Screen Width }
+    mul SrcY            { DX:AX = SrcY * 320 }
+    add si, ax          { Add Y offset }
+    add si, SrcX        { Add X offset }
 
-    { Fast word-aligned copy }
-    Move(SrcPtr^, DstPtr^, RowWidth);
+    { 3. Prepare Counters and Stride }
+    mov bx, Width       { Load Width in Bytes }
+    mov ax, 320         { Total Screen Width }
+    sub ax, bx          { AX = Stride (Amount to jump to reach next line) }
+                        { Stride = 320 - Width_In_Bytes }
+    
+    shr bx, 1           { Convert Width to Words (Width / 2) for movsw }
+    mov dx, Height      { Load Row Counter }
+
+    { 4. Copy Loop }
+    @RowLoop:
+      mov cx, bx        { Load Word count for this row }
+      rep movsw         { Copy CX words from DS:SI to ES:DI }
+      
+      add si, ax        { Advance Source ptr to start of next line }
+      add di, ax        { Advance Dest ptr to start of next line }
+      
+      dec dx            { Decrement Height counter }
+      jnz @RowLoop      { Repeat if lines remain }
+
+    pop ds              { Restore Pascal's Data Segment }
   end;
 end;
 
