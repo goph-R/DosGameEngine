@@ -97,17 +97,42 @@ IMGTEST.EXE
 
 ## ✨ Features
 
-**Graphics:** VGA Mode 13h (320×200 256-color), PKM image loader (RLE), double-buffering, sprite animation (3 play modes), TMX tilemap support, collision layers, variable-width fonts, palette control (0-63 RGB)
+### Graphics
+- **VGA.PAS**: VGA Mode 13h (320×200 256-color)
+  - double-buffering  
+  - palette control (0-63 RGB)
+- **PKMLOAD.PAS**: PKM image loader (RLE)
+- **TMXLOAD.PAS**: Tiled TMX tilemap loader
+  - back and front tile layers (merges all before and after the objects layer)
+  - `Blocks` collosion layer (loads a block map)
+  - objects layer detection (can be hooked to a function)
+- **TMXDRAW.PAS**: TMX renderer
+- **VGAFONT.PAS**: Variable-width fonts (PKM + XML)
+- **SPRITE.PAS**: Sprite animation (3 play modes)
 
-**Audio:** HSC music (Adlib/OPL2), Sound Blaster (8-bit PCM 11-44kHz), VOC files, XMS sound bank, DMA-safe buffers
+### Audio
+- **PLAYHSC.PAS**: HSC music player (Adlib/OPL2)
+- **SNDBANK.PAS**: XMS sound bank, VOC files (8-bit PCM 11-44kHz, DMA-safe buffers)
+- **SBDSP.PAS**: SoundBlaster driver
 
-**Input:** Keyboard (INT 9h, IsKeyDown/IsKeyPressed), Mouse (INT 33h, 3-button support)
+### Input
+- **KEYBOARD.PAS**: Keyboard (INT 9h, IsKeyDown/IsKeyPressed)
+- **MOUSER.PAS**: Mouse (INT 33h, 3-button support)
 
-**Memory:** XMS extended memory (>1MB via HIMEM.SYS), smart buffering, heap management
+### Memory
+- **XMS.PAS**: XMS extended memory (>1MB via HIMEM.SYS), smart buffering, heap management
 
-**Data:** XML parser (DOM-style), INI config, hash map (O(1) lookup), 64KB file support
+### Data
+- **MINIXML.PAS**: XML parser (DOM-style, 64KB file support)
+- **CONFIG.PAS**: simple INI parser and writer
+- **STRMAP.PAS**: Hash map (O(1) lookup)
+- **LINKLIST.PAS**: Linked list
 
-**Tools:** Setup utility (sound card config), text UI library, test programs, automated builds
+### Tools
+- **SETUP.PAS**: Basic setup utility (sound card config),
+- **TEXTUI.PAS**: Text UI library,
+- Test programs,
+- Automated builds
 
 ## 📁 Project Structure
 
@@ -115,25 +140,25 @@ IMGTEST.EXE
 D:\ENGINE\
 ├── UNITS\          Core engine (VGA, SBDSP, Keyboard, Mouse, XML, Sprite, etc.)
 ├── TESTS\          Test programs (IMGTEST, TMXTEST, SPRTEST, FNTTEST, etc.)
-├── SETUP\          Sound card setup utility
+├── SETUP\          Basic setup utility (currently for Sound card setup)
 ├── DATA\           Sample assets (PKM, VOC, HSC, TMX, fonts)
 ├── DOCS\           Documentation (see links above)
 └── VENDOR\         Third-party libraries (credits only)
 ```
 
-**Core Units:** VGA, PKMLOAD, SBDSP, SNDBANK, XMS, PLAYHSC, RTCTIMER, KEYBOARD, MOUSE, SPRITE, TMXLOAD, TMXDRAW, VGAFONT, MINIXML, STRMAP, CONFIG, TEXTUI
-
-**Test Programs:** VGATEST, DRWTEST, FNTTEST, IMGTEST (music+sound), SNDTEST, SPRTEST, TMXTEST, MOUTEST, MAPTEST, XMLTEST
-
 ## 🎨 Creating Assets
 
-**PKM Images:** Use [GrafX2](http://grafx2.chez.com/) → Draw 256-color → Save as PKM (RLE-compressed). Common: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles).
+**PKM Images:**  
+Use [GrafX2](http://grafx2.chez.com/) → Draw 256-color → Save as PKM (RLE-compressed). Common: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles).
 
-**VOC Sounds:** Use [Audacity](https://www.audacityteam.org/) → Mix to Mono → Resample 11025Hz → Export as VOC (Unsigned 8-bit PCM).
+**VOC Sounds:**  
+Use [Audacity](https://www.audacityteam.org/) → Mix to Mono → Resample 11025Hz → Export as VOC (Unsigned 8-bit PCM).
 
-**HSC Music:** Use [Adlib Tracker II](https://adlibtracker.net/) or [HSC-tracker](https://demozoo.org/productions/293837/).
+**HSC Music:**  
+Use [Adlib Tracker II](https://adlibtracker.net/) or [HSC-tracker](https://demozoo.org/productions/293837/).
 
-**TMX Tilemaps:** Use [Tiled](https://www.mapeditor.org/) (see [TILEMAP.md](DOCS/TILEMAP.md) for restrictions).
+**TMX Tilemaps:**  
+Use [Tiled](https://www.mapeditor.org/) (see [TILEMAP.md](DOCS/TILEMAP.md) for restrictions).
 
 ## 📜 Credits
 
