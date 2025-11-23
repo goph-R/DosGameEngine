@@ -284,37 +284,19 @@ var
   I: Integer;
   GemY: Integer;
   R: TRectangle;
-  ClipOffset: Integer;
 begin
   if not CurrentStack.Active then Exit;
 
   { --- STEP 1: CLEAR OLD POSITION --- }
-  
+
   R.X := LastStackX;
   R.Y := Trunc(LastStackY) + PlayfieldY;
   R.Width := TileSize;
   R.Height := TileSize * 3;
 
-  { Clipping Logic: Handle if the stack is partially off the top of the screen }
-  if R.Y < 0 then
-  begin
-    { Calculate how many pixels are off-screen (e.g., -10) }
-    ClipOffset := -R.Y;
-    
-    { Move the start Y to 0 (top of screen) }
-    R.Y := 0;
-    
-    { Reduce the height by the amount that was off-screen }
-    R.Height := R.Height - ClipOffset;
-  end;
-
-  { Only clear if there is actually something visible to clear }
-  if R.Height > 0 then
-  begin
-    CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-    AddDirtyRect(R);
-  end;
-
+  { CopyFrameBufferRect now handles clipping automatically }
+  CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
+  AddDirtyRect(R);
 
   { --- STEP 2: DRAW NEW POSITION --- }
 
@@ -322,31 +304,23 @@ begin
   begin
     { Calculate Y relative to the stack top }
     GemY := Trunc(CurrentStack.PixelY) + (I * TileSize);
-    
+
     { Check relative to PlayfieldY to ensure we don't draw off-screen }
-    if (GemY + PlayfieldY) >= 0 then  
+    if (GemY + PlayfieldY) >= 0 then
     begin
       DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY, BackBuffer);
     end;
   end;
 
   { --- STEP 3: MARK DIRTY RECT FOR NEW POSITION --- }
-  
+
   R.X := CurrentStack.PixelX;
   R.Y := Trunc(CurrentStack.PixelY) + PlayfieldY;
   R.Width := TileSize;
   R.Height := TileSize * 3;
 
-  { Apply same clipping logic for the dirty rect of the new position }
-  if R.Y < 0 then
-  begin
-    ClipOffset := -R.Y;
-    R.Y := 0;
-    R.Height := R.Height - ClipOffset;
-  end;
-
-  if R.Height > 0 then
-    AddDirtyRect(R);
+  { CopyFrameBufferRect now handles clipping automatically }
+  AddDirtyRect(R);
 
   { Save current position for next frame }
   LastStackX := CurrentStack.PixelX;
@@ -590,29 +564,17 @@ var
   i: Integer;
   GridY: Integer;
   R: TRectangle;
-  ClipOffset: Integer;
 begin
   { --- FIX: Clear the LAST RENDERED position, not the current internal position --- }
-  
+
   R.X := LastStackX;
   R.Y := Trunc(LastStackY) + PlayfieldY;
   R.Width := TileSize;
   R.Height := TileSize * 3;
 
-  { Apply Clipping (Safety for top of screen) }
-  if R.Y < 0 then
-  begin
-    ClipOffset := -R.Y;
-    R.Y := 0;
-    R.Height := R.Height - ClipOffset;
-  end;
-
-  { Restore background over the old visual artifact }
-  if R.Height > 0 then
-  begin
-    CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-    AddDirtyRect(R);
-  end;
+  { CopyFrameBufferRect now handles clipping automatically }
+  CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
+  AddDirtyRect(R);
 
   { --- Logic to place gems in grid --- }
 

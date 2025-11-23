@@ -118,92 +118,90 @@ procedure CopyFrameBuffer(Source, Dest: PFrameBuffer); assembler;
 end;
 
 procedure CopyFrameBufferRect(Source: PFrameBuffer; var SourceRect: TRectangle;
-                               Dest: PFrameBuffer; DestX, DestY: Word); assembler;
-{ Fast assembly rectangle copy using REP MOVSW }
-{ Copies a rectangular region from Source to Dest }
-{ Width is made even for word-aligned copy (odd widths rounded down) }
-asm
-  push ds
-  push es
+                               Dest: PFrameBuffer; DestX, DestY: Word);
+{ Copies a rectangular region from Source to Dest with automatic clipping }
+{ Clips to 320x200 screen bounds to prevent buffer overruns }
+var
+  SrcX, SrcY: Integer;
+  DstX, DstY: Integer;
+  Width, Height: Integer;
+  RowWidth: Word;
+  Y: Integer;
+  SrcOffset, DstOffset: Word;
+  SrcPtr, DstPtr: ^Byte;
+begin
+  { Start with source rectangle coordinates }
+  SrcX := SourceRect.X;
+  SrcY := SourceRect.Y;
+  DstX := Integer(DestX);
+  DstY := Integer(DestY);
+  Width := SourceRect.Width;
+  Height := SourceRect.Height;
 
-  { Load rectangle dimensions }
-  les di, SourceRect
-  mov ax, es:[di]         { AX = SourceRect.X }
-  mov bx, es:[di+2]       { BX = SourceRect.Y }
-  mov cx, es:[di+4]       { CX = SourceRect.Width }
-  mov dx, es:[di+6]       { DX = SourceRect.Height }
+  { Early exit for zero dimensions }
+  if (Width <= 0) or (Height <= 0) then Exit;
 
-  { Check for zero width or height - exit if so }
-  test cx, cx
-  jz @Done
-  test dx, dx
-  jz @Done
+  { Clip source rectangle to source buffer bounds (0, 0, 320, 200) }
+  if SrcX < 0 then
+  begin
+    Width := Width + SrcX;
+    DstX := DstX - SrcX;
+    SrcX := 0;
+  end;
 
-  { Make width even for word copy }
-  and cx, 0FFFEh          { CX = Width & ~1 (clear lowest bit) }
-  jz @Done                { Exit if width became 0 }
+  if SrcY < 0 then
+  begin
+    Height := Height + SrcY;
+    DstY := DstY - SrcY;
+    SrcY := 0;
+  end;
 
-  { Save width (in words) and height }
-  push cx               { Save width in bytes }
-  shr cx, 1             { CX = width / 2 (word count) }
-  push cx               { Save word count }
-  pop cx                { Restore to CX }
-  pop ax                { Get byte width back }
-  push ax               { Save byte width }
-  push cx               { Save word count }
-  push dx               { Save height }
+  if SrcX + Width > 320 then
+    Width := 320 - SrcX;
 
-  { Calculate source offset = SourceRect.Y * 320 + SourceRect.X }
-  mov ax, bx            { AX = SourceRect.Y }
-  mov bx, 320
-  mul bx                { DX:AX = SourceRect.Y * 320 }
-  les di, SourceRect
-  add ax, es:[di]       { AX += SourceRect.X }
+  if SrcY + Height > 200 then
+    Height := 200 - SrcY;
 
-  { Load source buffer pointer and add offset }
-  lds si, Source        { DS:SI = Source base }
-  add si, ax            { DS:SI = Source + offset }
+  { Clip destination to destination buffer bounds (0, 0, 320, 200) }
+  if DstX < 0 then
+  begin
+    Width := Width + DstX;
+    SrcX := SrcX - DstX;
+    DstX := 0;
+  end;
 
-  { Calculate destination offset = DestY * 320 + DestX }
-  mov ax, DestY
-  mov bx, 320
-  mul bx                { DX:AX = DestY * 320 }
-  add ax, DestX         { AX += DestX }
+  if DstY < 0 then
+  begin
+    Height := Height + DstY;
+    SrcY := SrcY - DstY;
+    DstY := 0;
+  end;
 
-  { Load destination buffer pointer and add offset }
-  les di, Dest          { ES:DI = Dest base }
-  add di, ax            { ES:DI = Dest + offset }
+  if DstX + Width > 320 then
+    Width := 320 - DstX;
 
-  { Restore height, word count, and byte width }
-  pop dx                { DX = height }
-  pop cx                { CX = word count }
-  pop bx                { BX = byte width }
+  if DstY + Height > 200 then
+    Height := 200 - DstY;
 
-  { Main copy loop }
-@RowLoop:
-  push cx               { Save word count }
-  push si               { Save source position }
-  push di               { Save dest position }
+  { Exit if nothing to copy after clipping }
+  if (Width <= 0) or (Height <= 0) then Exit;
 
-  { Copy one row using words }
-  cld
-  rep movsw             { Copy CX words from DS:SI to ES:DI }
+  { Make width even for faster word-aligned copy }
+  RowWidth := Word(Width) and $FFFE;
+  if RowWidth = 0 then Exit;
 
-  { Restore positions and move to next row }
-  pop di                { Restore dest position }
-  pop si                { Restore source position }
-  pop cx                { Restore word count }
+  { Copy row by row }
+  for Y := 0 to Height - 1 do
+  begin
+    SrcOffset := Word(SrcY + Y) * 320 + Word(SrcX);
+    DstOffset := Word(DstY + Y) * 320 + Word(DstX);
 
-  { Move to next row }
-  add si, 320           { Next source row }
-  add di, 320           { Next dest row }
+    SrcPtr := @Source^[SrcOffset];
+    DstPtr := @Dest^[DstOffset];
 
-  dec dx
-  jnz @RowLoop
-
-@Done:
-  pop es
-  pop ds
+    { Fast word-aligned copy }
+    Move(SrcPtr^, DstPtr^, RowWidth);
+  end;
 end;
 
 procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
