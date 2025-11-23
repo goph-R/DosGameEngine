@@ -156,7 +156,6 @@ begin
   DirtyCount := 0;
 end;
 
-
 procedure AddDirtyRect(const NewRect: TRectangle);
 begin
   if DirtyCount >= MaxDirtyRects then Exit;
@@ -179,7 +178,8 @@ begin
   GemRect.Y := Y;
   GemRect.Width := TileSize;
   GemRect.Height := TileSize;
-  CopyFrameBufferRect(BackgroundBuffer, GemRect, FrameBuffer, X, Y);
+
+  CopyFrameBufferRect(BackgroundBuffer, GemRect, FrameBuffer, X, GemRect.Y);
   { --- FIX END --- }
 
   { Step 2: If it's empty, we are done (background is already restored) }
@@ -191,8 +191,6 @@ begin
   { Setup source rectangle in gem sprite sheet }
   GemRect.X := GemIndex * TileSize;
   GemRect.Y := 0;
-  GemRect.Width := TileSize;
-  GemRect.Height := TileSize;
 
   { Step 3: Draw gem sprite over the clean background }
   PutImageRect(GemsImage, GemRect, X, Y, True, FrameBuffer);
@@ -348,7 +346,13 @@ begin
   R.Width := TileSize;
   R.Height := TileSize * 3;
 
-  { CopyFrameBufferRect now handles clipping automatically }
+  { Clip playfield top }
+  if R.Y < PlayfieldY then
+  begin
+    Dec(R.Height, Abs(R.Y - PlayfieldY));
+    R.Y := PlayfieldY;
+  end;
+
   CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
   AddDirtyRect(R);
 
@@ -358,12 +362,7 @@ begin
   begin
     { Calculate Y relative to the stack top }
     GemY := Trunc(CurrentStack.PixelY) + (I * TileSize);
-
-    { Check relative to PlayfieldY to ensure we don't draw off-screen }
-    if (GemY + PlayfieldY) >= 0 then
-    begin
-      DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY, BackBuffer);
-    end;
+    DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY, BackBuffer);
   end;
 
   { --- STEP 3: MARK DIRTY RECT FOR NEW POSITION --- }
@@ -371,9 +370,15 @@ begin
   R.X := CurrentStack.PixelX;
   R.Y := Trunc(CurrentStack.PixelY) + PlayfieldY;
   R.Width := TileSize;
-  R.Height := TileSize * 3;
+  R.Height := TileSize * 3;  
 
-  { CopyFrameBufferRect now handles clipping automatically }
+  { Clip playfield top }
+  if R.Y < PlayfieldY then
+  begin
+    Dec(R.Height, Abs(R.Y - PlayfieldY));
+    R.Y := PlayfieldY;
+  end;
+
   AddDirtyRect(R);
 
   { Save current position for next frame }
