@@ -18,8 +18,6 @@ const
   { Screen positions }
   PlayfieldX = 113;  { Game stage start position }
   PlayfieldY = 4;
-  NextStackX = 230;  { Next stack preview position }
-  NextStackY = 30;
 
   { Max dirty rectangles per frame }
   MaxDirtyRects = 96;  { 6x12 playfield = 72 tiles, plus HUD, stack, etc. }
@@ -35,6 +33,10 @@ const
   FontLargeXML = 'FONT-LG.XML';
   FontSmallImage = 'FONT-SM.PKM';
   FontSmallXML = 'FONT-SM.XML';
+
+  { Next stack preview position }
+  NextStackX = 230;
+  NextStackY = 30;
 
 type
   { Gem colors }
@@ -97,9 +99,19 @@ var
   Score: LongInt;
   Level: Integer;
   NeedMatchCheck: Boolean;
+  FlashTimer: Real;
+  FlashActive: Boolean;
+  FlashTiles: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
+  NeedGravity: Boolean;
 
   { Palette }
   Palette: TPalette;
+
+  { Next stack preview gems }
+  NextStackGems: array [0..2] of TGemColor;  
+
+{ Forward declarations }
+procedure CheckForMatches; forward;
 
 procedure CleanupGame;
 begin
@@ -159,33 +171,60 @@ var
   GemRect: TRectangle;
   GemIndex: Integer;
 begin
-  { Skip empty tiles }
-  if GemColor = Gem_Empty then
-  begin
-    { Restore background for empty tile }
-    { Note: Source rect coordinates are the same as destination since }
-    { BackgroundBuffer is the full screen background }
-    GemRect.X := X;
-    GemRect.Y := Y;
-    GemRect.Width := TileSize;
-    GemRect.Height := TileSize;
-    CopyFrameBufferRect(BackgroundBuffer, GemRect, FrameBuffer, X, Y);
-    Exit;
-  end;
+  { --- FIX START --- }
+  { Step 1: ALWAYS restore the background first. 
+    This wipes whatever 'ghost' data (exploded gems, etc) 
+    is currently in this spot in the BackBuffer. }
+  GemRect.X := X;
+  GemRect.Y := Y;
+  GemRect.Width := TileSize;
+  GemRect.Height := TileSize;
+  CopyFrameBufferRect(BackgroundBuffer, GemRect, FrameBuffer, X, Y);
+  { --- FIX END --- }
+
+  { Step 2: If it's empty, we are done (background is already restored) }
+  if GemColor = Gem_Empty then Exit;
 
   { Calculate gem sprite index }
-  { Sprite sheet layout: [Empty][Red][Yellow][Green][Blue][Pink][Purple][MagicJewel] }
-  { Our enum: Gem_Empty=0, Gem_Red=1, Gem_Yellow=2, etc. }
   GemIndex := Ord(GemColor);
 
   { Setup source rectangle in gem sprite sheet }
-  GemRect.X := GemIndex * TileSize;  { Gems are laid out horizontally }
+  GemRect.X := GemIndex * TileSize;
   GemRect.Y := 0;
   GemRect.Width := TileSize;
   GemRect.Height := TileSize;
 
-  { Draw gem sprite }
+  { Step 3: Draw gem sprite over the clean background }
   PutImageRect(GemsImage, GemRect, X, Y, True, FrameBuffer);
+end;
+
+procedure DrawGemFlash(GemColor: TGemColor; X, Y: Integer; FrameBuffer: PFrameBuffer; FlashOn: Boolean);
+var
+  GemRect: TRectangle;
+  GemIndex: Integer;
+begin
+  GemRect.X := X;
+  GemRect.Y := Y;
+  GemRect.Width := TileSize;
+  GemRect.Height := TileSize;
+
+  if FlashOn then
+  begin
+    { Show the gem when flash is on }
+    GemIndex := Ord(GemColor);
+    GemRect.X := GemIndex * TileSize;
+    GemRect.Y := 0;
+    GemRect.Width := TileSize;
+    GemRect.Height := TileSize;
+    PutImageRect(GemsImage, GemRect, X, Y, True, FrameBuffer);
+  end
+  else
+  begin
+    { Show background when flash is off (gem disappears) }
+    GemRect.X := X;
+    GemRect.Y := Y;
+    CopyFrameBufferRect(BackgroundBuffer, GemRect, FrameBuffer, X, Y);
+  end;
 end;
 
 procedure RenderPlayfield;
@@ -193,20 +232,32 @@ var
   X, Y: Integer;
   PixelX, PixelY: Integer;
   R: TRectangle;
+  FlashOn: Boolean;
 begin
+  { Calculate flash state (blink every 100ms) }
+  FlashOn := FlashActive and (Trunc(FlashTimer * 10) mod 2 = 0);
+
   { Render gems on playfield }
   for Y := 0 to PlayfieldRows - 1 do
   begin
     for X := 0 to PlayfieldCols - 1 do
     begin
-      { Only redraw changed tiles }
-      if Playfield.TileChanged[X, Y] then
+      { Only redraw changed tiles or flashing tiles }
+      if Playfield.TileChanged[X, Y] or (FlashActive and FlashTiles[X, Y]) then
       begin
         PixelX := PlayfieldX + X * TileSize;
         PixelY := PlayfieldY + Y * TileSize;
 
-        { Draw the gem at this position }
-        DrawGem(Playfield.Tiles[X, Y], PixelX, PixelY, BackBuffer);
+        { If this tile is flashing, draw flash effect }
+        if FlashActive and FlashTiles[X, Y] then
+        begin
+          DrawGemFlash(Playfield.Tiles[X, Y], PixelX, PixelY, BackBuffer, FlashOn);
+        end
+        else
+        begin
+          { Draw the gem at this position }
+          DrawGem(Playfield.Tiles[X, Y], PixelX, PixelY, BackBuffer);
+        end;
 
         { Mark this tile as dirty }
         R.X := PixelX;
@@ -226,56 +277,59 @@ procedure RenderHUD;
 var
   R: TRectangle;
 begin
-  { Clear FPS counter area by restoring background }
+  { Render FPS counter }
   R.X := 10;
   R.Y := 10;
   R.Width := 80;
   R.Height := 8;
   CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-
-  { Render FPS counter }
   PrintText(10, 10, 'FPS: ' + IntToStr(FPS), 15, BackBuffer);
-
-  { Mark HUD region as dirty }
   AddDirtyRect(R);
 
-  { Clear title area by restoring background }
+  { Render title }
+  {
   R.X := 120;
   R.Y := 10;
   R.Width := 150;
   R.Height := 8;
   CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-
-  { Render title }
   PrintText(120, 10, 'XICLONE - Phase 4', 14, BackBuffer);
-
-  { Mark title region as dirty }
   AddDirtyRect(R);
+  }
 
-  { Clear score area by restoring background }
+  { Render score }
   R.X := 10;
   R.Y := 20;
   R.Width := 100;
   R.Height := 8;
   CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-
-  { Render score }
   PrintText(10, 20, 'SCORE: ' + IntToStr(Score), 15, BackBuffer);
-
-  { Mark score region as dirty }
   AddDirtyRect(R);
 
-  { Clear level area by restoring background }
+  { Render level }
   R.X := 10;
   R.Y := 30;
   R.Width := 100;
   R.Height := 8;
   CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
-
-  { Render level }
   PrintText(10, 30, 'LEVEL: ' + IntToStr(Level), 15, BackBuffer);
+  AddDirtyRect(R);
+end;
 
-  { Mark level region as dirty }
+procedure RenderNextStack;
+var
+  i: Integer;
+  GemY: Integer;
+  R: TRectangle;
+begin
+  for i := 0 to 2 do
+  begin
+    DrawGem(NextStackGems[i], NextStackX, NextStackY + i * TileSize, BackBuffer);
+  end;
+  R.X := NextStackX;
+  R.Y := NextStackY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
   AddDirtyRect(R);
 end;
 
@@ -336,6 +390,13 @@ begin
 
   { Copy dirty regions to screen }
   FlushDirtyRects;
+
+  { Check for matches AFTER rendering (deferred from LandStack) }
+  if NeedMatchCheck then
+  begin
+    CheckForMatches;
+    NeedMatchCheck := False;
+  end;
 end;
 
 { Game logic }
@@ -348,20 +409,35 @@ begin
   RandomGemColor := TGemColor(R);
 end;
 
-procedure SpawnNewStack;
+procedure SpawnNewStack(First: Boolean);
 begin
-  CurrentStack.Gems[0] := RandomGemColor;
-  CurrentStack.Gems[1] := RandomGemColor;
-  CurrentStack.Gems[2] := RandomGemColor;
+  if First then
+  begin
+    CurrentStack.Gems[0] := RandomGemColor;
+    CurrentStack.Gems[1] := RandomGemColor;
+    CurrentStack.Gems[2] := RandomGemColor;
+  end
+  else
+  begin
+    CurrentStack.Gems[0] := NextStackGems[0];
+    CurrentStack.Gems[1] := NextStackGems[1];
+    CurrentStack.Gems[2] := NextStackGems[2];
+  end;  
   CurrentStack.GridX := PlayfieldCols div 2;  { Start in middle column }
   CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
   CurrentStack.PixelY := -3 * TileSize;  { Start above playfield }
   CurrentStack.FallSpeed := InitialFallSpeed;
   CurrentStack.Active := True;
 
+  NextStackGems[0] := RandomGemColor;
+  NextStackGems[1] := RandomGemColor;
+  NextStackGems[2] := RandomGemColor;
+
   { Initialize last position to current position }
   LastStackX := CurrentStack.PixelX;
   LastStackY := CurrentStack.PixelY;
+
+  RenderNextStack; { Only render on spawn }
 end;
 
 function CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
@@ -416,7 +492,8 @@ begin
   { Count consecutive matching gems in this direction }
   while (CheckX >= 0) and (CheckX < PlayfieldCols) and
         (CheckY >= 0) and (CheckY < PlayfieldRows) and
-        (Playfield.Tiles[CheckX, CheckY] = Color) do
+        ((Playfield.Tiles[CheckX, CheckY] = Color) or
+         (Playfield.Tiles[CheckX, CheckY] = Gem_MagicJewel)) do
   begin
     Inc(Count);
     Inc(CheckX, DX);
@@ -426,38 +503,23 @@ begin
   CountMatchInDirection := Count;
 end;
 
-procedure MarkMatchesInDirection(StartX, StartY, DX, DY, MatchLen: Integer);
-var
-  i: Integer;
-  X, Y: Integer;
-begin
-  { Mark all gems in this match as changed (for removal) }
-  for i := 0 to MatchLen - 1 do
-  begin
-    X := StartX + (i * DX);
-    Y := StartY + (i * DY);
-    if (X >= 0) and (X < PlayfieldCols) and (Y >= 0) and (Y < PlayfieldRows) then
-    begin
-      { Mark as empty and changed }
-      if Playfield.Tiles[X, Y] <> Gem_Empty then
-      begin
-        Playfield.Tiles[X, Y] := Gem_Empty;
-        Playfield.TileChanged[X, Y] := True;
-      end;
-    end;
-  end;
-end;
-
 function FindAndRemoveMatches: Integer;
 var
   X, Y: Integer;
   Color: TGemColor;
   MatchLen: Integer;
   GemsRemoved: Integer;
+  MarkForRemoval: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
+  i, MarkX, MarkY: Integer;
 begin
   GemsRemoved := 0;
 
-  { Check all positions for matches }
+  { Clear mark array }
+  for Y := 0 to PlayfieldRows - 1 do
+    for X := 0 to PlayfieldCols - 1 do
+      MarkForRemoval[X, Y] := False;
+
+  { PHASE 1: Find all matches and mark them (don't remove yet!) }
   for Y := 0 to PlayfieldRows - 1 do
   begin
     for X := 0 to PlayfieldCols - 1 do
@@ -471,37 +533,87 @@ begin
       MatchLen := CountMatchInDirection(X, Y, 1, 0, Color);
       if MatchLen >= 3 then
       begin
-        MarkMatchesInDirection(X, Y, 1, 0, MatchLen);
-        Inc(GemsRemoved, MatchLen);
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) then
+            MarkForRemoval[MarkX, Y] := True;
+        end;
       end;
 
       { Check vertical (down) }
       MatchLen := CountMatchInDirection(X, Y, 0, 1, Color);
       if MatchLen >= 3 then
       begin
-        MarkMatchesInDirection(X, Y, 0, 1, MatchLen);
-        Inc(GemsRemoved, MatchLen);
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkY := Y + i;
+          if (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[X, MarkY] := True;
+        end;
       end;
 
       { Check diagonal down-right }
       MatchLen := CountMatchInDirection(X, Y, 1, 1, Color);
       if MatchLen >= 3 then
       begin
-        MarkMatchesInDirection(X, Y, 1, 1, MatchLen);
-        Inc(GemsRemoved, MatchLen);
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X + i;
+          MarkY := Y + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
+             (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[MarkX, MarkY] := True;
+        end;
       end;
 
       { Check diagonal down-left }
       MatchLen := CountMatchInDirection(X, Y, -1, 1, Color);
       if MatchLen >= 3 then
       begin
-        MarkMatchesInDirection(X, Y, -1, 1, MatchLen);
-        Inc(GemsRemoved, MatchLen);
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X - i;
+          MarkY := Y + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
+             (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[MarkX, MarkY] := True;
+        end;
       end;
     end;
   end;
 
+  { PHASE 2: Copy marks to flash array and count }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      FlashTiles[X, Y] := MarkForRemoval[X, Y];
+      if MarkForRemoval[X, Y] then
+        Inc(GemsRemoved);
+    end;
+  end;
+
   FindAndRemoveMatches := GemsRemoved;
+end;
+
+procedure RemoveFlashedGems;
+var
+  X, Y: Integer;
+begin
+  { Remove all flashed gems }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      if FlashTiles[X, Y] then
+      begin
+        Playfield.Tiles[X, Y] := Gem_Empty;
+        Playfield.TileChanged[X, Y] := True;
+        FlashTiles[X, Y] := False;
+      end;
+    end;
+  end;
 end;
 
 procedure ApplyGravity;
@@ -539,24 +651,19 @@ end;
 procedure CheckForMatches;
 var
   GemsRemoved: Integer;
-  ChainCount: Integer;
 begin
-  ChainCount := 0;
+  { Find matches and mark them for flashing }
+  GemsRemoved := FindAndRemoveMatches;
 
-  repeat
-    { Find and remove all matches }
-    GemsRemoved := FindAndRemoveMatches;
+  if GemsRemoved > 0 then
+  begin
+    { Start flash effect }
+    FlashActive := True;
+    FlashTimer := 0.0;
 
-    if GemsRemoved > 0 then
-    begin
-      { Update score (with chain multiplier) }
-      Inc(ChainCount);
-      Inc(Score, GemsRemoved * 10 * ChainCount);
-
-      { Apply gravity to fill empty spaces }
-      ApplyGravity;
-    end;
-  until GemsRemoved = 0;
+    { Update score }
+    Inc(Score, GemsRemoved * 10);
+  end;
 end;
 
 procedure LandStack;
@@ -593,7 +700,7 @@ begin
 
   { Deactivate stack and spawn new one }
   CurrentStack.Active := False;
-  SpawnNewStack;
+  SpawnNewStack(False);
 
   { Schedule match check for next frame (after render completes) }
   NeedMatchCheck := True;
@@ -728,15 +835,27 @@ begin
   if IsKeyPressed(Key_Escape) then
     Running := False;
 
-  { Handle stack input and physics }
-  HandleStackInput;
-  UpdateFallingStack;
-
-  { Check for matches (deferred from LandStack) }
-  if NeedMatchCheck then
+  { Update flash timer }
+  if FlashActive then
   begin
-    CheckForMatches;
-    NeedMatchCheck := False;
+    FlashTimer := FlashTimer + DeltaTime;
+
+    { After 0.5 seconds of flashing, remove gems and apply gravity }
+    if FlashTimer >= 0.5 then
+    begin
+      FlashActive := False;
+      RemoveFlashedGems;
+      ApplyGravity;
+
+      { Check for new matches after gravity }
+      NeedMatchCheck := True;
+    end;
+  end
+  else
+  begin
+    { Only allow stack movement when not flashing }
+    HandleStackInput;
+    UpdateFallingStack;
   end;
 end;
 
@@ -770,7 +889,7 @@ begin
     end;
   end;
 
-  { Add some test gems for Phase 2 }
+  { Add some test gems }
   { Bottom row - display all gem types }
   Playfield.Tiles[0, 11] := Gem_Red;
   Playfield.Tiles[1, 11] := Gem_Yellow;
@@ -853,6 +972,8 @@ begin
   Score := 0;
   Level := 1;
   NeedMatchCheck := False;
+  FlashActive := False;
+  FlashTimer := 0.0;
 
   { Initialize dirty rect system }
   DirtyCount := 0;
@@ -864,7 +985,7 @@ begin
   Randomize;
 
   { Spawn first falling stack }
-  SpawnNewStack;
+  SpawnNewStack(True);
 
   { Render initial playfield state }
   RenderPlayfield;
