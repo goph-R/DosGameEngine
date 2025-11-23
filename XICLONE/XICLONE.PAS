@@ -1011,8 +1011,8 @@ begin
     DeltaTimeAccum := DeltaTimeAccum + (CurrentTime - LastTime);
     LastTime := CurrentTime;
 
-    { Update game only when we have at least 10ms accumulated delta time }
-    if DeltaTimeAccum >= 0.01 then
+    { Update game only when we have at least 14ms accumulated delta time - max ~70 fps }
+    if DeltaTimeAccum >= 0.014 then
     begin
       DeltaTime := DeltaTimeAccum;
       DeltaTimeAccum := DeltaTimeAccum - DeltaTime;
@@ -1027,10 +1027,8 @@ begin
       RenderFrame;
 
       { Wait for VSync to throttle frame rate }
-      WaitForVSync; { TODO: make it optional }
+      WaitForVSync;
     end;
-
-    Delay(1);
 
     { Clear key pressed flags }
     ClearKeyPressed;
