@@ -17,7 +17,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
         </a>
         <br>
         <strong>Tilemap Rendering</strong><br>
-        TMXTEST.PAS
+        <small>TMXTEST.PAS</small>
       </td>
       <td align="center">
         <a href="DOCS/SCREENS/FNTTEST.png">
@@ -25,7 +25,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
         </a>
         <br>
         <strong>Variable-Width Fonts</strong><br>
-        FNTTEST.PAS
+        <small>FNTTEST.PAS</small>
       </td>
     </tr>
     <tr>
@@ -35,7 +35,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
         </a>
         <br>
         <strong>Sprite Animation</strong><br>
-        SPRTEST.PAS
+        <small>SPRTEST.PAS</small>
       </td>
       <td align="center">
         <a href="DOCS/SCREENS/SETUP.png">
@@ -43,7 +43,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
         </a>
         <br>
         <strong>Setup Utility</strong><br>
-        SETUP.PAS
+        <small>SETUP.PAS</small>
       </td>
     </tr>
   </table>
