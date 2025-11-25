@@ -1,7 +1,7 @@
 program TMapTest;
 
 uses
-  VGA, VGAPrint, TMXLoad, TMXDraw, Keyboard, RTCTimer, PKMLoad;
+  VGA, VGAPrint, TMXLoad, TMXDraw, Keyboard, RTCTimer, PCXLoad;
 
 var
   TileMap: TTileMap;
@@ -150,8 +150,8 @@ begin
     Halt(1);
   end;
 
-  WriteLn('Loading background from DATA\BG.PKM...');
-  if not LoadPKM('..\DATA\BG.PKM', Background) then
+  WriteLn('Loading background from DATA\BG.PCX...');
+  if not LoadPCX('..\DATA\BG.PCX', Background) then
   begin
     WriteLn('Could not background.');
     Halt(1);

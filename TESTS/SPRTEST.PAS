@@ -1,7 +1,7 @@
 program SpriteTest;
 
 uses
-  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PKMLoad;
+  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCXLoad;
 
 var
   PlayerImage: TImage;
@@ -178,10 +178,10 @@ end;
 
 begin
   { Load player sprite sheet }
-  WriteLn('Loading player sprite sheet from DATA\PLAYER.PKM...');
-  if not LoadPKMWithPalette('..\DATA\PLAYER.PKM', PlayerImage, Palette) then
+  WriteLn('Loading player sprite sheet from DATA\PLAYER.PCX...');
+  if not LoadPCXWithPalette('..\DATA\PLAYER.PCX', PlayerImage, Palette) then
   begin
-    WriteLn('ERROR: Could not load PLAYER.PKM');
+    WriteLn('ERROR: Could not load PLAYER.PCX');
     Halt(1);
   end;
 

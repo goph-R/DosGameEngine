@@ -35,7 +35,7 @@ D:\ENGINE\
 cd TESTS
 CVGATEST.BAT  CDRWTEST.BAT  CFNTTEST.BAT  CSNDTEST.BAT  CIMGTEST.BAT
 CTMXTEST.BAT  CSPRTEST.BAT  CMOUTEST.BAT  CMAPTEST.BAT  CXMLTEST.BAT
-CPCXTEST.BAT
+CPCXTEST.BAT  CIMFTEST.BAT
 cd ..\SETUP
 CSETUP.BAT
 ```
@@ -60,14 +60,10 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 **VGAPRINT.PAS** - Embedded 8x8 bitmap font, PrintText(x,y,text,color,fb)
 
-**VGAFONT.PAS** - Variable-width font from PKM sprite sheet + XML
+**VGAFONT.PAS** - Variable-width font from PCX sprite sheet + XML
 - LoadFont(xml,img,font), PrintFontText(x,y,text,font,fb), GetLoadFontError, FreeFont
 
-**PKMLOAD.PAS** - PKM image loader (GrafX2 RLE format, http://grafx2.chez.com/)
-- LoadPKM(file,img), LoadPKMWithPalette(file,img,pal), GetLastErrorMessage
-- Max 65520 bytes (320×204 for 320-width)
-
-**PCXLOAD.PAS** - PCX image loader (ZSoft PCX v5, Aseprite-compatible)
+**PCXLOAD.PAS** - PCX image loader (ZSoft PCX v5, Aseprite/GIMP-compatible)
 - LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLastErrorMessage
 - Simple RLE decoding, 256-color indexed, palette at EOF-768 bytes
 - Handles scanline padding (BytesPerLine), auto-converts palette 0-255 → 0-63 for VGA
@@ -95,6 +91,13 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - HSC_obj: Init(0), LoadFile/LoadMem, Start/Stop/Fade, Done
 - Hooks IRQ0 timer. **CRITICAL**: Call Done before exit
 - **WARNING**: Don't read PIT Timer 0 or hook IRQ0 while HSC active. Use RTCTimer.PAS (IRQ8)
+
+**PLAYIMF.PAS** - IMF music player (Id Music Format, 2025)
+- IMF_obj: Init(rate), LoadFile/LoadMem, Start/Stop, Poll, Done
+- Polling-based (no interrupts), safe with HSC/RTC/SBDSP
+- Rates: 560 Hz (Keen), 700 Hz (Wolf3D). Call Poll every frame!
+- Games: Wolfenstein 3D, Commander Keen 4-6, Blake Stone
+- **CRITICAL**: Call Poll in main loop, Done before exit. NO interrupt conflicts
 
 **RTCTIMER.PAS** - RTC high-res timer (2025, IRQ8)
 - InitRTC(Freq), DoneRTC, GetTimeSeconds, RTC_Ticks
@@ -148,7 +151,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - LoadTileMap(file,map,objgroup_callback), FreeTileMap, GetLoadTileMapError, IsBlockType(x,y,type)
 - Merges layers: before 1st objectgroup→Front (0), after→Back (1)
 - Blocks layer: custom `blocks` property + "Blocks" tileset → BlocksLayer (PByteArray)
-- CSV encoding only, .png→.pkm auto-conversion, max 4 tilesets
+- CSV encoding only, .png→.pcx auto-conversion, max 4 tilesets
 
 **TMXDRAW.PAS** - TMX rendering
 - DrawTileMapLayer(map,layer,x,y,w,h,fb)
@@ -156,9 +159,9 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 ## File Formats
 
-**PKM**: GrafX2 RLE-compressed 256-color (palette 0-63 for VGA DAC)
-**PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite-compatible, palette 0-255 auto-converted to 0-63)
+**PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite/GIMP-compatible, palette 0-255 auto-converted to 0-63)
 **HSC**: Adlib OPL2 tracker (embeddable via BINOBJ.EXE→.OBJ)
+**IMF**: Id Music Format OPL2 (Wolfenstein 3D 700Hz, Keen 4-6 560Hz, polling-based player)
 **VOC**: Creative Voice File (8-bit PCM, 11025/22050 Hz mono)
 
 ## Creating PCX Files
@@ -166,6 +169,12 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **Aseprite**: File → Export → .pcx (8-bit indexed color mode)
 **GIMP**: Image → Mode → Indexed (256 colors) → Export as PCX
 **Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
+
+## Creating IMF Files
+
+**IMFCreator** (MIDI→IMF): https://github.com/adambiser/imf-creator (set rate: 560 or 700 Hz)
+**Adlib Tracker II**: https://adlibtracker.net/ → Export IMF
+**Extract from games**: See DOCS\MISC\IMFSRC.md (Wolfenstein 3D, Commander Keen music packs)
 
 ## Creating VOC Files
 
@@ -181,9 +190,16 @@ InitVGA; fb := CreateFrameBuffer;
 RenderFrameBuffer(fb); CloseVGA; FreeFrameBuffer(fb);
 ```
 
-**Music**:
+**Music (HSC)**:
 ```pascal
 Music.Init(0); Music.LoadFile('X.HSC'); Music.Start; Music.Done;
+```
+
+**Music (IMF)**:
+```pascal
+IMF.Init(700); IMF.LoadFile('X.IMF'); IMF.Start;
+while run do IMF.Poll; { MUST call Poll in loop! }
+IMF.Done;
 ```
 
 **Sound (simple)**:

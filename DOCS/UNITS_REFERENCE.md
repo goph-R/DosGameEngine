@@ -30,39 +30,6 @@ Low-level VGA Mode 13h graphics driver (320×200, 256 colors).
 
 ---
 
-### PKMLOAD.PAS
-
-PKM image file loader (GrafX2 format with RLE compression).
-
-**Functions:**
-```pascal
-function LoadPKM(const FileName: string; var Image: TImage): Boolean;
-function LoadPKMWithPalette(const FileName: string; var Image: TImage;
-                            var Palette: TPalette): Boolean;
-```
-
-**Example:**
-```pascal
-var
-  Sprite: TImage;
-  Pal: TPalette;
-begin
-  if LoadPKMWithPalette('PLAYER.PKM', Sprite, Pal) then
-  begin
-    SetPalette(Pal);
-    PutImage(Sprite, 100, 100, True, FrameBuffer);
-    FreeImage(Sprite);
-  end;
-end;
-```
-
-**Notes:**
-- Supports RLE compression (byte-run and word-run)
-- Max image size: 65520 bytes (real-mode limit)
-- Returns `False` on error
-
----
-
 ### PCXLOAD.PAS
 
 PCX image file loader (ZSoft PCX v5 format, Aseprite-compatible).
@@ -293,6 +260,66 @@ end;
 - Call `Music.Poll` every frame
 - Call `Music.Done` before exit (unhooks IRQ0)
 - Compatible with SBDSP (different interrupts)
+
+---
+
+### PLAYIMF.PAS ⭐ [Full Docs](IMF.md)
+
+IMF (Id Music Format) player for Wolfenstein 3D, Commander Keen music.
+
+**Type:**
+```pascal
+type
+  IMF_obj = object
+    Playing: Boolean;
+    Looping: Boolean;
+
+    constructor Init(PlaybackRate: Word);
+    function LoadFile(const FileName: string): Boolean;
+    procedure LoadMem(MusicAddress: Pointer; MusicSize: LongInt);
+    procedure Start;
+    procedure Stop;
+    procedure Poll;  { MUST be called every frame! }
+    destructor Done;
+  end;
+
+function GetLastIMFError: string;
+```
+
+**Example:**
+```pascal
+var
+  Music: IMF_obj;
+
+begin
+  Music.Init(700);  { 700 Hz = Wolfenstein 3D, 560 Hz = Keen }
+
+  if Music.LoadFile('MUSIC.IMF') then
+  begin
+    Music.Looping := True;
+    Music.Start;
+
+    { Game loop }
+    while Running do
+    begin
+      Music.Poll;  { CRITICAL: Call every frame! }
+      UpdateGame;
+      Delay(10);
+    end;
+
+    Music.Done;
+  end;
+end;
+```
+
+**Notes:**
+- Polling-based (no interrupts, no conflicts with HSC/RTC/SBDSP)
+- Playback rates: 560 Hz (Commander Keen), 700 Hz (Wolfenstein 3D)
+- `Poll` MUST be called every frame for playback
+- Compatible with all other engine units
+- See [DOCS/MISC/IMFSRC.md](MISC/IMFSRC.md) for IMF file sources
+
+**See:** [IMF.md](IMF.md) for complete format documentation.
 
 ---
 
@@ -916,7 +943,7 @@ end.
 
 ```
 VGA.PAS
-├── PKMLOAD.PAS (requires VGA, GenTypes)
+├── PCXLOAD.PAS (requires VGA, GenTypes)
 ├── VGAPRINT.PAS (requires VGA)
 ├── SPRITE.PAS (requires VGA)
 └── TMXDRAW.PAS (requires VGA, TMXLOAD, GenTypes)
@@ -940,6 +967,7 @@ CONFIG.PAS (requires StrUtil)
 - [VGA.md](VGA.md) - Complete VGA graphics API
 - [SBDSP.md](SBDSP.md) - Complete Sound Blaster API
 - [KEYBOARD.md](KEYBOARD.md) - Complete keyboard API
-- [PKM.md](PKM.md) - PKM file format specification
+- [PCX.md](PCX.md) - PCX file format specification
 - [HSC.md](HSC.md) - HSC music format specification
+- [IMF.md](IMF.md) - IMF music format specification
 - [TILEMAP.md](TILEMAP.md) - TMX tilemap format and usage

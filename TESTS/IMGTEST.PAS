@@ -6,7 +6,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  VGA, VGAPrint, PkmLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer;
+  VGA, VGAPrint, PCXLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer;
 
 type
   TTestSprite = record
@@ -162,9 +162,9 @@ begin
 
 
   { Load test image and palette }
-  if not LoadPKMWithPalette('..\DATA\TEST.PKM', BackgroundImage, Palette) then
+  if not LoadPCXWithPalette('..\DATA\TEST.PCX', BackgroundImage, Palette) then
   begin
-    WriteLn('Error: Could not load TEST.PKM');
+    WriteLn('Error: Could not load TEST.PCX');
     Halt(1);
   end;
 

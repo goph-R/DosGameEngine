@@ -2,9 +2,9 @@
 
 The following files are **not** covered by the MIT license:
 
-- `DATA/BG.PKM`
-- `DATA/PLAYER.PKM`
-- `DATA/TILESET.PKM`
+- `DATA/BG.PCX`
+- `DATA/PLAYER.PCX`
+- `DATA/TILESET.PCX`
 - `DATA/TILESET.PNG`
 
 These files are © 2025 Dynart Kft.

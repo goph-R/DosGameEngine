@@ -48,7 +48,7 @@ function IsBlockType(const TileMap: TTileMap; X, Y: Word; BlockType: Byte): Bool
 implementation
 
 uses
-  PKMLoad, StrUtil;
+  PCXLoad, StrUtil;
 
 var
   LoadTileMapError: String;
@@ -80,18 +80,18 @@ begin
   ExtractFolder := '';
 end;
 
-{ Helper: Change file extension to .PKM }
-function ChangeExtToPKM(const FileName: String): String;
+{ Helper: Change file extension to .PCX }
+function ChangeExtToPCX(const FileName: String): String;
 var
   I: Integer;
 begin
   for I := Length(FileName) downto 1 do
     if FileName[I] = '.' then
     begin
-      ChangeExtToPKM := Copy(FileName, 1, I - 1) + '.PKM';
+      ChangeExtToPCX := Copy(FileName, 1, I - 1) + '.PCX';
       Exit;
     end;
-  ChangeExtToPKM := FileName + '.PKM';
+  ChangeExtToPCX := FileName + '.PCX';
 end;
 
 { Helper: Checks if a <xmlnode><properties><property="name"> exists }
@@ -176,13 +176,13 @@ begin
   end;
   ImageSource := XMLAttr(ImageNode, 'source');
 
-  { Convert path: fix slashes, change extension to PKM }
+  { Convert path: fix slashes, change extension to PCX }
   ImageSource := FixPath(ImageSource);
-  ImageSource := ChangeExtToPKM(ImageSource);
+  ImageSource := ChangeExtToPCX(ImageSource);
   FullPath := FolderPath + ImageSource;
 
-  { Load the PKM image }
-  if not LoadPKM(FullPath, TileSet.Image) then
+  { Load the PCX image }
+  if not LoadPCX(FullPath, TileSet.Image) then
   begin
     LoadTileMapError := 'Failed to load tileset image: ' + FullPath;
     Exit;

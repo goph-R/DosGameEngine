@@ -5,7 +5,7 @@ unit VGAFont;
 
 interface
 
-uses VGA, GenTypes, PKMLoad, MiniXML, StrUtil;
+uses VGA, GenTypes, PCXLoad, MiniXML, StrUtil;
 
 const
   MaxChars = 128;  { ASCII 0-127 }
@@ -27,7 +27,7 @@ type
   end;
   PFont = ^TFont;
 
-{ Load font from PKM image and XML metadata }
+{ Load font from PCX image and XML metadata }
 function LoadFont(
   const XMLFile: string;
   const ImageFile: string;
@@ -84,7 +84,7 @@ begin
   GetLoadFontError := LastError;
 end;
 
-{ Load font from PKM image and XML metadata }
+{ Load font from PCX image and XML metadata }
 function LoadFont(
   const XMLFile: string;
   const ImageFile: string;
@@ -207,9 +207,9 @@ begin
   XMLFreeTree(FontNode);
 
   { Load image }
-  if not LoadPKM(ImageFile, Font.Image) then
+  if not LoadPCX(ImageFile, Font.Image) then
   begin
-    SetError('PKM file not found: ' + ImageFile);
+    SetError('PCX file not found: ' + ImageFile);
     Exit;
   end;
 

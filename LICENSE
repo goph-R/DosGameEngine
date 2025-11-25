@@ -26,9 +26,9 @@ NON-CODE ASSETS NOTICE
 
 The files located in the DATA directory:
 
-    DATA/BG.PKM
-    DATA/PLAYER.PKM
-    DATA/TILESET.PKM
+    DATA/BG.PCX
+    DATA/PLAYER.PCX
+    DATA/TILESET.PCX
     DATA/TILESET.PNG
 
 are © 2025 by Dynart Kft.

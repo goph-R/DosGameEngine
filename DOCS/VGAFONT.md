@@ -22,12 +22,12 @@ A sprite sheet-based variable-width font renderer for high-quality text display 
 
 ## Overview
 
-VGAFONT.PAS provides a professional variable-width font rendering system for DOS games. Fonts are defined as sprite sheets (PKM images) with XML metadata describing character positions and widths.
+VGAFONT.PAS provides a professional variable-width font rendering system for DOS games. Fonts are defined as sprite sheets (PCX images) with XML metadata describing character positions and widths.
 
 ### Key Features
 
 - **Variable-width characters** - Proportional fonts for better readability
-- **Sprite sheet-based** - Use existing PKM image format
+- **Sprite sheet-based** - Use existing PCX image format
 - **XML metadata** - Character positions and widths defined externally
 - **Efficient rendering** - Uses `PutImageRect` for fast character blitting
 - **Flexible character set** - Support ASCII 0-127
@@ -48,7 +48,7 @@ VGAFONT.PAS provides a professional variable-width font rendering system for DOS
 | Feature | VGAPRINT.PAS | VGAFONT.PAS |
 |---------|--------------|-------------|
 | **Font type** | Fixed-width (8×8) | Variable-width |
-| **Font source** | Embedded in code | External PKM + XML |
+| **Font source** | Embedded in code | External PCX + XML |
 | **Character sizes** | All 8×8 | Custom per character |
 | **Visual quality** | Monospace (retro) | Proportional (modern) |
 | **Setup** | None (built-in) | Load font file |
@@ -66,7 +66,7 @@ VGAFONT.PAS provides a professional variable-width font rendering system for DOS
 
 ### Sprite Sheet Layout
 
-Fonts are stored as PKM images with characters arranged in a sprite sheet:
+Fonts are stored as PCX images with characters arranged in a sprite sheet:
 
 ```
 Example: 32-pixel tall font
@@ -187,11 +187,11 @@ function LoadFont(
 ): Boolean;
 ```
 
-Loads a font from PKM image and XML metadata files.
+Loads a font from PCX image and XML metadata files.
 
 **Parameters:**
 - `XMLFile` - Path to XML metadata (e.g., 'FONTS\MAIN.XML')
-- `ImageFile` - Path to PKM sprite sheet (e.g., 'FONTS\MAIN.PKM')
+- `ImageFile` - Path to PCX sprite sheet (e.g., 'FONTS\MAIN.PCX')
 - `Font` - TFont structure to populate
 
 **Returns:**
@@ -204,7 +204,7 @@ var
   GameFont: TFont;
 
 begin
-  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PKM', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PCX', GameFont) then
   begin
     WriteLn('Error loading font: ', GetLoadFontError);
     Halt(1);
@@ -215,7 +215,7 @@ end;
 ```
 
 **Loading process:**
-1. Load PKM image into `Font.Image`
+1. Load PCX image into `Font.Image`
 2. Parse XML file using MINIXML.PAS
 3. Extract `height` attribute from `<font>` element
 4. Parse each `<char>` element:
@@ -228,7 +228,7 @@ end;
 6. Set `Font.Loaded := True`
 
 **Error conditions:**
-- PKM file not found or invalid
+- PCX file not found or invalid
 - XML file not found or invalid
 - XML parsing errors (malformed XML)
 - Missing required attributes
@@ -248,7 +248,7 @@ Returns the last error message from `LoadFont`.
 
 **Example:**
 ```pascal
-if not LoadFont('FONT.XML', 'FONT.PKM', Font) then
+if not LoadFont('FONT.XML', 'FONT.PCX', Font) then
 begin
   WriteLn('Font loading failed:');
   WriteLn(GetLoadFontError);
@@ -256,7 +256,7 @@ end;
 ```
 
 **Typical error messages:**
-- `"PKM file not found: FONT.PKM"`
+- `"PCX file not found: FONT.PCX"`
 - `"XML file could not be loaded: FONT.XML"`
 - `"Invalid XML format"`
 - `"Missing height attribute in <font> element"`
@@ -282,7 +282,7 @@ var
   GameFont: TFont;
 
 begin
-  LoadFont('FONT.XML', 'FONT.PKM', GameFont);
+  LoadFont('FONT.XML', 'FONT.PCX', GameFont);
 
   { Use font... }
 
@@ -328,7 +328,7 @@ var
   ScreenBuffer: PFrameBuffer;
 
 begin
-  LoadFont('FONT.XML', 'FONT.PKM', GameFont);
+  LoadFont('FONT.XML', 'FONT.PCX', GameFont);
   ScreenBuffer := GetScreenBuffer;
 
   { Draw text }
@@ -551,7 +551,7 @@ end;
 ```pascal
 program FontTest;
 
-uses VGA, VGAFont, PKMLoad;
+uses VGA, VGAFont, PCXLoad;
 
 var
   GameFont: TFont;
@@ -563,7 +563,7 @@ begin
   ScreenBuffer := GetScreenBuffer;
 
   { Load font }
-  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PKM', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PCX', GameFont) then
   begin
     CloseVGA;
     WriteLn('Error: ', GetLoadFontError);
@@ -597,9 +597,9 @@ var
 
 begin
   { Load different fonts for different purposes }
-  LoadFont('FONTS\TITLE.XML', 'FONTS\TITLE.PKM', TitleFont);
-  LoadFont('FONTS\NORMAL.XML', 'FONTS\NORMAL.PKM', NormalFont);
-  LoadFont('FONTS\SMALL.XML', 'FONTS\SMALL.PKM', SmallFont);
+  LoadFont('FONTS\TITLE.XML', 'FONTS\TITLE.PCX', TitleFont);
+  LoadFont('FONTS\NORMAL.XML', 'FONTS\NORMAL.PCX', NormalFont);
+  LoadFont('FONTS\SMALL.XML', 'FONTS\SMALL.PCX', SmallFont);
 
   { Use appropriate font for each element }
   PrintFontTextCentered(160, 50, 'XICLONE', TitleFont, BackBuffer);
@@ -691,9 +691,9 @@ end;
    Row 3: 0 1 2 3 4 5 6 7 8 9 ! ? . , : ; ' "
    ```
 
-4. **Save as PKM:**
-   - File → Save As → PKM format
-   - Save to `DATA\FONTS\MYFONT.PKM`
+4. **Save as PCX:**
+   - File → Export → PCX format (8-bit indexed color)
+   - Save to `DATA\FONTS\MYFONT.PCX`
 
 ---
 
@@ -725,7 +725,7 @@ begin
   InitVGA;
   Buffer := CreateFrameBuffer;
 
-  if not LoadFont('FONTS\MYFONT.PKM', 'FONTS\MYFONT.XML', Font) then
+  if not LoadFont('FONTS\MYFONT.XML', 'FONTS\MYFONT.PCX', Font) then
   begin
     CloseVGA;
     WriteLn('Error: ', GetLoadFontError);
@@ -801,7 +801,7 @@ Still plenty of room in 640KB conventional memory
 **Loading time:**
 ```
 Parse XML (128 characters): ~50ms on 286
-Load PKM image: ~100ms on 286
+Load PCX image: ~100ms on 286
 Total load time: ~150ms (done once at startup)
 
 Acceptable for:
@@ -822,7 +822,7 @@ Acceptable for:
 ### Error Categories
 
 **File errors:**
-- PKM file not found
+- PCX file not found
 - XML file not found
 - File read errors
 
@@ -842,7 +842,7 @@ Acceptable for:
 ### Example Error Messages
 
 ```
-"PKM file not found: FONTS\MAIN.PKM"
+"PCX file not found: FONTS\MAIN.PCX"
 "XML file could not be loaded: FONTS\MAIN.XML"
 "Invalid XML format"
 "Missing root <font> element"
@@ -868,7 +868,7 @@ VGAFONT.PAS provides a professional variable-width font system that:
 - Multiple fonts support
 
 **⚠️ Considerations:**
-- Requires external PKM + XML files
+- Requires external PCX + XML files
 - Higher memory usage than VGAPRINT
 - Slower loading (XML parsing)
 - More complex setup

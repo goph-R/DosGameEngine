@@ -85,10 +85,10 @@ IMGTEST.EXE
 - **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
 
 **Formats:**
-- **[PKM.md](DOCS/PKM.md)** - PKM image format (GrafX2)
-- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, ZSoft)
-- **[HSC.md](DOCS/HSC.md)** - HSC music format
-- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format
+- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, primary format)
+- **[HSC.md](DOCS/HSC.md)** - HSC music format (demoscene tracker)
+- **[IMF.md](DOCS/IMF.md)** - IMF music format (Wolfenstein 3D, Commander Keen)
+- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (uses PCX tilesets)
 
 **APIs:**
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
@@ -106,18 +106,18 @@ IMGTEST.EXE
 - **VGA.PAS**: VGA Mode 13h (320×200 256-color)
   - double-buffering
   - palette control (0-63 RGB)
-- **PKMLOAD.PAS**: PKM image loader (GrafX2 RLE)
-- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite-compatible)
+- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
-  - `Blocks` collosion layer (loads a block map)
+  - `Blocks` collision layer (loads a block map)
   - objects layer detection (can be hooked to a function)
 - **TMXDRAW.PAS**: TMX renderer
-- **VGAFONT.PAS**: Variable-width fonts (PKM + XML)
+- **VGAFONT.PAS**: Variable-width fonts (PCX + XML)
 - **SPRITE.PAS**: Sprite animation (3 play modes)
 
 ### Audio
-- **PLAYHSC.PAS**: HSC music player (Adlib/OPL2)
+- **PLAYHSC.PAS**: HSC music player (Adlib/OPL2, interrupt-based)
+- **PLAYIMF.PAS**: IMF music player (Id Software format, polling-based)
 - **SNDBANK.PAS**: XMS sound bank, VOC files (8-bit PCM 11-44kHz, DMA-safe buffers)
 - **SBDSP.PAS**: SoundBlaster driver
 
@@ -154,9 +154,10 @@ D:\ENGINE\
 
 ## 🎨 Creating Assets
 
-**Images (PKM or PCX):**
-- **PKM**: Use [GrafX2](http://grafx2.chez.com/) → Draw 256-color → Save as PKM (RLE-compressed)
-- **PCX**: Use [Aseprite](https://www.aseprite.org/) → File → Export → .pcx (8-bit indexed color)
+**Images (PCX):**
+- **Aseprite** (recommended): File → Export → .pcx (8-bit indexed color mode)
+- **GIMP**: Image → Mode → Indexed (256 colors) → Export as PCX
+- **Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
 - Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
 
 **VOC Sounds:**  
@@ -180,7 +181,7 @@ Contributions welcome! This engine preserves 1990s DOS demoscene techniques whil
 
 ## 🔒 Asset Licensing
 
-Some `DATA` files (`BG.PKM`, `PLAYER.PKM`, `TILESET.PKM/PNG`) are © 2025 Dynart Kft. Free for non-commercial use with credits. Commercial use requires separate license. See `ASSETS_LICENSE.md`.
+Some `DATA` files (images and tilesets) are © 2025 Dynart Kft. Free for non-commercial use with credits. Commercial use requires separate license. See `ASSETS_LICENSE.md`.
 
 ---
 

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units>
+      <Unit>
+        <Filename Value="BitmapFontGenerator.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <CursorPos X="32" Y="25"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="bitmapfontform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="Form1"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="BitmapFontForm"/>
+        <TopLine Value="10"/>
+        <CursorPos Y="19"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\Users\gopher\Apps\lazarus\lcl\forms.pp"/>
+        <UnitName Value="Forms"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="1591"/>
+        <CursorPos X="15" Y="1604"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="9">
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="11" Column="17"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="14" Column="7"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="33" Column="3"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="34" Column="3" TopLine="7"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="35" Column="3" TopLine="8"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="36" Column="3" TopLine="9"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="37" Column="3" TopLine="10"/>
+      </Position>
+      <Position>
+        <Filename Value="BitmapFontGenerator.lpr"/>
+        <Caret Line="25"/>
+      </Position>
+      <Position>
+        <Filename Value="bitmapfontform.pas"/>
+        <Caret Line="19" TopLine="10"/>
+      </Position>
+      <Position>
+        <Filename Value="BitmapFontGenerator.lpr"/>
+        <Caret Line="13" Column="15"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>
