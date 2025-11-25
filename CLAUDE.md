@@ -35,13 +35,14 @@ D:\ENGINE\
 cd TESTS
 CVGATEST.BAT  CDRWTEST.BAT  CFNTTEST.BAT  CSNDTEST.BAT  CIMGTEST.BAT
 CTMXTEST.BAT  CSPRTEST.BAT  CMOUTEST.BAT  CMAPTEST.BAT  CXMLTEST.BAT
+CPCXTEST.BAT
 cd ..\SETUP
 CSETUP.BAT
 ```
 
 ### Manual compile
 ```bash
-cd UNITS && tpc VGA.PAS && tpc PKMLOAD.PAS  # etc
+cd UNITS && tpc VGA.PAS && tpc PKMLOAD.PAS && tpc PCXLOAD.PAS  # etc
 cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 ```
 
@@ -64,6 +65,12 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 **PKMLOAD.PAS** - PKM image loader (GrafX2 RLE format, http://grafx2.chez.com/)
 - LoadPKM(file,img), LoadPKMWithPalette(file,img,pal), GetLastErrorMessage
+- Max 65520 bytes (320×204 for 320-width)
+
+**PCXLOAD.PAS** - PCX image loader (ZSoft PCX v5, Aseprite-compatible)
+- LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLastErrorMessage
+- Simple RLE decoding, 256-color indexed, palette at EOF-768 bytes
+- Handles scanline padding (BytesPerLine), auto-converts palette 0-255 → 0-63 for VGA
 - Max 65520 bytes (320×204 for 320-width)
 
 **SBDSP.PAS** - Sound Blaster driver (1995, Romesh Prakashpalan, VENDOR/SBDSP2B)
@@ -150,8 +157,15 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 ## File Formats
 
 **PKM**: GrafX2 RLE-compressed 256-color (palette 0-63 for VGA DAC)
+**PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite-compatible, palette 0-255 auto-converted to 0-63)
 **HSC**: Adlib OPL2 tracker (embeddable via BINOBJ.EXE→.OBJ)
 **VOC**: Creative Voice File (8-bit PCM, 11025/22050 Hz mono)
+
+## Creating PCX Files
+
+**Aseprite**: File → Export → .pcx (8-bit indexed color mode)
+**GIMP**: Image → Mode → Indexed (256 colors) → Export as PCX
+**Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
 
 ## Creating VOC Files
 

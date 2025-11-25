@@ -63,6 +63,45 @@ end;
 
 ---
 
+### PCXLOAD.PAS
+
+PCX image file loader (ZSoft PCX v5 format, Aseprite-compatible).
+
+**Functions:**
+```pascal
+function LoadPCX(const FileName: string; var Image: TImage): Boolean;
+function LoadPCXWithPalette(const FileName: string; var Image: TImage;
+                            var Palette: TPalette): Boolean;
+function GetLastErrorMessage: string;
+```
+
+**Example:**
+```pascal
+var
+  Sprite: TImage;
+  Pal: TPalette;
+begin
+  if LoadPCXWithPalette('PLAYER.PCX', Sprite, Pal) then
+  begin
+    SetPalette(Pal);
+    PutImage(Sprite, 100, 100, True, FrameBuffer);
+    FreeImage(Sprite);
+  end
+  else
+    WriteLn(GetLastErrorMessage);
+end;
+```
+
+**Notes:**
+- Supports 256-color PCX (8-bit indexed, 1 plane, RLE compressed)
+- Automatically converts palette from 0-255 to VGA 0-63 range
+- Handles scanline padding (BytesPerLine)
+- Palette located at EOF-768 bytes (marked by 0x0C byte)
+- Max image size: 65520 bytes (real-mode limit)
+- Export from Aseprite: File → Export → .pcx (8-bit indexed)
+
+---
+
 ### VGAPRINT.PAS
 
 Bitmap font text renderer for VGA Mode 13h.

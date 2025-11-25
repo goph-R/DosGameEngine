@@ -85,7 +85,8 @@ IMGTEST.EXE
 - **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
 
 **Formats:**
-- **[PKM.md](DOCS/PKM.md)** - PKM image format
+- **[PKM.md](DOCS/PKM.md)** - PKM image format (GrafX2)
+- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, ZSoft)
 - **[HSC.md](DOCS/HSC.md)** - HSC music format
 - **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format
 
@@ -103,9 +104,10 @@ IMGTEST.EXE
 
 ### Graphics
 - **VGA.PAS**: VGA Mode 13h (320×200 256-color)
-  - double-buffering  
+  - double-buffering
   - palette control (0-63 RGB)
-- **PKMLOAD.PAS**: PKM image loader (RLE)
+- **PKMLOAD.PAS**: PKM image loader (GrafX2 RLE)
+- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
   - `Blocks` collosion layer (loads a block map)
@@ -152,8 +154,10 @@ D:\ENGINE\
 
 ## 🎨 Creating Assets
 
-**PKM Images:**  
-Use [GrafX2](http://grafx2.chez.com/) → Draw 256-color → Save as PKM (RLE-compressed). Common: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles).
+**Images (PKM or PCX):**
+- **PKM**: Use [GrafX2](http://grafx2.chez.com/) → Draw 256-color → Save as PKM (RLE-compressed)
+- **PCX**: Use [Aseprite](https://www.aseprite.org/) → File → Export → .pcx (8-bit indexed color)
+- Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
 
 **VOC Sounds:**  
 Use [Audacity](https://www.audacityteam.org/) → Mix to Mono → Resample 11025Hz → Export as VOC (Unsigned 8-bit PCM).
