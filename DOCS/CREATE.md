@@ -1,10 +1,10 @@
 
 # 🎨 Creating Assets
 
-## PKM Images
+## PCX Images
 Use [GrafX2](http://grafx2.chez.com/) the DOS pixel art editor (Windows/Linux/Mac):
 1. Draw with 256 colors (any resolution supported)
-2. Save as PKM format (RLE-compressed)
+2. Save as PCX format (RLE-compressed)
    - Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
 
 ## VOC Sound Effects
@@ -30,11 +30,11 @@ Create game configuration files with any text editor (this is just an example):
   <levels>
     <level id="1" name="Forest" difficulty="easy">
       <music>FOREST.HSC</music>
-      <background>FOREST.PKM</background>
+      <background>FOREST.PCX</background>
     </level>
   </levels>
   <sprites>
-    <sprite id="player" file="PLAYER.PKM" width="32" height="32" />
+    <sprite id="player" file="PLAYER.PCX" width="32" height="32" />
   </sprites>
 </game>
 ```

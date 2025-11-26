@@ -174,7 +174,7 @@ ClearKeyPressed;  { At end of loop }
 ## Engine Features Used
 
 - **VGA.PAS:** InitVGA, CreateFrameBuffer, CopyFrameBufferRect (critical!), PutImageRect, SetPalette, WaitForVSync
-- **PKMLOAD.PAS:** LoadPKM, LoadPKMWithPalette
+- **PCXLOAD.PAS:** LoadPCX, LoadPCXWithPalette
 - **KEYBOARD.PAS:** InitKeyboard, IsKeyDown, IsKeyPressed, ClearKeyPressed, DoneKeyboard
 - **RTCTIMER.PAS:** InitRTC(1024), GetTimeSeconds, DoneRTC
 - **VGAPRINT.PAS:** PrintText (FPS, score, level)
@@ -183,10 +183,10 @@ ClearKeyPressed;  { At end of loop }
 ## Assets
 
 **Graphics:**
-- `DATA\BG1.PKM` - Background (320×200)
-- `DATA\GEMS1.PKM` - Gem sprites (8×16×16: Empty, Red, Yellow, Green, Blue, Pink, Purple, MagicJewel)
-- `DATA\FONT-LG.PKM/XML` - Large font (unused in current phase)
-- `DATA\FONT-SM.PKM/XML` - Small font (unused in current phase)
+- `DATA\BG1.PCX` - Background (320×200)
+- `DATA\GEMS1.PCX` - Gem sprites (8×16×16: Empty, Red, Yellow, Green, Blue, Pink, Purple, MagicJewel)
+- `DATA\FONT-LG.PCX/XML` - Large font (unused in current phase)
+- `DATA\FONT-SM.PCX/XML` - Small font (unused in current phase)
 
 **Current Phase Status:** Phase 4+ (playable with flash effects, gravity, chain reactions)
 

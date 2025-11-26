@@ -203,9 +203,9 @@ PCXTEST.EXE
 
 Test program loads `DATA\TEST.PCX` and displays it with palette.
 
-## Comparison: PCX vs PKM
+## Comparison: PCX vs PCX
 
-| Feature | PCX | PKM |
+| Feature | PCX | PCX |
 |---------|-----|-----|
 | **Era** | 1985-1995 (DOS golden age) | 1990s (demoscene) |
 | **Tool** | Aseprite, GIMP, Photoshop | GrafX2 only |
@@ -215,7 +215,7 @@ Test program loads `DATA\TEST.PCX` and displays it with palette.
 | **Workflow** | Modern (Aseprite) | Retro (GrafX2) |
 | **Games** | DOOM, Duke3D, Commander Keen | Demoscene productions |
 
-**Recommendation**: Use **PCX** for modern pixel art workflows (Aseprite), **PKM** for authentic demoscene aesthetics (GrafX2).
+**Recommendation**: Use **PCX** for modern pixel art workflows (Aseprite), **PCX** for authentic demoscene aesthetics (GrafX2).
 
 ## Size Limits
 
@@ -262,10 +262,10 @@ VGA_B := PCX_B shr 2;
 
 - **ZSoft PCX Specification**: [Available at FileFormat.Info](https://www.fileformat.info/format/pcx/egff.htm)
 - **Aseprite**: https://www.aseprite.org/
-- **GrafX2** (for PKM): http://grafx2.chez.com/
+- **GrafX2** (for PCX): http://grafx2.chez.com/
 
 ## See Also
 
-- **[PKM.md](PKM.md)** - Alternative format (GrafX2)
+- **[PCX.md](PCX.md)** - Alternative format (GrafX2)
 - **[VGA.md](VGA.md)** - Graphics API reference
 - **[UNITS_REFERENCE.md](UNITS_REFERENCE.md)** - Complete units documentation

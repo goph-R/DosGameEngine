@@ -32,7 +32,7 @@ Problem: Grass tile #42 is never visible but still in tileset
 3. For each unique tile stack, **merge pixel data** from source tilesets
 4. Generate new optimized tileset containing only merged combinations
 5. Remap tile IDs in front/back layers to reference new tileset
-6. Output optimized PKM tileset + updated map data
+6. Output optimized PCX tileset + updated map data
 
 **Benefits**:
 - Smaller tilesets (only combinations actually used)
@@ -49,13 +49,13 @@ Problem: Grass tile #42 is never visible but still in tileset
 - Output base name (e.g., `LEVEL1`)
 
 **Outputs**:
-- Optimized tileset: `{basename}_OPT.PKM`
+- Optimized tileset: `{basename}_OPT.PCX`
 - Optimized map data: `{basename}_OPT.MAP` (binary format for DOS loader)
 - Mapping report: `{basename}_OPT.TXT` (human-readable tile mapping)
 
 **Dependencies**:
 - Free Pascal XML units (DOM, XMLRead)
-- PKM loader/writer (ported from PKMLoad.pas)
+- PCX loader/writer (ported from PCXLoad.pas)
 - Image manipulation (pixel-level compositing)
 
 ### Data Structures
@@ -131,8 +131,8 @@ type
 **Output**: Layer data arrays, tileset metadata, blocks layer (if present)
 
 #### Phase 2: Load Tileset Images
-1. For each tileset, convert PNG path to PKM path (`.png` → `.pkm`)
-2. Load PKM files using ported PKMLoad logic
+1. For each tileset, convert PNG path to PCX path (`.png` → `.pcx`)
+2. Load PCX files using ported PCXLoad logic
 3. Store pixel data and for each tileset.
 4. **Palette handling**: Use palette from first tileset as master palette
 
@@ -216,9 +216,9 @@ end;
 4. For each `TTileCombination`:
    - Calculate tile position (row/column based on NewTileID)
    - Copy `MergedPixels` to tileset image at correct offset
-5. Write PKM file with master palette
+5. Write PCX file with master palette
 
-**Output**: `{basename}_OPT.PKM` file
+**Output**: `{basename}_OPT.PCX` file
 
 #### Phase 7: Remap Tile IDs
 1. Create optimized front/back layer buffers (Width × Height)
@@ -256,7 +256,7 @@ Blocks Layer (optional, only if HasBlocks = 1):
 ```
 Tilemap Optimization Report
 Input: LEVEL1.TMX
-Output: LEVEL1_OPT.PKM, LEVEL1_OPT.MAP
+Output: LEVEL1_OPT.PCX, LEVEL1_OPT.MAP
 
 Original tilesets: 4
 Original total tiles: 512
@@ -286,7 +286,7 @@ TILEMRG.EXE input.tmx output_base
 TILEMRG.EXE DATA\LEVEL1.TMX DATA\LEVEL1
 
 # Output:
-#   DATA\LEVEL1_OPT.PKM  (optimized tileset)
+#   DATA\LEVEL1_OPT.PCX  (optimized tileset)
 #   DATA\LEVEL1_OPT.MAP  (binary map data)
 #   DATA\LEVEL1_OPT.TXT  (report)
 ```
@@ -318,7 +318,7 @@ procedure DrawOptimizedLayer(const map: TOptimizedMap; layer: PWord;
 
 implementation
 
-{ Load .MAP file and associated .PKM tileset }
+{ Load .MAP file and associated .PCX tileset }
 function LoadOptimizedMap(const filename: string; var map: TOptimizedMap): Boolean;
 var
   F: File;
@@ -368,9 +368,9 @@ begin
 
   Close(F);
 
-  { Load tileset PKM }
-  TilesetPath := Copy(filename, 1, Pos('.', filename) - 1) + '.PKM';
-  if not LoadPKM(TilesetPath, map.Tileset) then begin
+  { Load tileset PCX }
+  TilesetPath := Copy(filename, 1, Pos('.', filename) - 1) + '.PCX';
+  if not LoadPCX(TilesetPath, map.Tileset) then begin
     FreeMem(map.FrontLayer);
     FreeMem(map.BackLayer);
     LoadOptimizedMap := False;
@@ -513,7 +513,7 @@ end;
 3. **Palette conflicts**: First tileset palette is used as master (all tilesets should share palette)
 4. **Maximum tiles**: DOS loader supports up to 65,535 tiles (Word limit)
 5. **Tileset dimensions**: Must fit in 64KB segment (typical: 256×256 pixels max)
-6. **PNG to PKM conversion**: Must be done beforehand (TILEMRG expects PKM files exist)
+6. **PNG to PCX conversion**: Must be done beforehand (TILEMRG expects PCX files exist)
 7. **Blocks layer**: Layer with `blocks="1"` attribute is preserved as-is, not merged or optimized. Tile IDs in blocks layer are converted to simple 0/non-zero flags (0=passable, non-zero=blocked). Only one blocks layer per TMX file is supported.
 
 ## Future Enhancements
@@ -530,7 +530,7 @@ end;
 1. **Unit tests**:
    - Tile stack comparison/hashing
    - Pixel merging with transparency
-   - PKM read/write round-trip
+   - PCX read/write round-trip
 
 2. **Integration tests**:
    - Simple 2×2 map with known combinations
@@ -555,11 +555,11 @@ end;
 #    Save as DATA\DUNGEON.TMX
 
 # 2. Export tilesets from Tiled as PNG
-#    Convert to PKM using existing tools
+#    Convert to PCX using existing tools
 
 # 3. Run optimizer
 TILEMRG.EXE DATA\DUNGEON.TMX DATA\DUNGEON
-#    Outputs: DUNGEON_OPT.PKM, DUNGEON_OPT.MAP, DUNGEON_OPT.TXT
+#    Outputs: DUNGEON_OPT.PCX, DUNGEON_OPT.MAP, DUNGEON_OPT.TXT
 
 # 4. Copy to DOS environment
 COPY DATA\DUNGEON_OPT.* D:\ENGINE\DATA\

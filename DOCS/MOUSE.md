@@ -524,7 +524,7 @@ end;
 ### Custom Cursor Rendering
 
 ```pascal
-uses VGA, PKMLoad, Mouse;
+uses VGA, PCXLoad, Mouse;
 
 var
   CursorImage: TImage;
@@ -534,7 +534,7 @@ var
 begin
   InitVGA;
   InitMouse;
-  LoadPKM('CURSOR.PKM', CursorImage);
+  LoadPCX('CURSOR.PCX', CursorImage);
 
   { Hide hardware cursor }
   HideMouse;

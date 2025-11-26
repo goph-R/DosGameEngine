@@ -1,4 +1,4 @@
-# Assets License (PKM files)
+# Assets License (PCX files)
 
 The following files are **not** covered by the MIT license:
 

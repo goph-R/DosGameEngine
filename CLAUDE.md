@@ -20,7 +20,7 @@ D:\ENGINE\
 ├── UNITS\      - Core engine units (TPU output)
 ├── TESTS\      - Test programs + CxxxTEST.BAT scripts
 ├── SETUP\      - Setup utility + VOC loader
-├── DATA\       - Assets (PKM, HSC, VOC)
+├── DATA\       - Assets (PCX, HSC, VOC)
 ├── DOCS\       - Format specs + DESIGN\ (game docs)
 └── VENDOR\     - Third-party libraries (SBDSP, XMS)
 ```
@@ -42,7 +42,7 @@ CSETUP.BAT
 
 ### Manual compile
 ```bash
-cd UNITS && tpc VGA.PAS && tpc PKMLOAD.PAS && tpc PCXLOAD.PAS  # etc
+cd UNITS && tpc VGA.PAS && tpc PCXLOAD.PAS  # etc
 cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 ```
 
@@ -242,7 +242,7 @@ DoneRTC;
 7. **Memory**: Match Create/Free pairs
 8. **Keyboard**: ClearKeyPressed at END of loop
 9. **DMA**: SBDSP handles 64KB boundaries automatically
-10. **Palette**: PKM values 0-63 direct to VGA DAC
+10. **Palette**: PCX palette values 0-255 auto-converted to 0-63 for VGA DAC
 11. **Paths**: DOS 8.3, backslashes
 12. **IRQ0 conflict**: Never read PIT Timer 0 or hook IRQ0 with HSC active. Use RTCTimer (IRQ8) - completely isolated
 

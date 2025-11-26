@@ -335,20 +335,20 @@ end;
   <levels>
     <level id="1" name="Forest" difficulty="easy">
       <music>FOREST.HSC</music>
-      <background>FOREST.PKM</background>
+      <background>FOREST.PCX</background>
       <enemies count="5" />
     </level>
 
     <level id="2" name="Castle" difficulty="hard" boss="true">
       <music>BOSS.HSC</music>
-      <background>CASTLE.PKM</background>
+      <background>CASTLE.PCX</background>
       <enemies count="1" />
     </level>
   </levels>
 
   <sprites>
-    <sprite id="player" file="PLAYER.PKM" width="32" height="32" />
-    <sprite id="enemy" file="ENEMY.PKM" width="24" height="24" />
+    <sprite id="player" file="PLAYER.PCX" width="32" height="32" />
+    <sprite id="enemy" file="ENEMY.PCX" width="24" height="24" />
   </sprites>
 
   <!-- Comments are supported and ignored -->

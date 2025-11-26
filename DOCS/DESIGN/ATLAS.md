@@ -2,18 +2,18 @@
 ```
 raw/
   images/
-    player_idle_1.pkm, 32x32
-    player_idle_2.pkm, 32x32
-    player_idle_3.pkm, 32x32
-    player_idle_4.pkm, 32x32
-    player_run_1.pkm, 32x32
-    player_run_2.pkm, 32x32
-    player_run_3.pkm, 32x32
-    player_run_4.pkm, 32x32
-    player_run_5.pkm, 32x32
-    player_run_6.pkm, 32x32
-    player_pain.pkm, 32x32
-    player_jump_start.pkm, 32x32
+    player_idle_1.pcx, 32x32
+    player_idle_2.pcx, 32x32
+    player_idle_3.pcx, 32x32
+    player_idle_4.pcx, 32x32
+    player_run_1.pcx, 32x32
+    player_run_2.pcx, 32x32
+    player_run_3.pcx, 32x32
+    player_run_4.pcx, 32x32
+    player_run_5.pcx, 32x32
+    player_run_6.pcx, 32x32
+    player_pain.pcx, 32x32
+    player_jump_start.pcx, 32x32
     player_jump_
 ```
 

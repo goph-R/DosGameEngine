@@ -3,7 +3,7 @@
 
 ## VGA Graphics
 ```pascal
-uses VGA, PKMLoad;
+uses VGA, PCXLoad;
 
 var
   FrameBuffer: PFrameBuffer;
@@ -12,7 +12,7 @@ var
 
 begin
   { Load image with palette }
-  LoadPKMWithPalette('DATA\TEST.PKM', TestImage, Palette);
+  LoadPCXWithPalette('DATA\TEST.PCX', TestImage, Palette);
 
   InitVGA;
   SetPalette(Palette);

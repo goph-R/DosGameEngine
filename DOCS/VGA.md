@@ -1008,7 +1008,7 @@ var
   CurrentFrame: Integer;
 begin
   { Load sprite sheet with 8 frames (32×32 each) in a row }
-  LoadPKM('PLAYER.PKM', SpriteSheet);
+  LoadPCX('PLAYER.PCX', SpriteSheet);
 
   { Setup frame rectangle }
   Frame.Y := 0;
@@ -1127,7 +1127,7 @@ end;
 
 ## See Also
 
-- **PKMLOAD.PAS** - Load PKM image files with palettes
+- **PCXLOAD.PAS** - Load PCX image files with palettes
 - **SPRITE.PAS** - Delta-time sprite animation system
 - **VGAPRINT.PAS** - Bitmap font text rendering
 - **KEYBOARD.PAS** - Keyboard input for interactive graphics

@@ -71,7 +71,7 @@ var
 
 begin
   { Load sprite sheet }
-  LoadPKM('PLAYER.PKM', SpriteSheet);
+  LoadPCX('PLAYER.PCX', SpriteSheet);
 
   { Setup sprite definition }
   PlayerRun.Image := @SpriteSheet;
@@ -277,7 +277,7 @@ Renders current animation frame to framebuffer.
 ### Basic Sprite Animation
 
 ```pascal
-uses VGA, Sprite, PKMLoad, RTCTimer;
+uses VGA, Sprite, PCXLoad, RTCTimer;
 
 var
   SpriteSheet: TImage;
@@ -294,7 +294,7 @@ begin
   FrameBuffer := CreateFrameBuffer;
 
   { Load sprite sheet }
-  LoadPKM('PLAYER.PKM', SpriteSheet);
+  LoadPCX('PLAYER.PCX', SpriteSheet);
 
   { Setup sprite (8 frames, 32×32 each) }
   PlayerRun.Image := @SpriteSheet;
@@ -363,7 +363,7 @@ var
 
 begin
   { Load sprite sheet }
-  LoadPKM('PLAYER.PKM', SpriteSheet);
+  LoadPCX('PLAYER.PCX', SpriteSheet);
 
   { Setup idle animation (4 frames, row 0) }
   PlayerIdle.Image := @SpriteSheet;
@@ -889,7 +889,7 @@ end;
 ## Example: Complete Player System
 
 ```pascal
-uses VGA, Sprite, Keyboard, RTCTimer, PKMLoad;
+uses VGA, Sprite, Keyboard, RTCTimer, PCXLoad;
 
 type
   TPlayerState = (PS_Idle, PS_Walking, PS_Jumping);
@@ -906,7 +906,7 @@ procedure SetupAnimations;
 var
   i: Integer;
 begin
-  LoadPKM('PLAYER.PKM', SpriteSheet);
+  LoadPCX('PLAYER.PCX', SpriteSheet);
 
   { Idle - 4 frames, row 0, ping-pong }
   PlayerIdle.Image := @SpriteSheet;
@@ -1040,7 +1040,7 @@ end.
 ## See Also
 
 - **VGA.PAS** - Image rendering (PutFlippedImageRect)
-- **PKMLOAD.PAS** - Loading sprite sheets
+- **PCXLOAD.PAS** - Loading sprite sheets
 - **RTCTIMER.PAS** - High-resolution timing for delta time
 - **KEYBOARD.PAS** - Player input for sprite control
 - **TMXLOAD.PAS** / **TMXDRAW.PAS** - Tilemap integration
