@@ -35,7 +35,7 @@ procedure RenderPlayfield(var Field: TPlayfield; FlashActive: Boolean; FlashTime
                           const FlashTiles: array of Boolean);
 procedure RenderStack(const Stack: TGemStack; var LastX: Integer; var LastY: Real);
 procedure RenderNextStack(const NextGems: array of TGemColor);
-procedure RenderHUD(FPS: Integer; ShowFPS: Boolean; Score: LongInt; Level, Blocks: Integer;
+procedure RenderHUD(FPS: Integer; ShowFPS: Boolean; ShowMem: Boolean; Score: LongInt; Level, Blocks: Integer;
                     var LastScore: LongInt; var LastLevel, LastBlocks: Integer;
                     var FontLarge, FontSmall: TFont);
 
@@ -243,29 +243,50 @@ begin
   PadZero := S;
 end;
 
-procedure RenderHUD(FPS: Integer; ShowFPS: Boolean; Score: LongInt; Level, Blocks: Integer;
+procedure RenderHUD(FPS: Integer; ShowFPS: Boolean; ShowMem: Boolean; Score: LongInt; Level, Blocks: Integer;
                     var LastScore: LongInt; var LastLevel, LastBlocks: Integer;
                     var FontLarge, FontSmall: TFont);
 var
   R: TRectangle;
   ScoreText, LevelText, BlocksText: string;
   TextWidth: Integer;
+  NextY: Integer;
+  FreeMem: LongInt;
+  S: string;
 const
   ScoreY = 25;   { 17 + 8 }
   LevelY = 66;   { 58 + 8 }
   BlocksY = 107; { 99 + 8 }
 begin  
+  NextY := 10;
+
   if (ShowFPS) then
   begin
     { Render FPS counter (top-left, unchanged) }
-    R.X := 10;
+    R.X := NextY;
     R.Y := 10;
     R.Width := 80;
     R.Height := 8;
     CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
     PrintText(10, 10, 'FPS: ' + IntToStr(FPS), 15, BackBuffer);
     AddDirtyRect(R);
+    Inc(NextY, R.Height + 2);
   end;
+
+  if (ShowMem) then
+  begin
+    { Render free memory }
+    R.X := NextY;
+    R.Y := 10;
+    R.Width := 160;
+    R.Height := 8;
+    CopyFrameBufferRect(BackgroundBuffer, R, BackBuffer, R.X, R.Y);
+    FreeMem := MemAvail;
+    Str(FreeMem, S);
+    PrintText(10, NextY, 'Free: ' + S + ' bytes', 15, BackBuffer);
+    AddDirtyRect(R);
+    Inc(NextY, R.Height + 2);
+  end;  
 
   { Render Score number (only if changed) }
   if Score <> LastScore then

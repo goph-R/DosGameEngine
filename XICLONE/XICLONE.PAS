@@ -54,6 +54,7 @@ var
   { Game state }
   Running: Boolean;
   ShowFPS: Boolean;  { Display FPS counter (set via -showfps argument) }
+  ShowMem: Boolean;  { Display free memory }
   Score: LongInt;
   Level: Integer;
   Blocks: Integer;
@@ -83,7 +84,7 @@ begin
 
   { Free fonts }
   FreeFont(FontLarge);
-  { FontSmall already freed after rendering static labels }
+  FreeFont(FontSmall);
 
   { Free images }
   { BackgroundImage already freed after copying to buffer }
@@ -126,7 +127,7 @@ begin
   { Render all game elements to BackBuffer }
   RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
   RenderStack(CurrentStack, LastStackX, LastStackY);
-  RenderHUD(FPS, ShowFPS, Score, Level, Blocks, LastScore, LastLevel, LastBlocks, FontLarge, FontSmall);
+  RenderHUD(FPS, ShowFPS, ShowMem, Score, Level, Blocks, LastScore, LastLevel, LastBlocks, FontLarge, FontSmall);
 
   { Copy dirty regions to screen }
   FlushDirtyRects(BackBuffer);
@@ -361,6 +362,7 @@ var
   Arg: string;
 begin
   ShowFPS := False;  { Default: don't show FPS }
+  ShowMem := False;
 
   { Check each command-line argument }
   for i := 1 to ParamCount do
@@ -368,6 +370,8 @@ begin
     Arg := ParamStr(i);
     if (Arg = '-showfps') or (Arg = '--showfps') then
       ShowFPS := True;
+    if (Arg = '-showmem') or (Arg = '--showmem') then
+      ShowMem := True;
   end;
 end;
 
@@ -416,36 +420,7 @@ procedure InitGame;
 begin
   WriteLn('XICLONE - Initializing...');
 
-  { Create framebuffers }
-  BackBuffer := CreateFrameBuffer;
-  BackgroundBuffer := CreateFrameBuffer;
-
-  { Clear buffers }
-  ClearFrameBuffer(BackBuffer);
-  ClearFrameBuffer(BackgroundBuffer);
-
-  { Load background }
-  if not LoadPCXWithPalette(DataPath + BackgroundFile, BackgroundImage, Palette) then
-  begin
-    WriteLn(PCXLoad.GetLastErrorMessage);
-    Halt(1);
-  end;
-
-  { Load gem sprites }
-  if not LoadPCX(DataPath + GemsFile, GemsImage) then
-  begin
-    WriteLn(PCXLoad.GetLastErrorMessage);
-    Halt(1);
-  end;
-
-  { Copy background image to BackgroundBuffer }
-  PutImage(BackgroundImage, 0, 0, False, BackgroundBuffer);
-
-  { Free background image - we don't need it anymore }
-  FreeImage(BackgroundImage);
-
   { Load fonts }
-  WriteLn('Loading fonts...');
   if not LoadFont(DataPath + FontSmallXML, DataPath + FontSmallImage, FontSmall) then
   begin
     WriteLn('Error loading small font: ', GetLoadFontError);
@@ -458,14 +433,39 @@ begin
     Halt(1);
   end;
 
+  { Create framebuffers }
+  BackBuffer := CreateFrameBuffer;       { 64K }
+  BackgroundBuffer := CreateFrameBuffer; { 64K }
+
+  { Clear buffers }
+  ClearFrameBuffer(BackBuffer);
+  ClearFrameBuffer(BackgroundBuffer);
+
+  { Load background }
+  if not LoadPCXWithPalette(DataPath + BackgroundFile, BackgroundImage, Palette) then
+  begin
+    WriteLn(PCXLoad.GetLastErrorMessage);
+    Halt(1);
+  end;
+
+  { Copy background image to BackgroundBuffer }
+  PutImage(BackgroundImage, 0, 0, False, BackgroundBuffer);
+
+  { Free background image - we don't need it anymore }
+  FreeImage(BackgroundImage);
+
+  { Load gem sprites }
+  if not LoadPCX(DataPath + GemsFile, GemsImage) then
+  begin
+    WriteLn(PCXLoad.GetLastErrorMessage);
+    Halt(1);
+  end;
+
   { Render static labels to background buffer }
   PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall, BackgroundBuffer);
   PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall, BackgroundBuffer);
   PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall, BackgroundBuffer);
   PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall, BackgroundBuffer);
-
-  { Free small font - we only needed it for static labels }
-  FreeFont(FontSmall);
 
   { Copy background to BackBuffer }
   Move(BackgroundBuffer^, BackBuffer^, 64000);
