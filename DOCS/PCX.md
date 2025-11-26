@@ -266,6 +266,5 @@ VGA_B := PCX_B shr 2;
 
 ## See Also
 
-- **[PCX.md](PCX.md)** - Alternative format (GrafX2)
 - **[VGA.md](VGA.md)** - Graphics API reference
 - **[UNITS_REFERENCE.md](UNITS_REFERENCE.md)** - Complete units documentation
