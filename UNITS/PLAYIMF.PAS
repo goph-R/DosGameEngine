@@ -50,6 +50,7 @@ type
     DelayCounter: Word; { Current delay countdown (for debugging) }
     TickAccumulator: LongInt;  { Debug: Timing accumulator }
     TicksPerUpdate: LongInt;   { Debug: Ticks needed per update }
+    OPL2WriteCount: LongInt;   { Debug: Total OPL2 register writes }
 
     { Public methods }
     constructor Init(PlaybackRate: Word);
@@ -79,7 +80,7 @@ function GetLastIMFError: string;
 
 implementation
 
-uses Dos, StrUtil;
+uses Dos, StrUtil, RTCTimer;
 
 const
   OPL2_ADDR_PORT = $388;
@@ -87,16 +88,6 @@ const
 
 var
   LastError: string;
-
-{ Helper function to get BIOS timer ticks (18.2 Hz) }
-function GetBIOSTicks: LongInt;
-var
-  Regs: Registers;
-begin
-  Regs.AH := $00;
-  Intr($1A, Regs);
-  GetBIOSTicks := (LongInt(Regs.CX) shl 16) or Regs.DX;
-end;
 
 { Get last error message }
 function GetLastIMFError: string;
@@ -115,6 +106,7 @@ begin
   DelayCounter := 0;
   LoadedFromFile := False;
   LastError := '';
+  OPL2WriteCount := 0;
 
   { Set playback rate }
   if PlaybackRate = 0 then
@@ -122,11 +114,17 @@ begin
   else
     Rate := PlaybackRate;
 
-  { Calculate ticks per update (BIOS timer is 18.2 Hz) }
-  { TicksPerUpdate = (18.2 * 65536) / Rate }
-  TicksPerUpdate := (1193046 div Rate);
+  { Calculate ticks per update using RTC timer frequency }
+  { TicksPerUpdate = RTC_Freq_Hz / Rate }
+  { Example: If RTC at 1024 Hz and Rate=700, TicksPerUpdate = 1024/700 = 1.46 ticks }
+  { We use fixed-point: multiply by 65536 for precision }
+  if RTC_Freq_Hz > 0 then
+    TicksPerUpdate := (LongInt(RTC_Freq_Hz) * 65536) div Rate
+  else
+    TicksPerUpdate := (1024 * 65536) div Rate;  { Assume 1024 Hz if not initialized }
+
   TickAccumulator := 0;
-  LastTime := GetBIOSTicks;
+  LastTime := RTC_Ticks;
 
   { Initialize OPL2 }
   ResetOPL2;
@@ -367,7 +365,8 @@ begin
   CurrentChunk := 0;
   DelayCounter := 0;
   TickAccumulator := 0;
-  LastTime := GetBIOSTicks;
+  OPL2WriteCount := 0;
+  LastTime := RTC_Ticks;
   Playing := True;
 end;
 
@@ -395,16 +394,16 @@ begin
     Exit;
   end;
 
-  { Calculate time delta }
-  CurrentTime := GetBIOSTicks;
+  { Calculate time delta using RTC timer }
+  CurrentTime := RTC_Ticks;
   DeltaTicks := CurrentTime - LastTime;
   LastTime := CurrentTime;
 
-  { Handle timer wraparound (midnight) }
+  { Handle timer wraparound (wraps every ~24 days at 1024 Hz) }
   if DeltaTicks < 0 then
-    DeltaTicks := DeltaTicks + $1800B0;
+    DeltaTicks := DeltaTicks + $7FFFFFFF;  { Add max LongInt }
 
-  { Accumulate ticks }
+  { Accumulate ticks (multiply by 65536 for fixed-point precision) }
   TickAccumulator := TickAccumulator + (DeltaTicks * 65536);
 
   { Process updates }
@@ -439,33 +438,15 @@ begin
       { Get current chunk }
       with Chunks^[CurrentChunk] do
       begin
-        { Check for end marker }
-        if Delay = 0 then
-        begin
-          { End of music or loop point }
-          if Looping then
-          begin
-            CurrentChunk := 0;
-            DelayCounter := 0;
-          end
-          else
-          begin
-            Playing := False;
-            SilenceOPL2;
-            Exit;
-          end;
-        end
-        else
-        begin
-          { Write register }
-          WriteOPL2(Reg, Data);
+        { Write register }
+        WriteOPL2(Reg, Data);
+        Inc(OPL2WriteCount);
 
-          { Set delay for next chunk }
-          DelayCounter := Delay;
+        { Set delay for next chunk (0 = play immediately) }
+        DelayCounter := Delay;
 
-          { Move to next chunk }
-          Inc(CurrentChunk);
-        end;
+        { Move to next chunk }
+        Inc(CurrentChunk);
       end;
     end;
   end;

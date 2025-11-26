@@ -6,7 +6,7 @@ program IMFTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  Crt, Dos, PlayIMF, Keyboard, TextUI, StrUtil;
+  Crt, Dos, PlayIMF, Keyboard, TextUI, StrUtil, RTCTimer;
 
 var
   Music: IMF_Obj;
@@ -28,6 +28,7 @@ begin
   { Stop music and cleanup }
   Music.Done;
   DoneKeyboard;
+  DoneRTC;
 
   { Restore text mode cursor }
   ShowTextCursor;
@@ -111,43 +112,12 @@ begin
   GotoXY(1, 12);
   Write('Looping: ');
   if Music.Looping then
-    WriteLn('ON ')
+    Write('ON ')
   else
-    WriteLn('OFF');
+    Write('OFF');
 
-  GotoXY(1, 13);
-  WriteLn('Timing Debug:');
   GotoXY(1, 14);
-  Write('  DelayCount: ', Music.DelayCounter, '    ');
-  GotoXY(1, 15);
-  Write('  TickAccum:  ', Music.TickAccumulator, '    ');
-  GotoXY(1, 16);
-  Write('  TicksPer:   ', Music.TicksPerUpdate, '    ');
-  GotoXY(1, 17);
-  if Music.DelayCounter > 0 then
-    WriteLn('  Status: WAITING FOR DELAY    ')
-  else if Music.TickAccumulator >= Music.TicksPerUpdate then
-    WriteLn('  Status: SHOULD PROCESS       ')
-  else
-    WriteLn('  Status: ACCUMULATING         ');
-
-  { Show next chunk to be processed }
-  GotoXY(1, 19);
-  if Music.CurrentChunk < Music.ChunkCount then
-  begin
-    Music.GetChunkData(Music.CurrentChunk, ChunkDelay, ChunkReg, ChunkData);
-    WriteLn('Next chunk [', Music.CurrentChunk, ']: Delay=', ChunkDelay,
-            ' Reg=$', HexStr(ChunkReg, 2), ' Data=$', HexStr(ChunkData, 2), '    ');
-  end
-  else
-    WriteLn('At end of music data                              ');
-
-  GotoXY(1, 21);
-  WriteLn('Controls:');
-  WriteLn('  SPACE - Pause/Resume');
-  WriteLn('  L     - Toggle looping');
-  WriteLn('  R     - Restart music');
-  WriteLn('  ESC   - Exit');
+  Write('Controls: SPACE-Pause/Resume  L-Loop  R-Restart  ESC-Exit');
 end;
 
 begin
@@ -164,6 +134,11 @@ begin
   WriteLn;
   WriteLn('File: ', MusicFile);
   WriteLn('Rate: ', PlaybackRate, ' Hz');
+  WriteLn;
+
+  { Initialize RTC timer for precise timing }
+  InitRTC(1024);  { 1024 Hz - good balance of precision and CPU usage }
+  WriteLn('RTC Timer: ', RTC_Freq_Hz, ' Hz');
   WriteLn;
 
   { Initialize keyboard handler }
@@ -184,47 +159,22 @@ begin
     Halt(1);
   end;
 
-  WriteLn('Loaded successfully!');
-  WriteLn('Chunks loaded: ', Music.ChunkCount);
-  WriteLn('Data size: ', Music.ChunkCount * 4, ' bytes');
+  WriteLn('Loaded: ', Music.ChunkCount, ' chunks (', Music.ChunkCount * 4, ' bytes)');
   WriteLn;
 
-  { Verify data is actually loaded in memory }
-  WriteLn('Data loaded in memory: ', Music.IsDataLoaded);
   if not Music.IsDataLoaded then
   begin
-    WriteLn('ERROR: Data failed to load into memory!');
-    WriteLn('This usually means GetMem failed (out of heap memory)');
+    WriteLn('ERROR: Out of memory!');
     Music.Done;
     DoneKeyboard;
+    DoneRTC;
     Halt(1);
   end;
-  WriteLn;
-
-  { Debug: Show first 3 chunks }
-  WriteLn('First 3 chunks:');
-  for i := 0 to 2 do
-  begin
-    Music.GetChunkData(i, ChunkDelay, ChunkReg, ChunkData);
-    WriteLn('  [', i, '] Delay=', ChunkDelay, ' Reg=$', HexStr(ChunkReg, 2),
-            ' Data=$', HexStr(ChunkData, 2));
-  end;
-  WriteLn;
 
   { Start playback }
   Music.Start;
-
-  WriteLn('Music.Playing = ', Music.Playing);
+  WriteLn('Playing...');
   WriteLn;
-  WriteLn('Timing values:');
-  WriteLn('  TicksPerUpdate = ', Music.TicksPerUpdate);
-  WriteLn('  Rate = ', PlaybackRate, ' Hz');
-  WriteLn;
-  WriteLn('Starting main loop...');
-  WriteLn;
-
-  { Small delay to see the output }
-  Delay(500);
 
   { Hide cursor for cleaner display }
   HideTextCursor;
@@ -263,7 +213,7 @@ begin
     { Small delay to reduce CPU usage }
     { Without this, Poll() is called thousands of times per second }
     { but BIOS timer only updates at 18.2 Hz, so most calls do nothing }
-    Delay(10);
+    { Delay(10);}
   end;
 
   { Cleanup }
