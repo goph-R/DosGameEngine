@@ -4,7 +4,7 @@
 program XICLONE;
 
 uses
-  Crt, VGA, PKMLoad, Keyboard, RTCTimer, VGAPrint, StrUtil;
+  Crt, VGA, PCXLoad, Keyboard, RTCTimer, VGAPrint, StrUtil;
 
 const
   { Data path - all resources are in DATA\ subfolder }
@@ -27,11 +27,11 @@ const
   FastFallSpeed = 160.0;   { 10 tile per second, when holding down }
 
   { Resource filenames }
-  BackgroundFile = 'BG1.PKM';
-  GemsFile = 'GEMS1.PKM';
-  FontLargeImage = 'FONT-LG.PKM';
+  BackgroundFile = 'BG1.PCX';
+  GemsFile = 'GEMS1.PCX';
+  FontLargeImage = 'FONT-LG.PCX';
   FontLargeXML = 'FONT-LG.XML';
-  FontSmallImage = 'FONT-SM.PKM';
+  FontSmallImage = 'FONT-SM.PCX';
   FontSmallXML = 'FONT-SM.XML';
 
   { Next stack preview position }
@@ -932,16 +932,16 @@ begin
   ClearFrameBuffer(BackgroundBuffer);
 
   { Load background }
-  if not LoadPKMWithPalette(DataPath + BackgroundFile, BackgroundImage, Palette) then
+  if not LoadPCXWithPalette(DataPath + BackgroundFile, BackgroundImage, Palette) then
   begin
-    WriteLn(PKMLoad.GetLastErrorMessage);
+    WriteLn(PCXLoad.GetLastErrorMessage);
     Halt(1);
   end;
 
   { Load gem sprites }
-  if not LoadPKM(DataPath + GemsFile, GemsImage) then
+  if not LoadPCX(DataPath + GemsFile, GemsImage) then
   begin
-    WriteLn(PKMLoad.GetLastErrorMessage);
+    WriteLn(PCXLoad.GetLastErrorMessage);
     Halt(1);
   end;
 
