@@ -12,6 +12,10 @@ echo Compiling VGA.PAS...
 tpc VGA.PAS
 if errorlevel 1 goto error
 
+echo Compiling DRECT.PAS...
+tpc DRECT.PAS
+if errorlevel 1 goto error
+
 echo Compiling PCXLOAD.PAS...
 tpc PCXLOAD.PAS
 if errorlevel 1 goto error
@@ -32,8 +36,28 @@ echo Compiling STRUTIL.PAS...
 tpc STRUTIL.PAS
 if errorlevel 1 goto error
 
-echo Compiling XICLONE.PAS...
+echo Compiling MINIXML.PAS...
+tpc MINIXML.PAS
+if errorlevel 1 goto error
+
+echo Compiling VGAFONT.PAS...
+tpc VGAFONT.PAS
+if errorlevel 1 goto error
+
+echo Compiling XITYPES.PAS...
 cd ..\XICLONE
+tpc XITYPES.PAS
+if errorlevel 1 goto error
+
+echo Compiling XILOGIC.PAS...
+tpc -U..\UNITS XILOGIC.PAS
+if errorlevel 1 goto error
+
+echo Compiling XIRENDER.PAS...
+tpc -U..\UNITS XIRENDER.PAS
+if errorlevel 1 goto error
+
+echo Compiling XICLONE.PAS...
 tpc -U..\UNITS XICLONE.PAS
 if errorlevel 1 goto error
 
