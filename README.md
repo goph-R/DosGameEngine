@@ -85,10 +85,9 @@ IMGTEST.EXE
 - **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
 
 **Formats:**
-- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, primary format)
+- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, GrafX2)
 - **[HSC.md](DOCS/HSC.md)** - HSC music format (demoscene tracker)
-- **[IMF.md](DOCS/IMF.md)** - IMF music format (Wolfenstein 3D, Commander Keen)
-- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (uses PCX tilesets)
+- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
 
 **APIs:**
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
@@ -106,7 +105,7 @@ IMGTEST.EXE
 - **VGA.PAS**: VGA Mode 13h (320×200 256-color)
   - double-buffering
   - palette control (0-63 RGB)
-- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP-compatible)
+- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
   - `Blocks` collision layer (loads a block map)
@@ -117,7 +116,6 @@ IMGTEST.EXE
 
 ### Audio
 - **PLAYHSC.PAS**: HSC music player (Adlib/OPL2, interrupt-based)
-- **PLAYIMF.PAS**: IMF music player (Id Software format, polling-based)
 - **SNDBANK.PAS**: XMS sound bank, VOC files (8-bit PCM 11-44kHz, DMA-safe buffers)
 - **SBDSP.PAS**: SoundBlaster driver
 
@@ -144,18 +142,20 @@ IMGTEST.EXE
 
 ```
 D:\ENGINE\
-├── UNITS\          Core engine (VGA, SBDSP, Keyboard, Mouse, XML, Sprite, etc.)
+├── DATA\           Sample assets (PCX, VOC, HSC, TMX, fonts)
+├── DOCS\           Documentation (see links above)
 ├── TESTS\          Test programs (IMGTEST, TMXTEST, SPRTEST, FNTTEST, etc.)
 ├── SETUP\          Basic setup utility (currently for Sound card setup)
-├── DATA\           Sample assets (PKM, VOC, HSC, TMX, fonts)
-├── DOCS\           Documentation (see links above)
-└── VENDOR\         Third-party libraries (credits only)
+├── UNITS\          Core engine (VGA, SBDSP, Keyboard, Mouse, XML, Sprite, etc.)
+├── VENDOR\         Third-party libraries (credits only)
+└── XICLONE\        Example game project, Columns/Xixit clone
 ```
 
 ## 🎨 Creating Assets
 
-**Images (PCX):**
+**PCX Images:**
 - **Aseprite** (recommended): File → Export → .pcx (8-bit indexed color mode)
+- **GrafX2** (good palette handling): File → Save → .pcx
 - **GIMP**: Image → Mode → Indexed (256 colors) → Export as PCX
 - **Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
 - Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
