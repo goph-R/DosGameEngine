@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Logger;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -39,10 +39,37 @@ type
   end;
 
 { ========================================================================== }
-{ Forward Declarations                                                       }
+{ UI Style and Theming                                                       }
 { ========================================================================== }
 
 type
+  { TUIStyle must be declared before TWidget since TWidget.Render uses PUIStyle }
+  { RenderPanel is virtual to allow custom rendering styles }
+  { Example of custom style:
+      TMyStyle = object(TUIStyle)
+        procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FB: PFrameBuffer); virtual;
+      end;
+
+    Then in your code:
+      var MyStyle: TMyStyle;
+      TMyStyle.Init(MyStyle, 15, 7, 8, 14);
+      UIManager.SetStyle(MyStyle);  }
+  TUIStyle = object
+    HighColor: Byte;      { Light edge color (highlight) }
+    NormalColor: Byte;    { Middle/fill color }
+    LowColor: Byte;       { Dark edge color (shadow) }
+    FocusColor: Byte;     { Border color for focused widgets (palette animated) }
+
+    constructor Init(High, Normal, Low, Focus: Byte);
+    procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FrameBuffer: PFrameBuffer); virtual;
+  end;
+
+  PUIStyle = ^TUIStyle;
+
+{ ========================================================================== }
+{ Base Widget Type                                                           }
+{ ========================================================================== }
+
   TWidget = object
     Rectangle: TRectangle;
     Visible: Boolean;
@@ -54,7 +81,7 @@ type
     constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
+    procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
 
@@ -63,23 +90,6 @@ type
 {$F+}  { Far call for procedure pointer compatibility }
   TEventHandler = procedure(var Widget: TWidget; var Event: TEvent);
 {$F-}
-
-{ ========================================================================== }
-{ UI Style and Theming                                                       }
-{ ========================================================================== }
-
-type
-  TUIStyle = object
-    HighColor: Byte;      { Light edge color (highlight) }
-    NormalColor: Byte;    { Middle/fill color }
-    LowColor: Byte;       { Dark edge color (shadow) }
-    FocusColor: Byte;     { Border color for focused widgets (palette animated) }
-
-    procedure Init(High, Normal, Low, Focus: Byte);
-    procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FrameBuffer: PFrameBuffer); virtual;
-  end;
-
-  PUIStyle = ^TUIStyle;
 
 { ========================================================================== }
 { Widget Types                                                               }
@@ -93,7 +103,7 @@ type
 
     constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
-    procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
+    procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
 
@@ -108,7 +118,7 @@ type
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
+    procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
 
@@ -129,7 +139,7 @@ type
     procedure SetChecked(Value: Boolean);
     function IsChecked: Boolean;
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
+    procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
 
@@ -148,7 +158,7 @@ type
     function GetText: string;
     procedure Clear;
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
+    procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     procedure Update(DeltaTime: Real);
     destructor Done; virtual;
   end;
@@ -188,7 +198,7 @@ implementation
 { TUIStyle Implementation                                                    }
 { ========================================================================== }
 
-procedure TUIStyle.Init(High, Normal, Low, Focus: Byte);
+constructor TUIStyle.Init(High, Normal, Low, Focus: Byte);
 begin
   HighColor := High;
   NormalColor := Normal;
@@ -201,18 +211,18 @@ begin
   if Pressed then
   begin
     { Sunken: dark top-left, light bottom-right }
-    DrawLine(R.X, R.Y, R.X + R.Width - 1, R.Y, LowColor, FrameBuffer);  { Top }
-    DrawLine(R.X, R.Y, R.X, R.Y + R.Height - 1, LowColor, FrameBuffer); { Left }
-    DrawLine(R.X + R.Width - 1, R.Y, R.X + R.Width - 1, R.Y + R.Height - 1, HighColor, FrameBuffer); { Right }
-    DrawLine(R.X, R.Y + R.Height - 1, R.X + R.Width - 1, R.Y + R.Height - 1, HighColor, FrameBuffer); { Bottom }
+    DrawHLine(R.X, R.Y, R.Width, LowColor, FrameBuffer);                      { Top }
+    DrawVLine(R.X, R.Y, R.Height, LowColor, FrameBuffer);                     { Left }
+    DrawVLine(R.X + R.Width - 1, R.Y, R.Height, HighColor, FrameBuffer);      { Right }
+    DrawHLine(R.X, R.Y + R.Height - 1, R.Width, HighColor, FrameBuffer);      { Bottom }
   end
   else
   begin
     { Raised: light top-left, dark bottom-right }
-    DrawLine(R.X, R.Y, R.X + R.Width - 1, R.Y, HighColor, FrameBuffer);  { Top }
-    DrawLine(R.X, R.Y, R.X, R.Y + R.Height - 1, HighColor, FrameBuffer); { Left }
-    DrawLine(R.X + R.Width - 1, R.Y, R.X + R.Width - 1, R.Y + R.Height - 1, LowColor, FrameBuffer); { Right }
-    DrawLine(R.X, R.Y + R.Height - 1, R.X + R.Width - 1, R.Y + R.Height - 1, LowColor, FrameBuffer); { Bottom }
+    DrawHLine(R.X, R.Y, R.Width, HighColor, FrameBuffer);                     { Top }
+    DrawVLine(R.X, R.Y, R.Height, HighColor, FrameBuffer);                    { Left }
+    DrawVLine(R.X + R.Width - 1, R.Y, R.Height, LowColor, FrameBuffer);       { Right }
+    DrawHLine(R.X, R.Y + R.Height - 1, R.Width, LowColor, FrameBuffer);       { Bottom }
   end;
 end;
 
@@ -245,7 +255,7 @@ begin
     TEventHandler(EventHandler)(Self, Event);
 end;
 
-procedure TWidget.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
+procedure TWidget.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 begin
   { Abstract - must be overridden }
 end;
@@ -281,7 +291,7 @@ begin
   end;
 end;
 
-procedure TLabel.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
+procedure TLabel.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 begin
   if not Visible then Exit;
   PrintFontText(Rectangle.X, Rectangle.Y, Text^, Font^, FrameBuffer);
@@ -331,7 +341,7 @@ begin
   end;
 end;
 
-procedure TButton.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
+procedure TButton.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   TextWidth: Integer;
   TextX, TextY: Integer;
@@ -339,11 +349,11 @@ var
 begin
   if not Visible then Exit;
 
-  { Render 3D panel - draw filled rectangle for background }
-  DrawFillRect(Rectangle, NormalColor, FrameBuffer);
+  { Render background }
+  DrawFillRect(Rectangle, Style^.NormalColor, FrameBuffer);
 
-  { Draw simple border }
-  DrawRect(Rectangle, HighColor, FrameBuffer);
+  { Render 3D panel border using shared style instance }
+  Style^.RenderPanel(Rectangle, Pressed, FrameBuffer);
 
   { Render centered text }
   if (Text <> nil) and (Font <> nil) then
@@ -361,7 +371,7 @@ begin
     FocusRect.Y := Rectangle.Y - 1;
     FocusRect.Width := Rectangle.Width + 2;
     FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, FocusColor, FrameBuffer);
+    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
   end;
 end;
 
@@ -428,10 +438,10 @@ begin
   end;
 end;
 
-procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
+procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   SrcRect: TRectangle;
-  TextX: Integer;
+  TextX, TextY: Integer;
   FocusRect: TRectangle;
 begin
   if not Visible then Exit;
@@ -447,9 +457,10 @@ begin
 
   PutImageRect(Image^, SrcRect, Rectangle.X, Rectangle.Y, True, FrameBuffer);
 
-  { Render text }
+  { Render text vertically centered }
   TextX := Rectangle.X + ImageWidth + 4;
-  PrintFontText(TextX, Rectangle.Y, Text^, Font^, FrameBuffer);
+  TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
+  PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
 
   { Render focus border if focused }
   if Focused then
@@ -458,7 +469,7 @@ begin
     FocusRect.Y := Rectangle.Y - 1;
     FocusRect.Width := Rectangle.Width + 2;
     FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, FocusColor, FrameBuffer);
+    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
   end;
 end;
 
@@ -566,7 +577,7 @@ begin
   end;
 end;
 
-procedure TLineEdit.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
+procedure TLineEdit.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   TextX, TextY: Integer;
   DisplayText: string;
@@ -577,9 +588,11 @@ var
 begin
   if not Visible then Exit;
 
-  { Render background panel }
-  DrawFillRect(Rectangle, LowColor, FrameBuffer);
-  DrawRect(Rectangle, HighColor, FrameBuffer);
+  { Render background }
+  DrawFillRect(Rectangle, Style^.LowColor, FrameBuffer);
+
+  { Render sunken 3D panel border using shared style instance (text input fields are sunken) }
+  Style^.RenderPanel(Rectangle, True, FrameBuffer);
 
   { Safety check }
   if (Text = nil) or (Font = nil) then Exit;
@@ -608,7 +621,7 @@ begin
   if Focused and CursorVisible then
   begin
     CursorX := TextX + GetTextWidth(DisplayText, Font^);
-    DrawLine(CursorX, TextY, CursorX, TextY + Font^.Height - 1, FocusColor, FrameBuffer);
+    DrawVLine(CursorX, TextY, Font^.Height, Style^.FocusColor, FrameBuffer);
   end;
 
   { Render focus border if focused }
@@ -618,7 +631,7 @@ begin
     FocusRect.Y := Rectangle.Y - 1;
     FocusRect.Width := Rectangle.Width + 2;
     FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, FocusColor, FrameBuffer);
+    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
   end;
 end;
 
@@ -652,7 +665,8 @@ begin
   FocusedWidget := nil;
   BackBuffer := FrameBuffer;
 
-  { Initialize default style }
+  { Initialize default style with VMT }
+  { Calling constructor on instance variable initializes VMT + fields }
   Style.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
 end;
 
@@ -802,7 +816,7 @@ begin
   begin
     Widget := PWidget(Node^.Value);
     if Widget^.Visible then
-      Widget^.Render(Self.BackBuffer, Style.HighColor, Style.NormalColor, Style.LowColor, Style.FocusColor);
+      Widget^.Render(Self.BackBuffer, @Self.Style);
     Node := Node^.Next;
   end;
 end;

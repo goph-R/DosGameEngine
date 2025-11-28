@@ -45,6 +45,8 @@ procedure WaitForVSync;
 
 { Drawing primitives }
 procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+procedure DrawHLine(X, Y, Width: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+procedure DrawVLine(X, Y, Height: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
 procedure DrawFillRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer);
 procedure DrawRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer);
 
@@ -65,14 +67,22 @@ var
   OldMode: byte;
   ClipRectangle: TRectangle;  { Global clipping bounds }
 
-procedure InitVGA; assembler;
- asm
-  mov ax, 0f00h
-  int 10h
-  mov OldMode, al
+procedure InitVGA;
+begin
+  asm
+    mov ax, 0f00h
+    int 10h
+    mov OldMode, al
 
-  mov ax, 13h
-  int 10h
+    mov ax, 13h
+    int 10h
+  end;
+
+  { Initialize default clipping rectangle to full screen }
+  ClipRectangle.X := 0;
+  ClipRectangle.Y := 0;
+  ClipRectangle.Width := 320;
+  ClipRectangle.Height := 200;
 end;
 
 procedure SetClipRectangle(X, Y: Integer; Width, Height: Word);
@@ -410,6 +420,80 @@ begin
       err := err + dx;
       Y1 := Y1 + sy;
     end;
+  end;
+end;
+
+procedure DrawHLine(X, Y, Width: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+{ Draws a horizontal line with clipping - optimized assembly version }
+var
+  X1, X2: Integer;
+  ClipX2: Integer;
+  Offset: Word;
+  DrawWidth: Integer;
+begin
+  { Early exit if Width is zero or negative }
+  if Width <= 0 then Exit;
+
+  { Early exit if Y is outside clip bounds }
+  if (Y < ClipRectangle.Y) or (Y >= ClipRectangle.Y + Integer(ClipRectangle.Height)) then
+    Exit;
+
+  { Calculate line end points }
+  X1 := X;
+  X2 := X + Width - 1;
+
+  { Calculate clip bounds }
+  ClipX2 := ClipRectangle.X + Integer(ClipRectangle.Width) - 1;
+
+  { Clip X coordinates }
+  if X1 < ClipRectangle.X then X1 := ClipRectangle.X;
+  if X2 > ClipX2 then X2 := ClipX2;
+
+  { Check if completely clipped }
+  if X1 > X2 then Exit;
+
+  { Calculate offset and width }
+  DrawWidth := X2 - X1 + 1;
+  Offset := Word(Y) * 320 + Word(X1);
+
+  { Draw line using FillChar (fast memory fill) }
+  FillChar(FrameBuffer^[Offset], DrawWidth, Color);
+end;
+
+procedure DrawVLine(X, Y, Height: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+{ Draws a vertical line with clipping }
+var
+  Y1, Y2: Integer;
+  ClipY2: Integer;
+  Row: Integer;
+  Offset: Word;
+begin
+  { Early exit if Height is zero or negative }
+  if Height <= 0 then Exit;
+
+  { Early exit if X is outside clip bounds }
+  if (X < ClipRectangle.X) or (X >= ClipRectangle.X + Integer(ClipRectangle.Width)) then
+    Exit;
+
+  { Calculate line end points }
+  Y1 := Y;
+  Y2 := Y + Height - 1;
+
+  { Calculate clip bounds }
+  ClipY2 := ClipRectangle.Y + Integer(ClipRectangle.Height) - 1;
+
+  { Clip Y coordinates }
+  if Y1 < ClipRectangle.Y then Y1 := ClipRectangle.Y;
+  if Y2 > ClipY2 then Y2 := ClipY2;
+
+  { Check if completely clipped }
+  if Y1 > Y2 then Exit;
+
+  { Draw vertical line pixel by pixel }
+  for Row := Y1 to Y2 do
+  begin
+    Offset := Word(Row) * 320 + Word(X);
+    FrameBuffer^[Offset] := Color;
   end;
 end;
 
