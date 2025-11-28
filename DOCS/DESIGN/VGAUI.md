@@ -16,6 +16,26 @@ Lightweight widget-based UI framework for DOS VGA Mode 13h. Keyboard-driven navi
 
 ## Core Types
 
+### TUIStyle
+```pascal
+TUIStyle = object
+  HighColor: Byte;      { Light color for raised panels }
+  NormalColor: Byte;    { Medium color for flat panels }
+  LowColor: Byte;       { Dark color for pressed panels }
+  FocusColor: Byte;     { Border color for focused widgets (palette animated) }
+
+  procedure Init(High, Normal, Low, Focus: Byte);
+  procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FrameBuffer: PFrameBuffer); virtual;
+end;
+```
+
+**Design Notes:**
+- Provides consistent theming across all widgets
+- `RenderPanel` draws 3D-style panels (raised when Pressed=False, sunken when Pressed=True)
+- Virtual method allows custom panel rendering styles
+- Default colors: High=15 (white), Normal=7 (light gray), Low=8 (dark gray), Focus=14 (yellow)
+- Focus color animated via palette rotation for fade in/out effect
+
 ### TEventType
 ```pascal
 TEventType = (
@@ -72,9 +92,8 @@ end;
 TLabel = object(TWidget)
   Text: PShortString;   { Pointer to avoid large stack usage }
   Font: PFont;          { Pointer to loaded font }
-  Color: Byte;          { Text color }
 
-  procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; TextColor: Byte);
+  procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
   procedure SetText(const NewText: string);
   procedure Render(FrameBuffer: PFrameBuffer); virtual;
   procedure Done; virtual;
@@ -83,7 +102,7 @@ end;
 
 **Behavior:**
 - Non-interactive (cannot receive focus)
-- Renders text at position using VGAFont
+- Renders text at position using VGAFont (font image determines colors)
 - Auto-calculates width from text + font metrics
 - Height from font.Height
 
@@ -92,9 +111,6 @@ end;
 TButton = object(TWidget)
   Text: PShortString;
   Font: PFont;
-  NormalColor: Byte;    { Text color when not focused }
-  FocusColor: Byte;     { Text color when focused }
-  BorderColor: Byte;    { Rectangle border color }
 
   procedure Init(X, Y: Integer; W, H: Word; const TextStr: string;
                  FontPtr: PFont);
@@ -108,9 +124,9 @@ end;
 **Behavior:**
 - Interactive (can receive focus)
 - Renders border (DrawRect) + centered text
-- Focused: highlighted border + different text color
+- Focused: border drawn with UIManager.Style.FocusColor (palette animated for fade effect)
 - Responds to Enter/Space: fires EventHandler with Event_KeyPress
-- Default colors: Normal=15 (white), Focus=14 (yellow), Border=7 (light gray)
+- Text color determined by font image (no runtime color changes)
 
 ### TCheckbox
 ```pascal
@@ -121,8 +137,6 @@ TCheckbox = object(TWidget)
   ImageWidth: Word;     { Width of single checkbox image }
   ImageHeight: Word;    { Height of single checkbox image }
   Checked: Boolean;     { Current state }
-  TextColor: Byte;
-  FocusColor: Byte;
 
   procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
                  CheckboxImage: PImage; ImgW, ImgH: Word);
@@ -138,9 +152,10 @@ end;
 **Behavior:**
 - Interactive (can receive focus)
 - Renders checkbox image (unchecked row 0, checked row 1 of sprite) + text
-- Focused: text color changes
+- Focused: border drawn around entire widget with UIManager.Style.FocusColor (palette animated)
 - Responds to Space: toggles Checked state, fires EventHandler
 - Layout: [Image] Text (image on left, text on right with 4px gap)
+- Text color determined by font image
 
 **Image Format:**
 ```
@@ -156,9 +171,6 @@ TLineEdit = object(TWidget)
   Text: PShortString;
   Font: PFont;
   MaxLength: Byte;      { Maximum characters (1-255) }
-  NormalColor: Byte;    { Text color when not focused }
-  FocusColor: Byte;     { Text color when focused }
-  BorderColor: Byte;    { Rectangle border color }
   CursorVisible: Boolean; { Blinking cursor state }
   CursorTimer: Real;    { For cursor blink animation }
 
@@ -176,6 +188,7 @@ end;
 **Behavior:**
 - Interactive (can receive focus)
 - Renders border (DrawRect) + text + blinking cursor
+- Focused: border drawn with UIManager.Style.FocusColor (palette animated)
 - Cursor always at end of text (no navigation)
 - Responds to:
   - **Printable keys (A-Z, 0-9, Space, etc.)**: Append character if Length < MaxLength
@@ -183,7 +196,7 @@ end;
   - **Enter**: Fires EventHandler (for "submit" behavior)
 - Cursor blinks every 0.5 seconds when focused
 - Text auto-scrolls left if wider than widget width
-- Default colors: Normal=15 (white), Focus=14 (yellow), Border=7 (gray)
+- Text color determined by font image
 
 **Character Input:**
 - Use KEYBOARD.PAS scancodes + shift state to convert to ASCII
@@ -211,6 +224,7 @@ TUIManager = object
   Widgets: TLinkedList;      { From LINKLIST.PAS }
   FocusedWidget: PWidget;    { Currently focused widget (nil if none) }
   BackBuffer: PFrameBuffer;  { Target framebuffer for rendering }
+  Style: TUIStyle;           { Theme/style for all widgets }
 
   procedure Init(FrameBuffer: PFrameBuffer);
   procedure AddWidget(Widget: PWidget);
@@ -220,6 +234,7 @@ TUIManager = object
   procedure FocusPrev;       { Shift+Tab: move focus to previous }
   procedure HandleEvent(var Event: TEvent);
   procedure RenderAll;       { Render all visible widgets }
+  procedure SetStyle(High, Normal, Low, Focus: Byte); { Configure theme colors }
   procedure Done;
 end;
 ```
@@ -229,6 +244,34 @@ end;
 - Tab/Shift+Tab cycles through enabled widgets
 - Focus order = order added to list (insertion order)
 - Labels cannot receive focus (Enabled = False by default)
+- Focus indicated by border (DrawRect) using Style.FocusColor
+- Focus color can be palette animated externally for fade in/out effect
+
+## Focus Animation
+
+**Palette Animation for Focus:**
+- Focus border color (UIManager.Style.FocusColor) can be animated via palette rotation
+- Use VGA.PAS `RotatePalette` to fade the focus color in/out for pulsing effect
+- Animation handled externally in main loop (not inside VGAUI)
+- Typical implementation: fade between two brightness levels every 0.3-0.5 seconds
+
+**Example Animation:**
+```pascal
+{ In main loop }
+FocusFadeTimer := FocusFadeTimer + DeltaTime;
+if FocusFadeTimer > 0.4 then
+begin
+  FocusFadeTimer := 0;
+  { Rotate palette index 14 between bright yellow and dim yellow }
+  RotatePalette(14, 1, 1);  { Pseudo-code for palette cycling }
+end;
+```
+
+**Benefits:**
+- Smooth visual feedback without redrawing widgets
+- Hardware-accelerated (VGA palette registers)
+- Works on 8MHz 286 without performance impact
+- No per-frame rendering cost
 
 ## Event Flow
 
@@ -384,8 +427,9 @@ end;
 
 ### Phase 1: Core Types
 1. TEvent, TEventType, TEventHandler types
-2. TWidget base object (Init, HandleEvent, Done)
-3. Basic pointer types (PWidget, PLabel, PButton, PCheckbox, PLineEdit)
+2. TUIStyle object (Init, RenderPanel)
+3. TWidget base object (Init, HandleEvent, Done)
+4. Basic pointer types (PWidget, PLabel, PButton, PCheckbox, PLineEdit, PUIStyle)
 
 ### Phase 2: TLabel
 1. Implement TLabel.Init/Done (string allocation)
@@ -413,11 +457,12 @@ end;
 6. Test text input, max length, scrolling
 
 ### Phase 6: UI Manager
-1. Implement TUIManager.Init/Done
-2. Implement AddWidget/RemoveWidget (LinkList operations)
-3. Implement SetFocus/FocusNext/FocusPrev
-4. Implement HandleEvent (dispatch to focused widget)
-5. Implement RenderAll
+1. Implement TUIManager.Init/Done (initialize default Style)
+2. Implement SetStyle (configure theme colors)
+3. Implement AddWidget/RemoveWidget (LinkList operations)
+4. Implement SetFocus/FocusNext/FocusPrev
+5. Implement HandleEvent (dispatch to focused widget)
+6. Implement RenderAll
 
 ### Phase 7: Testing
 1. Create UITEST.PAS with all widget types
@@ -460,10 +505,11 @@ begin
 
   { Initialize UI }
   UI.Init(BackBuffer);
+  UI.SetStyle(15, 7, 8, 14);  { High=white, Normal=gray, Low=dark gray, Focus=yellow }
 
   { Create widgets }
   New(TitleLabel);
-  TitleLabel^.Init(100, 20, 'Main Menu', @Font, 15);
+  TitleLabel^.Init(100, 20, 'Main Menu', @Font);
   UI.AddWidget(TitleLabel);
 
   New(PlayButton);
@@ -565,7 +611,7 @@ end;
 - Clipping support for scrollable containers
 - Z-order management (bring to front)
 - Modal dialogs
-- Themes/skins
+- Custom TUIStyle subclasses for advanced themes
 
 ## Testing Strategy
 
