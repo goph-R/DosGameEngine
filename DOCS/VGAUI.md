@@ -13,9 +13,7 @@ Lightweight widget-based UI framework for DOS VGA graphics. Provides keyboard-dr
 - [UI Manager](#ui-manager)
 - [Theming](#theming)
 - [Memory Management](#memory-management)
-- [Complete Examples](#complete-examples)
-- [Best Practices](#best-practices)
-- [Performance](#performance)
+- [Complete Example](#complete-example)
 
 ## Overview
 
@@ -24,7 +22,7 @@ Lightweight widget-based UI framework for DOS VGA graphics. Provides keyboard-dr
 **Key Features:**
 - Object-oriented widget hierarchy with virtual methods
 - Event-driven architecture with procedure pointer callbacks
-- Keyboard-only navigation (Tab, arrows, Enter, Space)
+- Keyboard-only navigation (Tab, arrows, Enter/Space)
 - Focus management with visual feedback
 - 3D beveled panel theming (Windows 3.1/95-style)
 - Constructor/destructor pattern for proper VMT initialization
@@ -36,126 +34,6 @@ Lightweight widget-based UI framework for DOS VGA graphics. Provides keyboard-dr
 - LINKLIST.PAS - widget storage
 - GENTYPES.PAS - generic types (PShortString)
 
-## Quick Start
-
-```pascal
-program SimpleMenu;
-uses VGA, VGAFont, VGAUI, Keyboard, RTCTimer;
-
-var
-  BackBuffer: PFrameBuffer;
-  UI: TUIManager;
-  Style: TUIStyle;
-  Font: TFont;
-  PlayButton: PButton;
-  QuitButton: PButton;
-  Running: Boolean;
-  Last, Cur: Real;
-  Delta: LongInt;
-
-{$F+}
-procedure OnPlayClick(var Widget: TWidget; var Event: TEvent);
-begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    WriteLn('Play button clicked!');
-    Running := False;
-    Event.Handled := True;
-  end;
-end;
-
-procedure OnQuitClick(var Widget: TWidget; var Event: TEvent);
-begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    WriteLn('Quit button clicked!');
-    Running := False;
-    Event.Handled := True;
-  end;
-end;
-{$F-}
-
-begin
-  { Initialize graphics }
-  InitVGA;
-  BackBuffer := CreateFrameBuffer;
-  ClearFrameBuffer(BackBuffer, 0);
-
-  { Load font }
-  LoadFont('DATA\FONT.XML', 'DATA\FONT.PCX', Font);
-
-  { Initialize UI with style }
-  UI.Init(BackBuffer);
-  Style.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
-  UI.SetStyle(Style);
-
-  { Create buttons - MUST use constructor syntax }
-  New(PlayButton, Init(100, 80, 120, 24, 'Play Game', @Font));
-  PlayButton^.SetEventHandler(@OnPlayClick);
-  UI.AddWidget(PlayButton);
-
-  New(QuitButton, Init(100, 120, 120, 24, 'Quit', @Font));
-  QuitButton^.SetEventHandler(@OnQuitClick);
-  UI.AddWidget(QuitButton);
-
-  { Focus first button }
-  UI.SetFocus(PlayButton);
-
-  { Main loop with DeltaTime }
-  InitKeyboard;
-  InitRTC(1024);
-  Running := True;
-  Last := GetTimeSeconds;
-
-  while Running do
-  begin
-    { Calculate delta time }
-    Cur := GetTimeSeconds;
-    Delta := Round((Cur - Last) * 1000);
-    Last := Cur;
-
-    { Handle Tab navigation }
-    if IsKeyPressed(Key_Tab) then
-      UI.FocusNext;
-
-    { Dispatch keyboard events }
-    UI.DispatchKeyboardEvents;
-
-    { Update and render }
-    UI.Update(Delta);
-    ClearFrameBuffer(BackBuffer, 0);
-    UI.RenderAll;
-    RenderFrameBuffer(BackBuffer);
-
-    { Clear pressed keys }
-    ClearKeyPressed;
-
-    { Exit on ESC }
-    if IsKeyDown(Key_Escape) then
-      Running := False;
-  end;
-
-  { Cleanup }
-  UI.RemoveWidget(PlayButton);
-  Dispose(PlayButton, Done);
-  UI.RemoveWidget(QuitButton);
-  Dispose(QuitButton, Done);
-  UI.Done;
-  DoneKeyboard;
-  DoneRTC;
-  FreeFont(Font);
-  FreeFrameBuffer(BackBuffer);
-  CloseVGA;
-end.
-```
-
-**Run:**
-```bash
-cd TESTS
-tpc -U..\UNITS SIMPLEMENU.PAS
-SIMPLEMENU.EXE
-```
-
 ## Architecture
 
 ```
@@ -165,6 +43,7 @@ SIMPLEMENU.EXE
 │  - FocusedWidget: PWidget               │
 │  - Style: TUIStyle                      │
 │  - BackBuffer: PFrameBuffer             │
+│  - BackgroundBuffer: PFrameBuffer       │
 └─────────────────────────────────────────┘
                │ manages
                ▼
@@ -185,15 +64,15 @@ SIMPLEMENU.EXE
 ```
 Keyboard Input (KEYBOARD.PAS)
          ↓
-   Game/App Code
+Game/App Code
          ↓
-   UI.DispatchKeyboardEvents
+UI.DispatchKeyboardEvents
          ↓
-   UI.HandleEvent
+UI.HandleEvent
          ↓
-   FocusedWidget.HandleEvent
+FocusedWidget.HandleEvent
          ↓
-   Widget's EventHandler (if set)
+Widget's EventHandler (if set)
 ```
 
 ## Core Types
@@ -413,8 +292,7 @@ TCheckbox = object(TWidget)
   ImageHeight: Word;    { Height of single checkbox image }
   Checked: Boolean;     { Current state }
 
-  constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
-                   CheckboxImage: PImage; ImgW, ImgH: Word);
+  constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
   procedure SetText(const NewText: string);
   procedure SetChecked(Value: Boolean);
   function IsChecked: Boolean;
@@ -428,7 +306,7 @@ end;
 - Interactive (can receive focus)
 - Renders checkbox image + text (layout: [Image] Text)
 - Focused: yellow border around entire widget
-- Responds to Space ($39): toggles Checked state
+- Responds to Enter or Space: toggles Checked state
 - Fires EventHandler on toggle
 
 **Image Format:**
@@ -459,12 +337,12 @@ begin
 end;
 {$F-}
 
-var CheckboxImage: TImage;
-    SoundCheckbox: PCheckbox;
+var
+  CheckboxImage: TImage;
+  SoundCheckbox: PCheckbox;
 begin
   LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage);
-  New(SoundCheckbox, Init(100, 100, 'Sound Effects', @Font,
-                          @CheckboxImage, 16, 16));
+  New(SoundCheckbox, Init(100, 100, 'Sound Effects', @Font, @CheckboxImage));
   SoundCheckbox^.SetEventHandler(@OnSoundToggle);
   UI.AddWidget(SoundCheckbox);
 end;
@@ -521,7 +399,7 @@ begin
     PlayerName := Input^.GetText;
     if Length(PlayerName) > 0 then
     begin
-      WriteLn('Player name: ', PlayerName);
+      { Do something with the `PlayerName` here}
       Event.Handled := True;
     end;
   end;
@@ -613,38 +491,20 @@ end;
 
 **Focus Order:**
 - Only one widget can have focus at a time
-- Tab/Shift+Tab cycles through enabled widgets
 - Arrow keys focus nearest widget in direction
 - Focus order = insertion order (order widgets added)
 - Labels cannot receive focus (Enabled = False)
 
 **Navigation Keys:**
-- **Tab**: FocusNext (cycles forward)
-- **Shift+Tab**: FocusPrev (cycles backward, must implement manually)
 - **Arrow Keys**: FocusInDirection (geometric navigation)
-
-**Example:**
-```pascal
-{ In main loop }
-if IsKeyPressed(Key_Tab) then
-begin
-  if IsKeyDown(Key_LShift) or IsKeyDown(Key_RShift) then
-    UI.FocusPrev
-  else
-    UI.FocusNext;
-end;
-
-{ Or use DispatchKeyboardEvents (includes Tab) }
-UI.DispatchKeyboardEvents;  { Handles Tab, Enter, Space, arrows }
-```
 
 ### Rendering
 
 **Render Order:**
 - Widgets render in insertion order (first added = back, last added = front)
-- Only visible widgets render
+- Only visible widgets render, and on RenderDirty case only dirty
 - Each widget renders to BackBuffer
-- Caller must call RenderFrameBuffer(BackBuffer) after UI.RenderAll
+- Caller must call RenderFrameBuffer(BackBuffer) after UI.RenderDirty / UI.RenderAll
 
 **Example:**
 ```pascal
@@ -652,46 +512,17 @@ UI.DispatchKeyboardEvents;  { Handles Tab, Enter, Space, arrows }
 while Running do
 begin
   { Update }
-  UI.Update(DeltaTime);
+  UI.Update(DeltaTime); { DeltaTime is in milliseconds }
 
-  { Clear and render }
-  ClearFrameBuffer(BackBuffer, 0);
-  UI.RenderAll;
+  { Render only changes}
+  UI.RenderDirty;
+
+  { Copy BackBuffer to the screen memory }
   RenderFrameBuffer(BackBuffer);
 
   ClearKeyPressed;
 end;
 ```
-
-### DispatchKeyboardEvents
-
-Convenience method that checks all keyboard scancodes and dispatches events.
-
-```pascal
-procedure TUIManager.DispatchKeyboardEvents;
-{ Checks scancodes 1-127 and dispatches Event_KeyPress }
-```
-
-**Usage:**
-```pascal
-{ Instead of manually checking keys: }
-if IsKeyPressed(Key_Enter) then
-begin
-  Event.EventType := Event_KeyPress;
-  Event.KeyCode := Key_Enter;
-  Event.Handled := False;
-  UI.HandleEvent(Event);
-end;
-
-{ Just call: }
-UI.DispatchKeyboardEvents;  { Handles all keys automatically }
-```
-
-**Handles:**
-- All keyboard scancodes (1-127)
-- Arrow keys (directional focus)
-- Dispatches to focused widget
-- Prevents double-processing via Event.Handled
 
 ## Theming
 
@@ -816,380 +647,9 @@ begin
 end;
 ```
 
-## Complete Examples
+## Complete Example
 
-### Example 1: Settings Menu
-
-```pascal
-program SettingsMenu;
-uses VGA, VGAFont, VGAUI, Keyboard, RTCTimer;
-
-var
-  BackBuffer: PFrameBuffer;
-  UI: TUIManager;
-  Style: TUIStyle;
-  Font: TFont;
-  CheckboxImage: TImage;
-
-  TitleLabel: PLabel;
-  SoundCheckbox: PCheckbox;
-  MusicCheckbox: PCheckbox;
-  SaveButton: PButton;
-
-  Running: Boolean;
-  Last, Cur: Real;
-  Delta: LongInt;
-
-{$F+}
-procedure OnSaveClick(var Widget: TWidget; var Event: TEvent);
-begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    WriteLn('Settings saved!');
-    Running := False;
-    Event.Handled := True;
-  end;
-end;
-{$F-}
-
-begin
-  { Initialize }
-  InitVGA;
-  BackBuffer := CreateFrameBuffer;
-  LoadFont('DATA\FONT.XML', 'DATA\FONT.PCX', Font);
-  LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage);
-
-  { Setup UI }
-  UI.Init(BackBuffer);
-  Style.Init(15, 7, 8, 14);
-  UI.SetStyle(Style);
-
-  { Create widgets }
-  New(TitleLabel, Init(100, 40, 'Settings', @Font));
-  UI.AddWidget(TitleLabel);
-
-  New(SoundCheckbox, Init(100, 80, 'Sound Effects', @Font,
-                          @CheckboxImage, 16, 16));
-  SoundCheckbox^.SetChecked(True);
-  UI.AddWidget(SoundCheckbox);
-
-  New(MusicCheckbox, Init(100, 110, 'Music', @Font,
-                          @CheckboxImage, 16, 16));
-  MusicCheckbox^.SetChecked(True);
-  UI.AddWidget(MusicCheckbox);
-
-  New(SaveButton, Init(100, 150, 100, 24, 'Save', @Font));
-  SaveButton^.SetEventHandler(@OnSaveClick);
-  UI.AddWidget(SaveButton);
-
-  { Focus first interactive widget }
-  UI.SetFocus(SoundCheckbox);
-
-  { Main loop }
-  InitKeyboard;
-  InitRTC(1024);
-  Running := True;
-  Last := GetTimeSeconds;
-
-  while Running do
-  begin
-    Cur := GetTimeSeconds;
-    Delta := Round((Cur - Last) * 1000);
-    Last := Cur;
-
-    { Navigation }
-    if IsKeyPressed(Key_Tab) then
-      UI.FocusNext;
-
-    { Events }
-    UI.DispatchKeyboardEvents;
-
-    { Update and render }
-    UI.Update(Delta);
-    ClearFrameBuffer(BackBuffer, 0);
-    UI.RenderAll;
-    RenderFrameBuffer(BackBuffer);
-
-    ClearKeyPressed;
-
-    if IsKeyDown(Key_Escape) then
-      Running := False;
-  end;
-
-  { Cleanup }
-  UI.RemoveWidget(TitleLabel); Dispose(TitleLabel, Done);
-  UI.RemoveWidget(SoundCheckbox); Dispose(SoundCheckbox, Done);
-  UI.RemoveWidget(MusicCheckbox); Dispose(MusicCheckbox, Done);
-  UI.RemoveWidget(SaveButton); Dispose(SaveButton, Done);
-  UI.Done;
-  DoneKeyboard;
-  DoneRTC;
-  FreeFont(Font);
-  FreeImage(CheckboxImage);
-  FreeFrameBuffer(BackBuffer);
-  CloseVGA;
-end.
-```
-
-### Example 2: Name Entry Dialog
-
-```pascal
-program NameEntry;
-uses VGA, VGAFont, VGAUI, Keyboard, RTCTimer;
-
-var
-  BackBuffer: PFrameBuffer;
-  UI: TUIManager;
-  Style: TUIStyle;
-  Font: TFont;
-
-  PromptLabel: PLabel;
-  NameInput: PLineEdit;
-  SubmitButton: PButton;
-
-  Running: Boolean;
-  Last, Cur: Real;
-  Delta: LongInt;
-
-{$F+}
-procedure OnSubmit(var Widget: TWidget; var Event: TEvent);
-var Input: PLineEdit;
-    Name: string;
-begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    { Get name from input field }
-    Input := PLineEdit(Pointer(UI.Widgets.First^.Next^.Next^.Value));
-    Name := Input^.GetText;
-
-    if Length(Name) > 0 then
-    begin
-      WriteLn('Hello, ', Name, '!');
-      Running := False;
-      Event.Handled := True;
-    end;
-  end;
-end;
-{$F-}
-
-begin
-  { Initialize }
-  InitVGA;
-  BackBuffer := CreateFrameBuffer;
-  LoadFont('DATA\FONT.XML', 'DATA\FONT.PCX', Font);
-
-  { Setup UI }
-  UI.Init(BackBuffer);
-  Style.Init(15, 7, 8, 14);
-  UI.SetStyle(Style);
-
-  { Create widgets }
-  New(PromptLabel, Init(100, 80, 'Enter your name:', @Font));
-  UI.AddWidget(PromptLabel);
-
-  New(NameInput, Init(100, 110, 120, 20, @Font, 20));
-  UI.AddWidget(NameInput);
-
-  New(SubmitButton, Init(100, 150, 100, 24, 'OK', @Font));
-  SubmitButton^.SetEventHandler(@OnSubmit);
-  UI.AddWidget(SubmitButton);
-
-  { Focus input field }
-  UI.SetFocus(NameInput);
-
-  { Main loop }
-  InitKeyboard;
-  InitRTC(1024);
-  Running := True;
-  Last := GetTimeSeconds;
-
-  while Running do
-  begin
-    Cur := GetTimeSeconds;
-    Delta := Round((Cur - Last) * 1000);
-    Last := Cur;
-
-    if IsKeyPressed(Key_Tab) then
-      UI.FocusNext;
-
-    UI.DispatchKeyboardEvents;
-    UI.Update(Delta);
-
-    ClearFrameBuffer(BackBuffer, 0);
-    UI.RenderAll;
-    RenderFrameBuffer(BackBuffer);
-
-    ClearKeyPressed;
-
-    if IsKeyDown(Key_Escape) then
-      Running := False;
-  end;
-
-  { Cleanup }
-  UI.RemoveWidget(PromptLabel); Dispose(PromptLabel, Done);
-  UI.RemoveWidget(NameInput); Dispose(NameInput, Done);
-  UI.RemoveWidget(SubmitButton); Dispose(SubmitButton, Done);
-  UI.Done;
-  DoneKeyboard;
-  DoneRTC;
-  FreeFont(Font);
-  FreeFrameBuffer(BackBuffer);
-  CloseVGA;
-end.
-```
-
-## Best Practices
-
-### 1. Constructor/Destructor Syntax
-
-**ALWAYS use constructor syntax for VMT initialization:**
-
-```pascal
-{ CORRECT }
-New(Button, Init(x, y, w, h, 'Text', @Font));
-Dispose(Button, Done);
-
-{ WRONG - VMT not initialized, will crash }
-New(Button);
-Button^.Init(x, y, w, h, 'Text', @Font);
-Dispose(Button);
-```
-
-### 2. Event Handlers
-
-**Use {$F+} for far calls:**
-
-```pascal
-{$F+}
-procedure MyHandler(var Widget: TWidget; var Event: TEvent);
-begin
-  { ... }
-  Event.Handled := True;  { Prevent double-processing }
-end;
-{$F-}
-```
-
-### 3. DeltaTime Convention
-
-**Use LongInt milliseconds for DeltaTime:**
-
-```pascal
-var Last, Cur: Real;
-    Delta: LongInt;
-begin
-  InitRTC(1024);  { Millisecond precision }
-  Last := GetTimeSeconds;
-
-  while Running do
-  begin
-    Cur := GetTimeSeconds;
-    Delta := Round((Cur - Last) * 1000);  { Convert to milliseconds }
-    Last := Cur;
-
-    UI.Update(Delta);  { Pass LongInt milliseconds }
-  end;
-
-  DoneRTC;
-end;
-```
-
-### 4. Resource Management
-
-**Load resources BEFORE creating widgets:**
-
-```pascal
-{ CORRECT order: }
-LoadFont('FONT.XML', 'FONT.PCX', Font);
-New(Button, Init(x, y, w, h, 'Text', @Font));  { Font already loaded }
-
-{ WRONG - font not loaded yet! }
-New(Button, Init(x, y, w, h, 'Text', @Font));
-LoadFont('FONT.XML', 'FONT.PCX', Font);
-```
-
-### 5. Cleanup Order
-
-**Remove widgets before disposing, free resources last:**
-
-```pascal
-{ CORRECT order: }
-UI.RemoveWidget(Button);  { 1. Remove from manager }
-Dispose(Button, Done);    { 2. Free widget }
-FreeFont(Font);           { 3. Free resources }
-
-{ WRONG - use-after-free! }
-Dispose(Button, Done);
-UI.RemoveWidget(Button);  { Button already freed! }
-```
-
-### 6. Main Loop Pattern
-
-**Standard UI main loop:**
-
-```pascal
-InitKeyboard;
-InitRTC(1024);
-Last := GetTimeSeconds;
-
-while Running do
-begin
-  { 1. Calculate delta time }
-  Cur := GetTimeSeconds;
-  Delta := Round((Cur - Last) * 1000);
-  Last := Cur;
-
-  { 2. Handle navigation }
-  if IsKeyPressed(Key_Tab) then
-    UI.FocusNext;
-
-  { 3. Dispatch events }
-  UI.DispatchKeyboardEvents;
-
-  { 4. Update widgets }
-  UI.Update(Delta);
-
-  { 5. Render }
-  ClearFrameBuffer(BackBuffer, 0);
-  UI.RenderAll;
-  RenderFrameBuffer(BackBuffer);
-
-  { 6. Clear keyboard state }
-  ClearKeyPressed;
-
-  { 7. Check exit condition }
-  if IsKeyDown(Key_Escape) then
-    Running := False;
-end;
-
-DoneKeyboard;
-DoneRTC;
-```
-
-## Performance
-
-**Rendering Costs (8MHz 286):**
-- TLabel: ~500 cycles per character
-- TButton: ~2000 cycles (panel + text)
-- TCheckbox: ~3000 cycles (image + text)
-- TLineEdit: ~2500 cycles (panel + text + cursor)
-
-**Typical Menu (5-10 widgets):**
-- Total render time: ~20,000 cycles
-- At 8MHz: ~2.5ms per frame
-- **60 FPS achievable** even on 286
-
-**Event Handling:**
-- Single linked list traversal for focused widget
-- Max 10-20 widgets per screen → negligible overhead (~100 cycles)
-- Scancode to ASCII: ~100 cycles per keypress
-
-**Memory Usage:**
-- TWidget: ~16 bytes
-- TLabel: ~24 bytes + string length
-- TButton: ~28 bytes + string length
-- TCheckbox: ~36 bytes + string length
-- TLineEdit: ~32 bytes + string length
-- **Typical menu: 5-10 widgets = ~300-500 bytes total**
+Check `TESTS\UITEST.PAS` for a complete example with optimized rendering.
 
 ## See Also
 

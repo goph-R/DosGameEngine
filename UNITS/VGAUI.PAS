@@ -1,5 +1,5 @@
 { ========================================================================== }
-{ VGAUI.PAS - Minimal UI System for VGA Mode 13h                            }
+{GAUI.PAS - Minimal UI System for VGA Mode 13h                            }
 {                                                                            }
 { Lightweight widget-based UI framework for DOS VGA graphics.               }
 { Keyboard-driven navigation with event handling.                           }
@@ -87,6 +87,7 @@ type
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Update(DeltaTime: LongInt); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
+    procedure RenderFocusRectangle(FrameBuffer: PFrameBuffer; Style: PUIStyle);
     destructor Done; virtual;
   end;
 
@@ -138,8 +139,7 @@ type
     ImageHeight: Word;
     Checked: Boolean;
 
-    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
-                   CheckboxImage: PImage; ImgW, ImgH: Word);
+    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
     procedure SetText(const NewText: string);
     procedure SetChecked(Value: Boolean);
     function IsChecked: Boolean;
@@ -300,6 +300,21 @@ begin
   { Abstract - must be overridden }
 end;
 
+procedure TWidget.RenderFocusRectangle(FrameBuffer: PFrameBuffer; Style: PUIStyle);
+var
+  FocusRect: TRectangle;
+begin
+  { Render focus border if focused }
+  if Focused then
+  begin
+    FocusRect.X := Rectangle.X - 1;
+    FocusRect.Y := Rectangle.Y - 1;
+    FocusRect.Width := Rectangle.Width + 2;
+    FocusRect.Height := Rectangle.Height + 2;
+    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
+  end;
+end;
+
 destructor TWidget.Done;
 begin
   { Base cleanup - override in subclasses }
@@ -390,16 +405,9 @@ begin
         TEventHandler(EventHandler)(Self, Event);
     end;
   end
-  else if Event.EventType = Event_FocusGain then
-  begin
-    Focused := True;
-    MarkDirty;  { Focus border needs redraw }
-  end
   else if Event.EventType = Event_FocusLost then
   begin
-    Focused := False;
-    Pressed := False;  { Release button when losing focus }
-    MarkDirty;  { Focus border removal needs redraw }
+    Pressed := False;
   end;
 end;
 
@@ -407,7 +415,6 @@ procedure TButton.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   TextWidth: Integer;
   TextX, TextY: Integer;
-  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
@@ -426,15 +433,7 @@ begin
     PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
   end;
 
-  { Render focus border if focused }
-  if Focused then
-  begin
-    FocusRect.X := Rectangle.X - 1;
-    FocusRect.Y := Rectangle.Y - 1;
-    FocusRect.Width := Rectangle.Width + 2;
-    FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
-  end;
+  RenderFocusRectangle(FrameBuffer, Style);
 end;
 
 destructor TButton.Done;
@@ -450,22 +449,21 @@ end;
 { TCheckbox Implementation                                                   }
 { ========================================================================== }
 
-constructor TCheckbox.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
-                         CheckboxImage: PImage; ImgW, ImgH: Word);
+constructor TCheckbox.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
 var
   TextWidth: Integer;
 begin
   { Calculate total width: image + gap + text }
   TextWidth := GetTextWidth(TextStr, FontPtr^);
-  inherited Init(X, Y, ImgW + 4 + TextWidth, ImgH);
+  Image := CheckboxImage;
+  ImageWidth := Image^.Width;
+  ImageHeight := Image^.Height div 2;
+  inherited Init(X, Y, ImageWidth + 4 + TextWidth, ImageHeight);
 
   { Allocate and copy text }
   New(Text);
   Text^ := TextStr;
   Font := FontPtr;
-  Image := CheckboxImage;
-  ImageWidth := ImgW;
-  ImageHeight := ImgH;
   Checked := False;
 end;
 
@@ -494,7 +492,7 @@ begin
   if Event.EventType = Event_KeyPress then
   begin
     { Space toggles checkbox }
-    if Event.KeyCode = $39 then  { Space=$39 }
+    if (Event.KeyCode = $1C) or (Event.KeyCode = $39) then  { Enter=$1C, Space=$39 }
     begin
       Checked := not Checked;
       MarkDirty;  { Checkbox state changed }
@@ -502,16 +500,6 @@ begin
       if EventHandler <> nil then
         TEventHandler(EventHandler)(Self, Event);
     end;
-  end
-  else if Event.EventType = Event_FocusGain then
-  begin
-    Focused := True;
-    MarkDirty;
-  end
-  else if Event.EventType = Event_FocusLost then
-  begin
-    Focused := False;
-    MarkDirty;
   end;
 end;
 
@@ -519,7 +507,6 @@ procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   SrcRect: TRectangle;
   TextX, TextY: Integer;
-  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
@@ -539,15 +526,7 @@ begin
   TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
   PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
 
-  { Render focus border if focused }
-  if Focused then
-  begin
-    FocusRect.X := Rectangle.X - 1;
-    FocusRect.Y := Rectangle.Y - 1;
-    FocusRect.Width := Rectangle.Width + 2;
-    FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
-  end;
+  RenderFocusRectangle(FrameBuffer, Style);
 end;
 
 destructor TCheckbox.Done;
@@ -665,16 +644,6 @@ begin
         Event.Handled := True;
       end;
     end;
-  end
-  else if Event.EventType = Event_FocusGain then
-  begin
-    Focused := True;
-    MarkDirty;
-  end
-  else if Event.EventType = Event_FocusLost then
-  begin
-    Focused := False;
-    MarkDirty;
   end;
 end;
 
@@ -685,7 +654,6 @@ var
   TextWidth: Integer;
   AvailableWidth: Integer;
   CursorX: Integer;
-  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
@@ -725,15 +693,7 @@ begin
     DrawVLine(CursorX, TextY, Font^.Height, Style^.FocusColor, FrameBuffer);
   end;
 
-  { Render focus border if focused }
-  if Focused then
-  begin
-    FocusRect.X := Rectangle.X - 1;
-    FocusRect.Y := Rectangle.Y - 1;
-    FocusRect.Width := Rectangle.Width + 2;
-    FocusRect.Height := Rectangle.Height + 2;
-    DrawRect(FocusRect, Style^.FocusColor, FrameBuffer);
-  end;
+  RenderFocusRectangle(FrameBuffer, Style);
 end;
 
 procedure TLineEdit.Update(DeltaTime: LongInt);
@@ -801,6 +761,9 @@ begin
     OldEvent.EventType := Event_FocusLost;
     OldEvent.KeyCode := 0;
     OldEvent.Handled := False;
+
+    FocusedWidget^.Focused := False;
+    FocusedWidget^.MarkDirty;
     FocusedWidget^.HandleEvent(OldEvent);
   end;
 
@@ -812,6 +775,9 @@ begin
     NewEvent.EventType := Event_FocusGain;
     NewEvent.KeyCode := 0;
     NewEvent.Handled := False;
+
+    Widget^.Focused := True;
+    Widget^.MarkDirty;
     Widget^.HandleEvent(NewEvent);
   end;
 end;
@@ -1031,6 +997,9 @@ var
   Node: PListEntry;
   Widget: PWidget;
 begin
+  { Dispatch all keyboard events to UI system }
+  DispatchKeyboardEvents;
+
   Node := Widgets.First;
   while Node <> nil do
   begin

@@ -4,8 +4,6 @@
 { Tests the VGAUI system with all widget types.                             }
 {                                                                            }
 { Controls:                                                                  }
-{   Tab          - Focus next widget                                        }
-{   Shift+Tab    - Focus previous widget                                    }
 {   Arrow Keys   - Focus closest widget in direction (Up/Down/Left/Right)  }
 {   Enter        - Activate button / submit text input                      }
 {   Space        - Toggle checkbox / activate button                        }
@@ -32,55 +30,12 @@ var
   DeltaTime: LongInt;
   Event: TEvent;
   Pal: TPalette;
-  OldExitProc: Pointer;
 
 { ========================================================================== }
-{ Emergency Cleanup Handler                                                  }
-{ ========================================================================== }
-
-{$F+}
-procedure CleanupExitProc;
-begin
-  ExitProc := OldExitProc;  { Restore old exit proc }
-
-  { Emergency cleanup - ensure VGA is closed }
-  if ErrorAddr <> nil then
-  begin
-    LogError('Runtime error occurred!');
-    CloseVGA;  { Restore text mode }
-    CloseLogger;
-    WriteLn('Runtime error at address: ', Seg(ErrorAddr^):4, ':', Ofs(ErrorAddr^):4);
-    WriteLn('Error code: ', ExitCode);
-  end;
-end;
-{$F-}
-
-{ ========================================================================== }
-{ Event Handlers                                                             }
+{ Example Event Handlers                                                     }
 { ========================================================================== }
 
 {$F+}
-procedure OnButton1Click(var Widget: TWidget; var Event: TEvent);
-begin
-  if (Event.EventType = Event_KeyPress) and
-     ((Event.KeyCode = $1C) or (Event.KeyCode = $39)) then
-  begin
-    { Button 1 was clicked }
-    PButton(@Widget)^.Pressed := True;
-    { In real app, do something here }
-  end;
-end;
-
-procedure OnButton2Click(var Widget: TWidget; var Event: TEvent);
-begin
-  if (Event.EventType = Event_KeyPress) and
-     ((Event.KeyCode = $1C) or (Event.KeyCode = $39)) then
-  begin
-    { Button 2 was clicked }
-    PButton(@Widget)^.Pressed := True;
-  end;
-end;
-
 procedure OnQuitButtonClick(var Widget: TWidget; var Event: TEvent);
 begin
   if (Event.EventType = Event_KeyPress) and
@@ -101,17 +56,6 @@ begin
   end;
 end;
 
-procedure OnMusicCheckbox(var Widget: TWidget; var Event: TEvent);
-var
-  CB: PCheckbox;
-begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    CB := PCheckbox(@Widget);
-    { Checkbox was toggled }
-  end;
-end;
-
 procedure OnNameInputSubmit(var Widget: TWidget; var Event: TEvent);
 var
   Input: PLineEdit;
@@ -124,6 +68,7 @@ begin
     { Name submitted }
   end;
 end;
+
 {$F-}
 
 { ========================================================================== }
@@ -201,23 +146,20 @@ begin
 
   { Create Button 1 }
   New(Button1, Init(10, 20, 140, 12, 'Test Button 1', @FontSmall));
-  Button1^.SetEventHandler(@OnButton1Click);
   UI.AddWidget(Button1);
 
   { Create Button 2 }
   New(Button2, Init(10, 35, 140, 12, 'Test Button 2', @FontSmall));
-  Button2^.SetEventHandler(@OnButton2Click);
   UI.AddWidget(Button2);
 
   { Create Sound Checkbox }
-  New(SoundCheckbox, Init(10, 52, 'Sound Effects', @FontSmall, @CheckboxImage, 10, 10));
+  New(SoundCheckbox, Init(10, 52, 'Sound Effects', @FontSmall, @CheckboxImage));
   SoundCheckbox^.SetEventHandler(@OnSoundCheckbox);
   SoundCheckbox^.SetChecked(True);
   UI.AddWidget(SoundCheckbox);
 
   { Create Music Checkbox }
-  New(MusicCheckbox, Init(10, 67, 'Background Music', @FontSmall, @CheckboxImage, 10, 10));
-  MusicCheckbox^.SetEventHandler(@OnMusicCheckbox);
+  New(MusicCheckbox, Init(10, 67, 'Background Music', @FontSmall, @CheckboxImage));
   UI.AddWidget(MusicCheckbox);
 
   { Create Name Input }
@@ -267,12 +209,6 @@ begin
     if IsKeyPressed(Key_Escape) then
       Running := False;
 
-    if IsKeyPressed(Key_Tab) then
-      UI.FocusNext;
-
-    { Dispatch all keyboard events to UI system }
-    UI.DispatchKeyboardEvents;
-
     { Update all widgets (cursor blink, animations, etc.) }
     UI.Update(DeltaTime);
 
@@ -286,7 +222,7 @@ begin
     ClearKeyPressed;
 
     { Small delay to prevent 100% CPU usage }
-    Delay(16);  { ~60 FPS }
+    Delay(10);  { ~100 FPS }
   end;
 end;
 
@@ -295,14 +231,6 @@ end;
 { ========================================================================== }
 
 begin
-  { Initialize logger FIRST }
-  InitLogger('UITEST.LOG', LogLevelDebug);
-  LogInfo('=== VGAUI Test Program Starting ===');
-
-  { Install exit handler for emergency cleanup }
-  OldExitProc := ExitProc;
-  ExitProc := @CleanupExitProc;
-
   { Initialize systems }
   InitVGA;
   BackBuffer := CreateFrameBuffer;
@@ -317,11 +245,9 @@ begin
   InitResources;
   CreateUI;
 
-  Delay(1000);
   MainLoop;
 
   { Cleanup }
-  LogInfo('Main loop exited, cleaning up');
   DestroyUI;
   FreeResources;
   DoneRTC;
@@ -329,7 +255,4 @@ begin
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(BackgroundBuffer);
   CloseVGA;
-
-  LogInfo('=== VGAUI Test Program Exiting ===');
-  CloseLogger;
 end.

@@ -246,8 +246,6 @@ end;
 function XMLGetText(const Node: PXMLNode): string;
 var
   Len: Word;
-  P: ^Byte;
-  i: Integer;
   Result: string;
 begin
   Result := '';
@@ -262,12 +260,8 @@ begin
   if Len > 255 then Len := 255;
 
   Result[0] := Char(Len);
-  P := Node^.TextBuf;
-  for i := 1 to Len do
-  begin
-    Result[i] := Char(P^);
-    Inc(P);
-  end;
+  { Fast block copy using Move }
+  Move(Node^.TextBuf^, Result[1], Len);
 
   XMLGetText := Result;
 end;
@@ -386,8 +380,7 @@ end;
 
 function BCopy(var B: TBuf; StartPos, Len: Integer): string;
 var
-  P: ^Byte;
-  i: Integer;
+  SrcPtr: Pointer;
   Result: string;
 begin
   Result := '';
@@ -405,13 +398,10 @@ begin
   if Len > 255 then Len := 255;
 
   Result[0] := Char(Len);  { Set string length }
-  P := Ptr(Seg(B.Data^), Ofs(B.Data^) + StartPos - 1);
 
-  for i := 1 to Len do
-  begin
-    Result[i] := Char(P^);
-    Inc(P);
-  end;
+  { Fast block copy using Move }
+  SrcPtr := Ptr(Seg(B.Data^), Ofs(B.Data^) + StartPos - 1);
+  Move(SrcPtr^, Result[1], Len);
 
   BCopy := Result;
 end;
@@ -455,17 +445,35 @@ end;
 
 function StartsWithAt(var B: TBuf; const Pat: string; idx: Integer): Boolean;
 var
-  i: Integer;
+  Len: Byte;
   P: ^Byte;
+  PatPtr: ^Byte;
+  i: Integer;
 begin
   StartsWithAt := False;
-  if idx + Length(Pat) - 1 > B.Len then Exit;
+  Len := Length(Pat);
+  if (Len = 0) or (idx + Len - 1 > B.Len) then Exit;
+
   P := Ptr(Seg(B.Data^), Ofs(B.Data^) + idx - 1);
-  for i := 1 to Length(Pat) do
+  PatPtr := @Pat[1];
+
+  { Optimize for common cases first (unrolled loop) }
+  if Len >= 1 then if P^ <> PatPtr^ then Exit;
+  if Len >= 2 then
   begin
-    if Char(P^) <> Pat[i] then Exit;
-    Inc(P);
+    Inc(P); Inc(PatPtr);
+    if P^ <> PatPtr^ then Exit;
+    Inc(P); Inc(PatPtr);
   end;
+
+  { Handle remaining characters if any }
+  for i := 3 to Len do
+  begin
+    if P^ <> PatPtr^ then Exit;
+    Inc(P);
+    Inc(PatPtr);
+  end;
+
   StartsWithAt := True;
 end;
 
