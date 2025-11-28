@@ -28,7 +28,8 @@ var
   SoundCheckbox, MusicCheckbox: PCheckbox;
   NameInput: PLineEdit;
   Running: Boolean;
-  LastTime, CurrentTime, DeltaTime: Real;
+  LastTime, CurrentTime: Real;
+  DeltaTime: LongInt;
   Event: TEvent;
   Pal: TPalette;
   OldExitProc: Pointer;
@@ -134,21 +135,15 @@ var
   Img: TImage;
   CheckRect: TRectangle;
 begin
-  LogDebug('InitResources: Starting');
-
   { Load fonts }
-  LogDebug('InitResources: Loading font');
   if not LoadFont('DATA\FONT-SM.XML', 'DATA\FONT-SM.PCX', FontSmall) then
   begin
     LogError('Failed to load font');
     WriteLn('ERROR: Failed to load font - ', GetLoadFontError);
     Halt(1);
   end;
-  LogDebug('InitResources: Font loaded OK');
 
   { Create checkbox image (10x20: unchecked on top, checked on bottom) }
-  { For now, create a simple test image }
-  LogDebug('InitResources: Creating checkbox image');
   CheckboxImage.Width := 10;
   CheckboxImage.Height := 20;
   GetMem(CheckboxImage.Data, 10 * 20);
@@ -183,9 +178,6 @@ begin
   PByteArray(CheckboxImage.Data)^[(10 + 5) * 10 + 4] := 15;
   PByteArray(CheckboxImage.Data)^[(10 + 6) * 10 + 3] := 15;
   PByteArray(CheckboxImage.Data)^[(10 + 7) * 10 + 2] := 15;
-
-  LogDebug('InitResources: Complete');
-  WriteLn('Resources loaded successfully');
 end;
 
 procedure FreeResources;
@@ -198,71 +190,49 @@ procedure CreateUI;
 var
   DefaultStyle: TUIStyle;
 begin
-  LogDebug('CreateUI: Starting');
-
   { Initialize UI Manager }
-  LogDebug('CreateUI: Initializing UI Manager');
   UI.Init(BackBuffer);
-  LogDebug('CreateUI: Setting style');
   DefaultStyle.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
   UI.SetStyle(DefaultStyle);
-  LogDebug('CreateUI: Style set');
 
   { Create Title Label }
-  LogDebug('CreateUI: Creating TitleLabel');
   New(TitleLabel, Init(10, 5, 'VGAUI Test Program', @FontSmall));
-  LogDebug('CreateUI: Adding TitleLabel');
   UI.AddWidget(TitleLabel);
-  LogDebug('CreateUI: TitleLabel added');
 
   { Create Button 1 }
-  LogDebug('CreateUI: Creating Button1');
   New(Button1, Init(10, 20, 140, 12, 'Test Button 1', @FontSmall));
   Button1^.SetEventHandler(@OnButton1Click);
   UI.AddWidget(Button1);
-  LogDebug('CreateUI: Button1 added');
 
   { Create Button 2 }
-  LogDebug('CreateUI: Creating Button2');
   New(Button2, Init(10, 35, 140, 12, 'Test Button 2', @FontSmall));
   Button2^.SetEventHandler(@OnButton2Click);
   UI.AddWidget(Button2);
-  LogDebug('CreateUI: Button2 added');
 
   { Create Sound Checkbox }
-  LogDebug('CreateUI: Creating SoundCheckbox');
   New(SoundCheckbox, Init(10, 52, 'Sound Effects', @FontSmall, @CheckboxImage, 10, 10));
   SoundCheckbox^.SetEventHandler(@OnSoundCheckbox);
   SoundCheckbox^.SetChecked(True);
   UI.AddWidget(SoundCheckbox);
-  LogDebug('CreateUI: SoundCheckbox added');
 
   { Create Music Checkbox }
-  LogDebug('CreateUI: Creating MusicCheckbox');
   New(MusicCheckbox, Init(10, 67, 'Background Music', @FontSmall, @CheckboxImage, 10, 10));
   MusicCheckbox^.SetEventHandler(@OnMusicCheckbox);
   UI.AddWidget(MusicCheckbox);
-  LogDebug('CreateUI: MusicCheckbox added');
 
   { Create Name Input }
-  LogDebug('CreateUI: Creating NameInput');
   New(NameInput, Init(10, 84, 140, 12, @FontSmall, 20));
   NameInput^.SetEventHandler(@OnNameInputSubmit);
   NameInput^.SetText('Player Name');
   UI.AddWidget(NameInput);
-  LogDebug('CreateUI: NameInput added');
 
   { Create Quit Button }
-  LogDebug('CreateUI: Creating QuitButton');
   New(QuitButton, Init(10, 100, 140, 12, 'Quit (ESC)', @FontSmall));
   QuitButton^.SetEventHandler(@OnQuitButtonClick);
   UI.AddWidget(QuitButton);
-  LogDebug('CreateUI: QuitButton added');
 
   { Focus first interactive widget }
-  LogDebug('CreateUI: Setting focus to Button1');
   UI.SetFocus(Button1);
-  LogDebug('CreateUI: Complete');
 end;
 
 procedure DestroyUI;
@@ -283,15 +253,14 @@ end;
 
 procedure MainLoop;
 begin
-  LogInfo('MainLoop: Starting');
   Running := True;
   LastTime := GetTimeSeconds;
 
   while Running do
   begin
-    { Calculate delta time }
+    { Calculate delta time in milliseconds }
     CurrentTime := GetTimeSeconds;
-    DeltaTime := CurrentTime - LastTime;
+    DeltaTime := Round((CurrentTime - LastTime) * 1000);
     LastTime := CurrentTime;
 
     { Handle input }
@@ -334,74 +303,30 @@ begin
   InitLogger('UITEST.LOG', LogLevelDebug);
   LogInfo('=== VGAUI Test Program Starting ===');
 
-  WriteLn('VGAUI Test Program');
-  WriteLn('==================');
-  WriteLn;
-
   { Install exit handler for emergency cleanup }
-  LogDebug('Installing exit handler');
   OldExitProc := ExitProc;
   ExitProc := @CleanupExitProc;
 
   { Initialize systems }
-  WriteLn('Initializing VGA...');
-  LogDebug('Initializing VGA');
   InitVGA;
-  LogDebug('VGA initialized');
-
-  WriteLn('Creating back buffer...');
-  LogDebug('Creating back buffer');
   BackBuffer := CreateFrameBuffer;
-  LogDebug('Back buffer created');
-  WriteLn('Back buffer created OK');
-
-  WriteLn('Initializing keyboard...');
-  LogDebug('Initializing keyboard');
   InitKeyboard;
-  LogDebug('Keyboard initialized');
-
-  WriteLn('Initializing RTC timer...');
-  LogDebug('Initializing RTC timer');
   InitRTC(1024);
-  LogDebug('RTC timer initialized');
-  WriteLn('RTC timer initialized OK');
-
-  WriteLn('Loading resources...');
   InitResources;
-  WriteLn('Resources loaded OK');
-
-  WriteLn('Creating UI...');
   CreateUI;
-  WriteLn('UI created OK');
 
-  WriteLn;
-  WriteLn('All initialization complete!');
-  WriteLn('Starting main loop...');
-  LogInfo('Starting main loop');
   Delay(1000);
   MainLoop;
 
   { Cleanup }
   LogInfo('Main loop exited, cleaning up');
-  WriteLn('Cleaning up...');
-  WriteLn('Destroying UI...');
-  LogDebug('Destroying UI');
   DestroyUI;
-  WriteLn('Freeing resources...');
-  LogDebug('Freeing resources');
   FreeResources;
-  WriteLn('Done RTC...');
-  LogDebug('Done RTC');
   DoneRTC;
-  LogDebug('Done keyboard');
   DoneKeyboard;
-  WriteLn('Freeing back buffer...');
-  LogDebug('Freeing back buffer');
   FreeFrameBuffer(BackBuffer);
-  LogDebug('Closing VGA');
   CloseVGA;
 
-  WriteLn('Done!');
   LogInfo('=== VGAUI Test Program Exiting ===');
   CloseLogger;
 end.

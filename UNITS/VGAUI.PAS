@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Logger;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -81,7 +81,7 @@ type
     constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Update(DeltaTime: Real); virtual;
+    procedure Update(DeltaTime: LongInt); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
@@ -152,7 +152,7 @@ type
     Font: PFont;
     MaxLength: Byte;
     CursorVisible: Boolean;
-    CursorTimer: Real;
+    CursorTimer: LongInt;  { Milliseconds }
 
     constructor Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
     procedure SetText(const NewText: string);
@@ -160,7 +160,7 @@ type
     procedure Clear;
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
-    procedure Update(DeltaTime: Real); virtual;
+    procedure Update(DeltaTime: LongInt); virtual;
     destructor Done; virtual;
   end;
 
@@ -186,7 +186,7 @@ type
     procedure FocusInDirection(DX, DY: Integer);  { Focus closest widget in direction }
     procedure DispatchKeyboardEvents;  { Check all keyboard keys and dispatch events }
     procedure HandleEvent(var Event: TEvent);
-    procedure Update(DeltaTime: Real);  { Update all widgets }
+    procedure Update(DeltaTime: LongInt);  { Update all widgets (DeltaTime in milliseconds) }
     procedure RenderAll;
     procedure SetStyle(const NewStyle: TUIStyle);
     procedure Done;
@@ -259,7 +259,7 @@ begin
     TEventHandler(EventHandler)(Self, Event);
 end;
 
-procedure TWidget.Update(DeltaTime: Real);
+procedure TWidget.Update(DeltaTime: LongInt);
 begin
   { Base implementation - override in subclasses that need updating }
 end;
@@ -644,11 +644,11 @@ begin
   end;
 end;
 
-procedure TLineEdit.Update(DeltaTime: Real);
+procedure TLineEdit.Update(DeltaTime: LongInt);
 begin
-  { Cursor blink animation }
+  { Cursor blink animation - DeltaTime in milliseconds }
   CursorTimer := CursorTimer + DeltaTime;
-  if CursorTimer >= 0.5 then
+  if CursorTimer >= 500 then
   begin
     CursorTimer := 0;
     CursorVisible := not CursorVisible;
@@ -925,8 +925,9 @@ begin
   end;
 end;
 
-procedure TUIManager.Update(DeltaTime: Real);
+procedure TUIManager.Update(DeltaTime: LongInt);
 { Update all widgets (for animations, timers, etc.) }
+{ DeltaTime is in milliseconds }
 var
   Node: PListEntry;
   Widget: PWidget;

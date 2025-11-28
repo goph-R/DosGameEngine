@@ -241,24 +241,28 @@ while run do
 DoneKeyboard;
 ```
 
-**Sprites**:
+**Sprites (with DeltaTime)**:
 ```pascal
-InitRTC(1024); Last:=Round(GetTimeSeconds*1000);
+var Last, Cur: Real; Delta: LongInt;
+InitRTC(1024); Last := GetTimeSeconds;
 while run do
-  Cur:=Round(GetTimeSeconds*1000); Delta:=Cur-Last; Last:=Cur;
-  UpdateSprite(Spr,Delta); DrawSprite(Spr,fb);
+  Cur := GetTimeSeconds; Delta := Round((Cur - Last) * 1000); Last := Cur;
+  UpdateSprite(Spr, Delta); DrawSprite(Spr, fb);
 DoneRTC;
 ```
 
 **UI (VGAUI)**:
 ```pascal
+var Last, Cur: Real; Delta: LongInt;
 UI.Init(BackBuffer); Style.Init(15,7,8,14); UI.SetStyle(Style);
 New(Button, Init(x,y,w,h,'Click',@Font)); { MUST use constructor syntax! }
 Button^.SetEventHandler(@OnClick); UI.AddWidget(Button);
+InitRTC(1024); Last := GetTimeSeconds;
 while run do
+  Cur := GetTimeSeconds; Delta := Round((Cur - Last) * 1000); Last := Cur;
   if IsKeyPressed(Key_Tab) then UI.FocusNext;
-  UI.HandleEvent(Event); UI.RenderAll; ClearKeyPressed;
-UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done;
+  UI.DispatchKeyboardEvents; UI.Update(Delta); UI.RenderAll; ClearKeyPressed;
+UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done; DoneRTC;
 ```
 
 ## Common Pitfalls
@@ -278,6 +282,7 @@ UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done;
 13. **VMT initialization**: Objects with virtual methods MUST use `New(Ptr, Constructor)` syntax, not `New(Ptr); Ptr^.Init`
 14. **VGA clipping**: DrawFillRect includes clipping; widgets assume screen bounds (0-319, 0-199)
 15. **Logging**: LOGGER.PAS is for startup/shutdown only - file I/O in render loops causes Runtime Error 202 (stack overflow)
+16. **DeltaTime convention**: Use LongInt for DeltaTime in milliseconds. CurrentTime/LastTime should be Real (from GetTimeSeconds) to avoid overflow. Calculate DeltaTime as `Round((CurrentTime - LastTime) * 1000)`. InitRTC(1024) provides millisecond precision via RTC_Ticks
 
 ## Technical Constraints
 
