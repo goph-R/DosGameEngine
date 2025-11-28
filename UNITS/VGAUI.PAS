@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard, DRect;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -75,11 +75,15 @@ type
     Visible: Boolean;
     Enabled: Boolean;
     Focused: Boolean;
+    NeedsRedraw: Boolean;   { Widget needs rendering (dirty flag) }
     EventHandler: Pointer;  { TEventHandler - defined below }
     Tag: Integer;
 
     constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
+    procedure MarkDirty;    { Request redraw of this widget }
+    procedure SetVisible(Value: Boolean);  { Set visibility and mark dirty if changed }
+    procedure SetEnabled(Value: Boolean);  { Set enabled state and mark dirty if changed }
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Update(DeltaTime: LongInt); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
@@ -175,9 +179,11 @@ type
     Widgets: TLinkedList;
     FocusedWidget: PWidget;
     BackBuffer: PFrameBuffer;
+    BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
+    FirstRender: Boolean;            { Force full redraw on first frame }
     Style: TUIStyle;
 
-    procedure Init(FrameBuffer: PFrameBuffer);
+    procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);
     procedure RemoveWidget(Widget: PWidget);
     procedure SetFocus(Widget: PWidget);
@@ -188,6 +194,7 @@ type
     procedure HandleEvent(var Event: TEvent);
     procedure Update(DeltaTime: LongInt);  { Update all widgets (DeltaTime in milliseconds) }
     procedure RenderAll;
+    procedure RenderDirty;           { Smart dirty rectangle rendering }
     procedure SetStyle(const NewStyle: TUIStyle);
     procedure Done;
   end;
@@ -243,6 +250,7 @@ begin
   Visible := True;
   Enabled := True;
   Focused := False;
+  NeedsRedraw := True;  { New widgets always need initial draw }
   EventHandler := nil;
   Tag := 0;
 end;
@@ -250,6 +258,29 @@ end;
 procedure TWidget.SetEventHandler(Handler: Pointer);
 begin
   EventHandler := Handler;
+end;
+
+procedure TWidget.MarkDirty;
+begin
+  NeedsRedraw := True;
+end;
+
+procedure TWidget.SetVisible(Value: Boolean);
+begin
+  if Visible <> Value then
+  begin
+    Visible := Value;
+    MarkDirty;  { Visibility changed, need redraw }
+  end;
+end;
+
+procedure TWidget.SetEnabled(Value: Boolean);
+begin
+  if Enabled <> Value then
+  begin
+    Enabled := Value;
+    MarkDirty;  { Enabled state affects appearance }
+  end;
 end;
 
 procedure TWidget.HandleEvent(var Event: TEvent);
@@ -294,9 +325,13 @@ procedure TLabel.SetText(const NewText: string);
 begin
   if Text <> nil then
   begin
-    Text^ := NewText;
-    { Update width based on new text }
-    Rectangle.Width := GetTextWidth(NewText, Font^);
+    if Text^ <> NewText then
+    begin
+      Text^ := NewText;
+      { Update width based on new text }
+      Rectangle.Width := GetTextWidth(NewText, Font^);
+      MarkDirty;  { Label text changed }
+    end;
   end;
 end;
 
@@ -337,16 +372,34 @@ begin
 end;
 
 procedure TButton.HandleEvent(var Event: TEvent);
+var
+  OldPressed: Boolean;
 begin
   if Event.EventType = Event_KeyPress then
   begin
     { Enter or Space triggers the button }
     if (Event.KeyCode = $1C) or (Event.KeyCode = $39) then  { Enter=$1C, Space=$39 }
     begin
+      OldPressed := Pressed;
+      Pressed := True;
+      if Pressed <> OldPressed then
+        MarkDirty;  { Visual state changed }
+
       Event.Handled := True;
       if EventHandler <> nil then
         TEventHandler(EventHandler)(Self, Event);
     end;
+  end
+  else if Event.EventType = Event_FocusGain then
+  begin
+    Focused := True;
+    MarkDirty;  { Focus border needs redraw }
+  end
+  else if Event.EventType = Event_FocusLost then
+  begin
+    Focused := False;
+    Pressed := False;  { Release button when losing focus }
+    MarkDirty;  { Focus border removal needs redraw }
   end;
 end;
 
@@ -424,7 +477,11 @@ end;
 
 procedure TCheckbox.SetChecked(Value: Boolean);
 begin
-  Checked := Value;
+  if Checked <> Value then
+  begin
+    Checked := Value;
+    MarkDirty;  { Programmatic state change }
+  end;
 end;
 
 function TCheckbox.IsChecked: Boolean;
@@ -440,10 +497,21 @@ begin
     if Event.KeyCode = $39 then  { Space=$39 }
     begin
       Checked := not Checked;
+      MarkDirty;  { Checkbox state changed }
       Event.Handled := True;
       if EventHandler <> nil then
         TEventHandler(EventHandler)(Self, Event);
     end;
+  end
+  else if Event.EventType = Event_FocusGain then
+  begin
+    Focused := True;
+    MarkDirty;
+  end
+  else if Event.EventType = Event_FocusLost then
+  begin
+    Focused := False;
+    MarkDirty;
   end;
 end;
 
@@ -509,13 +577,18 @@ begin
 end;
 
 procedure TLineEdit.SetText(const NewText: string);
+var
+  OldText: string;
 begin
   if Text <> nil then
   begin
+    OldText := Text^;
     if Length(NewText) <= MaxLength then
       Text^ := NewText
     else
       Text^ := Copy(NewText, 1, MaxLength);
+    if Text^ <> OldText then
+      MarkDirty;  { Text changed }
   end;
 end;
 
@@ -556,14 +629,21 @@ end;
 procedure TLineEdit.HandleEvent(var Event: TEvent);
 var
   Ch: Char;
+  OldText: string;
 begin
   if Event.EventType = Event_KeyPress then
   begin
+    OldText := Text^;
+
     { Backspace }
     if Event.KeyCode = $0E then  { Backspace=$0E }
     begin
       if Length(Text^) > 0 then
+      begin
         Delete(Text^, Length(Text^), 1);
+        if Text^ <> OldText then
+          MarkDirty;  { Text changed }
+      end;
       Event.Handled := True;
     end
     { Enter - fire event handler }
@@ -580,9 +660,21 @@ begin
       if (Ch <> #0) and (Length(Text^) < MaxLength) then
       begin
         Text^ := Text^ + Ch;
+        if Text^ <> OldText then
+          MarkDirty;  { Text changed }
         Event.Handled := True;
       end;
     end;
+  end
+  else if Event.EventType = Event_FocusGain then
+  begin
+    Focused := True;
+    MarkDirty;
+  end
+  else if Event.EventType = Event_FocusLost then
+  begin
+    Focused := False;
+    MarkDirty;
   end;
 end;
 
@@ -645,13 +737,18 @@ begin
 end;
 
 procedure TLineEdit.Update(DeltaTime: LongInt);
+var
+  OldCursorVisible: Boolean;
 begin
   { Cursor blink animation - DeltaTime in milliseconds }
+  OldCursorVisible := CursorVisible;
   CursorTimer := CursorTimer + DeltaTime;
   if CursorTimer >= 500 then
   begin
     CursorTimer := 0;
     CursorVisible := not CursorVisible;
+    if Focused and (CursorVisible <> OldCursorVisible) then
+      MarkDirty;  { Cursor visibility changed }
   end;
 end;
 
@@ -668,11 +765,13 @@ end;
 { TUIManager Implementation                                                  }
 { ========================================================================== }
 
-procedure TUIManager.Init(FrameBuffer: PFrameBuffer);
+procedure TUIManager.Init(FrameBuffer, Background: PFrameBuffer);
 begin
   ListInit(Widgets);
   FocusedWidget := nil;
   BackBuffer := FrameBuffer;
+  BackgroundBuffer := Background;
+  FirstRender := True;
 
   { Initialize default style with VMT }
   { Calling constructor on instance variable initializes VMT + fields }
@@ -954,6 +1053,116 @@ begin
       Widget^.Render(Self.BackBuffer, @Self.Style);
     Node := Node^.Next;
   end;
+end;
+
+{ Helper: Expand rectangle by 1px for focus border, clamp to screen }
+procedure ExpandRectForFocusBorder(const R: TRectangle; IsFocused: Boolean; var Result: TRectangle);
+begin
+  if IsFocused then
+  begin
+    { Expand by 1px in all directions }
+    Result.X := R.X - 1;
+    Result.Y := R.Y - 1;
+    Result.Width := R.Width + 2;
+    Result.Height := R.Height + 2;
+
+    { Clamp to screen bounds (0-319, 0-199) }
+    if Result.X < 0 then
+    begin
+      Result.Width := Result.Width + Result.X;
+      Result.X := 0;
+    end;
+    if Result.Y < 0 then
+    begin
+      Result.Height := Result.Height + Result.Y;
+      Result.Y := 0;
+    end;
+    if Result.X + Integer(Result.Width) > 320 then
+      Result.Width := 320 - Result.X;
+    if Result.Y + Integer(Result.Height) > 200 then
+      Result.Height := 200 - Result.Y;
+  end
+  else
+    Result := R;  { No expansion needed }
+end;
+
+procedure TUIManager.RenderDirty;
+var
+  Node: PListEntry;
+  Widget: PWidget;
+  DirtyRect: TRectangle;
+  HasDirtyWidgets: Boolean;
+begin
+  { Step 1: Check if any widgets are dirty }
+  HasDirtyWidgets := FirstRender;
+  if not FirstRender then
+  begin
+    Node := Widgets.First;
+    while Node <> nil do
+    begin
+      Widget := PWidget(Node^.Value);
+      if Widget^.Visible and Widget^.NeedsRedraw then
+      begin
+        HasDirtyWidgets := True;
+        Break;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  { If nothing is dirty, skip rendering entirely }
+  if not HasDirtyWidgets then
+    Exit;
+
+  { Step 3: Render dirty widgets to backbuffer }
+  if FirstRender then
+  begin
+    { First frame: render all widgets }
+    Node := Widgets.First;
+    while Node <> nil do
+    begin
+      Widget := PWidget(Node^.Value);
+      if Widget^.Visible then
+      begin
+        Widget^.Render(Self.BackBuffer, @Self.Style);
+        ExpandRectForFocusBorder(Widget^.Rectangle, Widget^.Focused, DirtyRect);
+        AddDirtyRect(DirtyRect);
+      end;
+      Node := Node^.Next;
+    end;
+    FirstRender := False;
+  end
+  else
+  begin
+    { Subsequent frames: only render dirty widgets }
+    Node := Widgets.First;
+    while Node <> nil do
+    begin
+      Widget := PWidget(Node^.Value);
+      if Widget^.Visible then
+      begin
+        if Widget^.NeedsRedraw then
+        begin
+          { Expand rectangle to include potential focus border from previous frame }
+          ExpandRectForFocusBorder(Widget^.Rectangle, True, DirtyRect);
+
+          { Restore background for this dirty region }
+          if BackgroundBuffer <> nil then
+            CopyFrameBufferRect(BackgroundBuffer, DirtyRect, BackBuffer, DirtyRect.X, DirtyRect.Y);
+
+          { Redraw this widget }
+          Widget^.Render(Self.BackBuffer, @Self.Style);
+
+          AddDirtyRect(DirtyRect);
+          Widget^.NeedsRedraw := False;
+        end;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  { Step 4: Flush dirty rectangles to VGA memory (slow part) }
+  FlushDirtyRects(BackBuffer);
 end;
 
 procedure TUIManager.SetStyle(const NewStyle: TUIStyle);

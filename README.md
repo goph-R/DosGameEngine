@@ -104,22 +104,22 @@ IMGTEST.EXE
 
 ### Graphics
 - **VGA.PAS**: VGA Mode 13h (320×200 256-color)
-  - double-buffering
-  - palette control (0-63 RGB)
-  - DrawFillRect with clipping support
+  - double-buffering (PFrameBuffer)
+  - palette control (0-63 RGB, TPalette)
+  - clipping support
+- **VGAFONT.PAS**: Variable-width fonts (PCX + XML)
+- **VGAUI.PAS**: UI widget system (Label, Button, Checkbox, LineEdit)
+  - keyboard-driven navigation (Tab, Enter, Space)
+  - event-driven architecture with procedure pointers
+  - focus management and rendering
+  - requires constructor/destructor pattern for VMT initialization
 - **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
   - `Blocks` collision layer (loads a block map)
   - objects layer detection (can be hooked to a function)
 - **TMXDRAW.PAS**: TMX renderer
-- **VGAFONT.PAS**: Variable-width fonts (PCX + XML)
 - **SPRITE.PAS**: Sprite animation (3 play modes)
-- **VGAUI.PAS**: UI widget system (Label, Button, Checkbox, LineEdit)
-  - keyboard-driven navigation (Tab, Enter, Space)
-  - event-driven architecture with procedure pointers
-  - focus management and rendering
-  - requires constructor/destructor pattern for VMT initialization
 
 ### Audio
 - **PLAYHSC.PAS**: HSC music player (Adlib/OPL2, interrupt-based)
@@ -150,7 +150,6 @@ IMGTEST.EXE
 
 ```
 D:\ENGINE\
-├── DATA\           Sample assets (PCX, VOC, HSC, TMX, fonts)
 ├── DOCS\           Documentation (see links above)
 ├── TESTS\          Test programs (IMGTEST, TMXTEST, SPRTEST, FNTTEST, etc.)
 ├── SETUP\          Basic setup utility (currently for Sound card setup)

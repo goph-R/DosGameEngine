@@ -24,6 +24,10 @@ echo Compiling LINKLIST.PAS...
 tpc LINKLIST.PAS
 if errorlevel 1 goto error
 
+echo Compiling DRECT.PAS...
+tpc DRECT.PAS
+if errorlevel 1 goto error
+
 echo Compiling KEYBOARD.PAS...
 tpc KEYBOARD.PAS
 if errorlevel 1 goto error

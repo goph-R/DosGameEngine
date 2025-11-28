@@ -19,7 +19,7 @@ program UITest;
 uses VGA, VGAFont, VGAUI, Keyboard, PCXLoad, RTCTimer, GenTypes, Crt, Logger;
 
 var
-  BackBuffer: PFrameBuffer;
+  BackBuffer, BackgroundBuffer: PFrameBuffer;
   FontSmall: TFont;
   CheckboxImage: TImage;
   UI: TUIManager;
@@ -190,8 +190,8 @@ procedure CreateUI;
 var
   DefaultStyle: TUIStyle;
 begin
-  { Initialize UI Manager }
-  UI.Init(BackBuffer);
+  { Initialize UI Manager with background buffer }
+  UI.Init(BackBuffer, BackgroundBuffer);
   DefaultStyle.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
   UI.SetStyle(DefaultStyle);
 
@@ -276,15 +276,11 @@ begin
     { Update all widgets (cursor blink, animations, etc.) }
     UI.Update(DeltaTime);
 
-    { Clear background to dark blue }
-    ClearFrameBuffer(BackBuffer);
+    { Render with automatic dirty rectangles - FAST! }
+    UI.RenderDirty;
 
-    { Render UI }
-    UI.RenderAll;
-
-    { Render to screen }
+    { Display (RenderDirty already flushed to VGA) }
     WaitForVSync;
-    RenderFrameBuffer(BackBuffer);
 
     { Clear key states }
     ClearKeyPressed;
@@ -310,6 +306,12 @@ begin
   { Initialize systems }
   InitVGA;
   BackBuffer := CreateFrameBuffer;
+  BackgroundBuffer := CreateFrameBuffer;
+
+  { Clear background to dark blue }
+  ClearFrameBuffer(BackgroundBuffer);
+  ClearFrameBuffer(BackBuffer);
+
   InitKeyboard;
   InitRTC(1024);
   InitResources;
@@ -325,6 +327,7 @@ begin
   DoneRTC;
   DoneKeyboard;
   FreeFrameBuffer(BackBuffer);
+  FreeFrameBuffer(BackgroundBuffer);
   CloseVGA;
 
   LogInfo('=== VGAUI Test Program Exiting ===');
