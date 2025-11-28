@@ -30,7 +30,10 @@ type
 
 procedure InitVGA;
 procedure CloseVGA;
-procedure SetClipRectangle(X, Y: Integer; Width, Height: Word);  { Set clipping bounds for rendering }
+procedure SetClipRectangle(const R: TRectangle);  { Set clipping bounds for rendering }
+procedure WaitForVSync;
+
+{ FrameBuffer }
 function CreateFrameBuffer: PFrameBuffer;  { Allocates off-screen buffer for double-buffering }
 function GetScreenBuffer: PFrameBuffer;    { Returns pointer to VGA memory for direct drawing }
 procedure ClearFrameBuffer(FrameBuffer: PFrameBuffer);
@@ -38,10 +41,13 @@ procedure CopyFrameBuffer(Source, Dest: PFrameBuffer);  { Fast copy from Source 
 procedure CopyFrameBufferRect(Source: PFrameBuffer; var SourceRect: TRectangle; Dest: PFrameBuffer; DestX, DestY: Word);
 procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
 procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer);
-procedure SetPalette(const Palette: TPalette);
-procedure RotatePalette(var Palette: TPalette; StartColor: Byte; Count: Byte; Direction: ShortInt);
+
+{ Palette }
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
-procedure WaitForVSync;
+procedure SetPalette(const Palette: TPalette);
+procedure SetRGB(Index: Byte; const RGB: TRGBColor);
+procedure GetRGB(Index: Byte; var RGB: TRGBColor);
+procedure RotatePalette(StartColor: Byte; Count: Byte; Direction: ShortInt);
 
 { Drawing primitives }
 procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
@@ -85,14 +91,11 @@ begin
   ClipRectangle.Height := 200;
 end;
 
-procedure SetClipRectangle(X, Y: Integer; Width, Height: Word);
+procedure SetClipRectangle(const R: TRectangle);
 { Sets the clipping rectangle for all rendering operations }
 { Default is (0, 0, 320, 200) - full screen }
 begin
-  ClipRectangle.X := X;
-  ClipRectangle.Y := Y;
-  ClipRectangle.Width := Width;
-  ClipRectangle.Height := Height;
+  ClipRectangle := R;
 end;
 
 procedure CloseVGA; assembler;
@@ -298,32 +301,82 @@ procedure SetPalette(const Palette: TPalette); assembler;
   pop ds
 end;
 
-procedure RotatePalette(var Palette: TPalette; StartColor: Byte; Count: Byte; Direction: ShortInt);
+procedure SetRGB(Index: Byte; const RGB: TRGBColor); assembler;
+asm
+  push ds
+  lds  si, RGB        { DS:SI -> TRGBColor }
+
+  mov  dx, 03C8h      { write palette index }
+  mov  al, Index
+  out  dx, al
+
+  mov  dx, 03C9h      { then write R, G, B }
+
+  mov  al, [si]       { R }
+  out  dx, al
+  mov  al, [si+1]     { G }
+  out  dx, al
+  mov  al, [si+2]     { B }
+  out  dx, al
+
+  pop  ds
+end;
+
+procedure GetRGB(Index: Byte; var RGB: TRGBColor); assembler;
+asm
+  push ds
+  lds  di, RGB        { DS:DI -> TRGBColor }
+
+  mov  dx, 03C7h      { read-index register }
+  mov  al, Index
+  out  dx, al         { select palette entry }
+
+  mov  dx, 03C9h      { read R, G, B back }
+
+  in   al, dx         { R }
+  mov  [di], al
+  in   al, dx         { G }
+  mov  [di+1], al
+  in   al, dx         { B }
+  mov  [di+2], al
+
+  pop  ds
+end;
+
 { Rotates a range of palette colors for animation effects }
 { Direction: 1 = rotate right (colors shift up), -1 = rotate left (colors shift down) }
+procedure RotatePalette(StartColor: Byte; Count: Byte; Direction: ShortInt);
 var
-  i: Byte;
-  TempColor: TRGBColor;
+  Colors: array[0..255] of TRGBColor;
+  Temp: TRGBColor;
+  i: Integer;
 begin
-  if Count <= 1 then
-    Exit;  { Nothing to rotate }
+  if Count < 2 then Exit;  { Nothing to rotate }
+
+  { Read the affected palette entries }
+  for i := 0 to Count - 1 do
+    GetRGB(StartColor + i, Colors[i]);
 
   if Direction > 0 then
   begin
-    { Rotate right: save last color, shift all down, put saved at start }
-    TempColor := Palette[StartColor + Count - 1];
+    { Rotate right }
+    Temp := Colors[Count - 1];
     for i := Count - 1 downto 1 do
-      Palette[StartColor + i] := Palette[StartColor + i - 1];
-    Palette[StartColor] := TempColor;
+      Colors[i] := Colors[i - 1];
+    Colors[0] := Temp;
   end
-  else if Direction < 0 then
+  else
   begin
-    { Rotate left: save first color, shift all up, put saved at end }
-    TempColor := Palette[StartColor];
+    { Rotate left }
+    Temp := Colors[0];
     for i := 0 to Count - 2 do
-      Palette[StartColor + i] := Palette[StartColor + i + 1];
-    Palette[StartColor + Count - 1] := TempColor;
+      Colors[i] := Colors[i + 1];
+    Colors[Count - 1] := Temp;
   end;
+
+  { Write the palette entries back }
+  for i := 0 to Count - 1 do
+    SetRGB(StartColor + i, Colors[i]);
 end;
 
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
@@ -363,7 +416,7 @@ procedure WaitForVSync; assembler;
   jz @wait2
 end;
 
-{ Drawing primitives }
+{ Drawing primitives - TODO: assembler }
 
 procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
 { Bresenham's line drawing algorithm with clipping }

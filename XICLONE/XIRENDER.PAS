@@ -1,22 +1,3 @@
-{ ========================================================================== }
-{ XIRENDER.PAS - XICLONE Rendering System                                   }
-{                                                                            }
-{ Optimized dirty rectangle-based rendering for 286 performance.            }
-{                                                                            }
-{ Performance:                                                               }
-{   - Full-screen copy: ~100ms on 286 8MHz (10 FPS)                         }
-{   - Dirty rect copy: ~5ms on 286 8MHz (60+ FPS)                           }
-{                                                                            }
-{ Features:                                                                  }
-{   - Selective redraw using dirty rectangles (via DRect unit)              }
-{   - Flash effect rendering (blinking gems)                                }
-{   - Stack rendering with smooth sub-pixel positioning                     }
-{   - HUD rendering (FPS, score, level)                                     }
-{   - Background restoration for clean rendering                            }
-{                                                                            }
-{ Call InitRenderer once at startup to bind resources.                      }
-{ ========================================================================== }
-
 unit XIRender;
 
 interface
@@ -120,11 +101,8 @@ var
   PixelX, PixelY: Integer;
   R: TRectangle;
   FlashOn: Boolean;
-  TileIndex: Integer;
+  TileIndex: Integer;  
 begin
-  { Set clipping to playfield bounds only }
-  SetClipRectangle(PlayfieldX, PlayfieldY, PlayfieldCols * TileSize, PlayfieldRows * TileSize);
-
   { Calculate flash state (blink every 100ms) }
   FlashOn := FlashActive and (Trunc(FlashTimer * 10) mod 2 = 0);
 
@@ -164,9 +142,6 @@ begin
       end;
     end;
   end;
-
-  { Reset clipping to full screen }
-  SetClipRectangle(0, 0, 320, 200);
 end;
 
 procedure RenderStack(const Stack: TGemStack; var LastX: Integer; var LastY: Real);
@@ -178,7 +153,11 @@ begin
   if not Stack.Active then Exit;
 
   { Set clipping to playfield bounds only }
-  SetClipRectangle(PlayfieldX, PlayfieldY, PlayfieldCols * TileSize, PlayfieldRows * TileSize);
+  R.X := PlayfieldX;
+  R.Y := PlayfieldY;
+  R.Width := PlayfieldCols * TileSize;
+  R.Height := PlayfieldRows * TileSize;
+  SetClipRectangle(R);
 
   { --- STEP 1: CLEAR OLD POSITION --- }
 
@@ -227,7 +206,11 @@ begin
   LastY := Stack.PixelY;
 
   { Reset clipping to full screen }
-  SetClipRectangle(0, 0, 320, 200);
+  R.X := 0;
+  R.Y := 0;
+  R.Width := 320;
+  R.Height := 200;
+  SetClipRectangle(R);
 end;
 
 procedure RenderNextStack(const NextGems: array of TGemColor);

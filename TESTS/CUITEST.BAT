@@ -48,10 +48,6 @@ echo Compiling RTCTIMER.PAS...
 tpc RTCTIMER.PAS
 if errorlevel 1 goto error
 
-echo Compiling LOGGER.PAS...
-tpc LOGGER.PAS
-if errorlevel 1 goto error
-
 echo Compiling VGAUI.PAS...
 tpc VGAUI.PAS
 if errorlevel 1 goto error

@@ -1,17 +1,17 @@
 { ========================================================================== }
-{GAUI.PAS - Minimal UI System for VGA Mode 13h                            }
+{ VGAUI.PAS - Minimal UI System for VGA Mode 13h                             }
 {                                                                            }
-{ Lightweight widget-based UI framework for DOS VGA graphics.               }
-{ Keyboard-driven navigation with event handling.                           }
+{ Lightweight widget-based UI framework for DOS VGA graphics.                }
+{ Keyboard-driven navigation with event handling.                            }
 {                                                                            }
 { Features:                                                                  }
-{   - Object-oriented widget hierarchy (Label, Button, Checkbox, LineEdit) }
-{   - Event-driven model with procedure pointers                            }
-{   - Focus management with keyboard navigation (Tab, arrows, Enter)       }
-{   - Theming system with 3D beveled panels                                 }
-{   - Dirty rectangle rendering integration                                 }
+{   - Object-oriented widget hierarchy (Label, Button, Checkbox, LineEdit)   }
+{   - Event-driven model with procedure pointers                             }
+{   - Focus management with keyboard navigation (Tab, arrows, Enter)         }
+{   - Theming system with 3D beveled panels                                  }
+{   - Dirty rectangle rendering integration                                  }
 {                                                                            }
-{ Dependencies: VGA, VGAFONT, KEYBOARD, LINKLIST, GENTYPES                  }
+{ Dependencies: VGA, VGAFONT, KEYBOARD, LINKLIST, GENTYPES                   }
 { ========================================================================== }
 
 unit VGAUI;
@@ -45,15 +45,6 @@ type
 type
   { TUIStyle must be declared before TWidget since TWidget.Render uses PUIStyle }
   { RenderPanel is virtual to allow custom rendering styles }
-  { Example of custom style:
-      TMyStyle = object(TUIStyle)
-        procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FB: PFrameBuffer); virtual;
-      end;
-
-    Then in your code:
-      var MyStyle: TMyStyle;
-      TMyStyle.Init(MyStyle, 15, 7, 8, 14);
-      UIManager.SetStyle(MyStyle);  }
   TUIStyle = object
     HighColor: Byte;      { Light edge color (highlight) }
     NormalColor: Byte;    { Middle/fill color }
@@ -107,7 +98,7 @@ type
     Text: PShortString;
     Font: PFont;
 
-    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
+    constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
@@ -135,11 +126,9 @@ type
     Text: PShortString;
     Font: PFont;
     Image: PImage;
-    ImageWidth: Word;
-    ImageHeight: Word;
     Checked: Boolean;
 
-    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
+    constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
     procedure SetText(const NewText: string);
     procedure SetChecked(Value: Boolean);
     function IsChecked: Boolean;
@@ -187,8 +176,6 @@ type
     procedure AddWidget(Widget: PWidget);
     procedure RemoveWidget(Widget: PWidget);
     procedure SetFocus(Widget: PWidget);
-    procedure FocusNext;
-    procedure FocusPrev;
     procedure FocusInDirection(DX, DY: Integer);  { Focus closest widget in direction }
     procedure DispatchKeyboardEvents;  { Check all keyboard keys and dispatch events }
     procedure HandleEvent(var Event: TEvent);
@@ -324,10 +311,10 @@ end;
 { TLabel Implementation                                                      }
 { ========================================================================== }
 
-constructor TLabel.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
+constructor TLabel.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
 begin
   { Initialize base widget }
-  inherited Init(X, Y, GetTextWidth(TextStr, FontPtr^), FontPtr^.Height);
+  inherited Init(X, Y, W, H);
   Enabled := False;  { Labels cannot receive focus }
 
   { Allocate and copy text }
@@ -449,16 +436,11 @@ end;
 { TCheckbox Implementation                                                   }
 { ========================================================================== }
 
-constructor TCheckbox.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
-var
-  TextWidth: Integer;
+constructor TCheckbox.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
 begin
-  { Calculate total width: image + gap + text }
-  TextWidth := GetTextWidth(TextStr, FontPtr^);
+  inherited Init(X, Y, W, H);
+
   Image := CheckboxImage;
-  ImageWidth := Image^.Width;
-  ImageHeight := Image^.Height div 2;
-  inherited Init(X, Y, ImageWidth + 4 + TextWidth, ImageHeight);
 
   { Allocate and copy text }
   New(Text);
@@ -507,8 +489,11 @@ procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
   SrcRect: TRectangle;
   TextX, TextY: Integer;
+  ImageHeight: Word;
 begin
   if not Visible then Exit;
+
+  ImageHeight := Image^.Height shr 1;
 
   { Render checkbox image (row 0=unchecked, row 1=checked) }
   SrcRect.X := 0;
@@ -516,14 +501,14 @@ begin
     SrcRect.Y := ImageHeight
   else
     SrcRect.Y := 0;
-  SrcRect.Width := ImageWidth;
+  SrcRect.Width := Image^.Width;
   SrcRect.Height := ImageHeight;
-
-  PutImageRect(Image^, SrcRect, Rectangle.X, Rectangle.Y, True, FrameBuffer);
+  
+  PutImageRect(Image^, SrcRect, Rectangle.X, Rectangle.Y + (Rectangle.Height - ImageHeight) shr 1, True, FrameBuffer);
 
   { Render text vertically centered }
-  TextX := Rectangle.X + ImageWidth + 4;
-  TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
+  TextX := Rectangle.X + Image^.Width + 4;
+  TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) shr 1;
   PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
 
   RenderFocusRectangle(FrameBuffer, Style);
@@ -690,7 +675,7 @@ begin
   if Focused and CursorVisible then
   begin
     CursorX := TextX + GetTextWidth(DisplayText, Font^);
-    DrawVLine(CursorX, TextY, Font^.Height, Style^.FocusColor, FrameBuffer);
+    DrawVLine(CursorX, TextY, Font^.Height, Style^.HighColor, FrameBuffer);
   end;
 
   RenderFocusRectangle(FrameBuffer, Style);
@@ -735,7 +720,7 @@ begin
 
   { Initialize default style with VMT }
   { Calling constructor on instance variable initializes VMT + fields }
-  Style.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
+  Style.Init(15, 7, 8, 14);  { white, gray, dark gray, yellow }
 end;
 
 procedure TUIManager.AddWidget(Widget: PWidget);
@@ -779,98 +764,6 @@ begin
     Widget^.Focused := True;
     Widget^.MarkDirty;
     Widget^.HandleEvent(NewEvent);
-  end;
-end;
-
-procedure TUIManager.FocusNext;
-var
-  Node: PListEntry;
-  Found: Boolean;
-  FirstEnabled: PWidget;
-begin
-  if Widgets.First = nil then Exit;
-
-  Found := False;
-  FirstEnabled := nil;
-  Node := Widgets.First;
-
-  { Find first enabled widget (for wrap-around) }
-  while Node <> nil do
-  begin
-    if PWidget(Node^.Value)^.Enabled then
-    begin
-      if FirstEnabled = nil then
-        FirstEnabled := PWidget(Node^.Value);
-      Break;
-    end;
-    Node := Node^.Next;
-  end;
-
-  { Find current focused widget and move to next }
-  Node := Widgets.First;
-  while Node <> nil do
-  begin
-    if Found and PWidget(Node^.Value)^.Enabled then
-    begin
-      SetFocus(PWidget(Node^.Value));
-      Exit;
-    end;
-
-    if PWidget(Node^.Value) = FocusedWidget then
-      Found := True;
-
-    Node := Node^.Next;
-  end;
-
-  { Wrap around to first enabled widget }
-  if FirstEnabled <> nil then
-    SetFocus(FirstEnabled);
-end;
-
-procedure TUIManager.FocusPrev;
-var
-  Node: PListEntry;
-  PrevWidget: PWidget;
-  LastEnabled: PWidget;
-begin
-  if Widgets.First = nil then Exit;
-
-  PrevWidget := nil;
-  LastEnabled := nil;
-
-  { Find last enabled widget (for wrap-around) }
-  Node := Widgets.First;
-  while Node <> nil do
-  begin
-    if PWidget(Node^.Value)^.Enabled then
-      LastEnabled := PWidget(Node^.Value);
-    Node := Node^.Next;
-  end;
-
-  { Find current focused widget and move to previous }
-  Node := Widgets.First;
-  while Node <> nil do
-  begin
-    if PWidget(Node^.Value) = FocusedWidget then
-    begin
-      if PrevWidget <> nil then
-      begin
-        SetFocus(PrevWidget);
-        Exit;
-      end
-      else
-      begin
-        { At beginning, wrap to last }
-        if LastEnabled <> nil then
-          SetFocus(LastEnabled);
-        Exit;
-      end;
-    end;
-
-    if PWidget(Node^.Value)^.Enabled then
-      PrevWidget := PWidget(Node^.Value);
-
-    Node := Node^.Next;
   end;
 end;
 

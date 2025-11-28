@@ -1,20 +1,6 @@
-{ ========================================================================== }
-{ UITEST.PAS - VGAUI Test Program                                           }
-{                                                                            }
-{ Tests the VGAUI system with all widget types.                             }
-{                                                                            }
-{ Controls:                                                                  }
-{   Arrow Keys   - Focus closest widget in direction (Up/Down/Left/Right)  }
-{   Enter        - Activate button / submit text input                      }
-{   Space        - Toggle checkbox / activate button                        }
-{   Type         - Text input (LineEdit)                                    }
-{   Backspace    - Delete character (LineEdit)                              }
-{   Escape       - Exit                                                     }
-{ ========================================================================== }
-
 program UITest;
 
-uses VGA, VGAFont, VGAUI, Keyboard, PCXLoad, RTCTimer, GenTypes, Crt, Logger;
+uses VGA, VGAFont, VGAUI, Keyboard, PCXLoad, RTCTimer, GenTypes, Crt;
 
 var
   BackBuffer, BackgroundBuffer: PFrameBuffer;
@@ -31,9 +17,7 @@ var
   Event: TEvent;
   Pal: TPalette;
 
-{ ========================================================================== }
-{ Example Event Handlers                                                     }
-{ ========================================================================== }
+{ Example Event Handlers }
 
 {$F+}
 procedure OnQuitButtonClick(var Widget: TWidget; var Event: TEvent);
@@ -71,10 +55,6 @@ end;
 
 {$F-}
 
-{ ========================================================================== }
-{ Initialization and Cleanup                                                 }
-{ ========================================================================== }
-
 procedure InitResources;
 var
   Img: TImage;
@@ -83,46 +63,16 @@ begin
   { Load fonts }
   if not LoadFont('DATA\FONT-SM.XML', 'DATA\FONT-SM.PCX', FontSmall) then
   begin
-    LogError('Failed to load font');
     WriteLn('ERROR: Failed to load font - ', GetLoadFontError);
     Halt(1);
   end;
 
   { Create checkbox image (10x20: unchecked on top, checked on bottom) }
-  CheckboxImage.Width := 10;
-  CheckboxImage.Height := 20;
-  GetMem(CheckboxImage.Data, 10 * 20);
-  FillChar(CheckboxImage.Data^, 10 * 20, 0);
-
-  { Draw simple checkbox sprites }
-  { Top 10x10: unchecked (empty box) }
-  CheckRect.X := 0;
-  CheckRect.Y := 0;
-  CheckRect.Width := 10;
-  CheckRect.Height := 10;
-  { Draw border for unchecked }
-  FillChar(PByteArray(CheckboxImage.Data)^[0], 10, 15);  { Top row }
-  FillChar(PByteArray(CheckboxImage.Data)^[9 * 10], 10, 15);  { Bottom row }
-
-  { Bottom 10x10: checked (box with X) }
-  CheckRect.Y := 10;
-  { Draw border for checked }
-  FillChar(PByteArray(CheckboxImage.Data)^[10 * 10], 10, 15);  { Top row }
-  FillChar(PByteArray(CheckboxImage.Data)^[19 * 10], 10, 15);  { Bottom row }
-  { Draw X pattern - simple diagonal lines }
-  PByteArray(CheckboxImage.Data)^[(10 + 2) * 10 + 2] := 15;   { Top-left }
-  PByteArray(CheckboxImage.Data)^[(10 + 3) * 10 + 3] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 4) * 10 + 4] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 5) * 10 + 5] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 6) * 10 + 6] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 7) * 10 + 7] := 15;
-  { Other diagonal }
-  PByteArray(CheckboxImage.Data)^[(10 + 2) * 10 + 7] := 15;  { Top-right }
-  PByteArray(CheckboxImage.Data)^[(10 + 3) * 10 + 6] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 4) * 10 + 5] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 5) * 10 + 4] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 6) * 10 + 3] := 15;
-  PByteArray(CheckboxImage.Data)^[(10 + 7) * 10 + 2] := 15;
+  if not LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage) then
+  begin
+    WriteLn('ERROR: Failed to checkbox iamge - ', PCXLoad.GetLastErrorMessage);
+    Halt(1);
+  end;
 end;
 
 procedure FreeResources;
@@ -132,16 +82,12 @@ begin
 end;
 
 procedure CreateUI;
-var
-  DefaultStyle: TUIStyle;
 begin
   { Initialize UI Manager with background buffer }
   UI.Init(BackBuffer, BackgroundBuffer);
-  DefaultStyle.Init(15, 7, 8, 14);  { White, gray, dark gray, yellow }
-  UI.SetStyle(DefaultStyle);
 
   { Create Title Label }
-  New(TitleLabel, Init(10, 5, 'VGAUI Test Program', @FontSmall));
+  New(TitleLabel, Init(10, 5, 140, 12, 'VGAUI Test Program', @FontSmall));
   UI.AddWidget(TitleLabel);
 
   { Create Button 1 }
@@ -153,13 +99,13 @@ begin
   UI.AddWidget(Button2);
 
   { Create Sound Checkbox }
-  New(SoundCheckbox, Init(10, 52, 'Sound Effects', @FontSmall, @CheckboxImage));
+  New(SoundCheckbox, Init(10, 52, 140, 12, 'Sound Effects', @FontSmall, @CheckboxImage));
   SoundCheckbox^.SetEventHandler(@OnSoundCheckbox);
   SoundCheckbox^.SetChecked(True);
   UI.AddWidget(SoundCheckbox);
 
   { Create Music Checkbox }
-  New(MusicCheckbox, Init(10, 67, 'Background Music', @FontSmall, @CheckboxImage));
+  New(MusicCheckbox, Init(10, 67, 140, 12, 'Background Music', @FontSmall, @CheckboxImage));
   UI.AddWidget(MusicCheckbox);
 
   { Create Name Input }
@@ -188,10 +134,6 @@ begin
   UI.RemoveWidget(QuitButton); Dispose(QuitButton, Done);
   UI.Done;
 end;
-
-{ ========================================================================== }
-{ Main Loop                                                                  }
-{ ========================================================================== }
 
 procedure MainLoop;
 begin
@@ -226,11 +168,9 @@ begin
   end;
 end;
 
-{ ========================================================================== }
-{ Entry Point                                                                }
-{ ========================================================================== }
-
 begin
+  InitResources;
+
   { Initialize systems }
   InitVGA;
   BackBuffer := CreateFrameBuffer;
@@ -242,17 +182,17 @@ begin
 
   InitKeyboard;
   InitRTC(1024);
-  InitResources;
   CreateUI;
 
   MainLoop;
 
   { Cleanup }
   DestroyUI;
-  FreeResources;
   DoneRTC;
   DoneKeyboard;
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(BackgroundBuffer);
   CloseVGA;
+
+  FreeResources;
 end.
