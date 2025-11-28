@@ -70,7 +70,7 @@ begin
   { Create checkbox image (10x20: unchecked on top, checked on bottom) }
   if not LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage) then
   begin
-    WriteLn('ERROR: Failed to checkbox iamge - ', PCXLoad.GetLastErrorMessage);
+    WriteLn('ERROR: Failed to checkbox iamge - ', PCXLoad.GetLoadPCXError);
     Halt(1);
   end;
 end;

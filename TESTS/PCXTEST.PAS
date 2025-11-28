@@ -21,7 +21,7 @@ begin
   if not LoadPCXWithPalette('DATA\TEST.PCX', TestImage, Palette) then
   begin
     WriteLn('Error: Could not load TEST.PCX');
-    WriteLn(GetLastErrorMessage);
+    WriteLn(GetLoadPCXError);
     Halt(1);
   end;
 

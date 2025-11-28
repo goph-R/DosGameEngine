@@ -29,18 +29,18 @@ type
 function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
-function GetLastErrorMessage: string;
+function GetLoadPCXError: string;
 
 implementation
 
 uses StrUtil;
 
 var
-  LastErrorMessage: string;
+  LoadPCXError: string;
 
-function GetLastErrorMessage: string;
+function GetLoadPCXError: string;
 begin
-  GetLastErrorMessage := LastErrorMessage;
+  GetLoadPCXError := LoadPCXError;
 end;
 
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
@@ -63,7 +63,7 @@ var
   TempByte: Byte;
 begin
   LoadPCXWithPalette := False;
-  LastErrorMessage := '';
+  LoadPCXError := '';
 
   { Initialize Image structure }
   Image.Width := 0;
@@ -77,7 +77,7 @@ begin
   {$I+}
   if IOResult <> 0 then
   begin
-    LastErrorMessage := 'File not found or cannot open: ' + FileName;
+    LoadPCXError := 'File not found or cannot open: ' + FileName;
     Exit;
   end;
 
@@ -85,7 +85,7 @@ begin
   BlockRead(F, Header, SizeOf(TPCXHeader), BytesRead);
   if BytesRead <> SizeOf(TPCXHeader) then
   begin
-    LastErrorMessage := 'Error reading PCX header';
+    LoadPCXError := 'Error reading PCX header';
     Close(F);
     Exit;
   end;
@@ -93,7 +93,7 @@ begin
   { Verify PCX signature }
   if Header.Manufacturer <> 10 then
   begin
-    LastErrorMessage := 'Invalid PCX signature (not a valid PCX file)';
+    LoadPCXError := 'Invalid PCX signature (not a valid PCX file)';
     Close(F);
     Exit;
   end;
@@ -101,7 +101,7 @@ begin
   { Verify 256-color format }
   if (Header.Version <> 5) or (Header.BitsPerPixel <> 8) or (Header.NPlanes <> 1) then
   begin
-    LastErrorMessage := 'Unsupported PCX format (requires 256-color, 8-bit, 1 plane)';
+    LoadPCXError := 'Unsupported PCX format (requires 256-color, 8-bit, 1 plane)';
     Close(F);
     Exit;
   end;
@@ -109,7 +109,7 @@ begin
   { Verify RLE encoding }
   if Header.Encoding <> 1 then
   begin
-    LastErrorMessage := 'Unsupported PCX encoding (requires RLE)';
+    LoadPCXError := 'Unsupported PCX encoding (requires RLE)';
     Close(F);
     Exit;
   end;
@@ -121,7 +121,7 @@ begin
   { Verify dimensions are valid }
   if (Width = 0) or (Height = 0) then
   begin
-    LastErrorMessage := 'Invalid image dimensions (width or height is 0)';
+    LoadPCXError := 'Invalid image dimensions (width or height is 0)';
     Close(F);
     Exit;
   end;
@@ -129,7 +129,7 @@ begin
   Image_size := LongInt(Width) * LongInt(Height);
   if Image_size > 65520 then  { Maximum GetMem block size in real mode }
   begin
-    LastErrorMessage := 'Image too large: ' + IntToStr(Width) + 'x' +
+    LoadPCXError := 'Image too large: ' + IntToStr(Width) + 'x' +
                         IntToStr(Height) + ' (' + IntToStr(Image_size) +
                         ' bytes, max 65520)';
     Close(F);
@@ -154,7 +154,7 @@ begin
       BlockRead(F, Byte_read, 1, BytesRead);
       if BytesRead <> 1 then
       begin
-        LastErrorMessage := 'Unexpected end of file while reading pixel data';
+        LoadPCXError := 'Unexpected end of file while reading pixel data';
         FreeMem(Image.Data, Image_size);
         Image.Data := nil;
         Close(F);
@@ -171,7 +171,7 @@ begin
         BlockRead(F, Color, 1, BytesRead);
         if BytesRead <> 1 then
         begin
-          LastErrorMessage := 'Unexpected end of file while reading RLE color';
+          LoadPCXError := 'Unexpected end of file while reading RLE color';
           FreeMem(Image.Data, Image_size);
           Image.Data := nil;
           Close(F);
@@ -214,7 +214,7 @@ begin
   BlockRead(F, PalMarker, 1, BytesRead);
   if (BytesRead <> 1) or (PalMarker <> $0C) then
   begin
-    LastErrorMessage := 'Warning: No 256-color palette found (marker not 0x0C)';
+    LoadPCXError := 'Warning: No 256-color palette found (marker not 0x0C)';
     { Don't fail - some PCX files may not have palette }
     { Initialize with default grayscale palette }
     for i := 0 to 255 do
@@ -244,7 +244,7 @@ begin
 
   if Pixels_counter <> Image_size then
   begin
-    LastErrorMessage := 'Warning: Decoded ' + IntToStr(Pixels_counter) +
+    LoadPCXError := 'Warning: Decoded ' + IntToStr(Pixels_counter) +
                         ' pixels, expected ' + IntToStr(Image_size);
     { Don't fail - we got most of the image }
   end;

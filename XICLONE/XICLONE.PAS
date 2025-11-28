@@ -554,7 +554,7 @@ begin
   if (not LoadPCXWithPalette(DataPath + GemsFile, GemsImage, Palette)) or
      (not LoadPCX(DataPath + DialogFile, DialogImage)) then
   begin
-    WriteLn(PCXLoad.GetLastErrorMessage);
+    WriteLn(PCXLoad.GetLoadPCXError);
     Halt(1);
   end;
 
@@ -563,7 +563,7 @@ begin
   { Load background }
   if not LoadPCX(DataPath + BackgroundFile, BackgroundImage) then
   begin
-    WriteLn(PCXLoad.GetLastErrorMessage);
+    WriteLn(PCXLoad.GetLoadPCXError);
     Halt(1);
   end;
 

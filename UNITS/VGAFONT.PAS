@@ -209,7 +209,7 @@ begin
   { Load image }
   if not LoadPCX(ImageFile, Font.Image) then
   begin
-    SetError(PCXLoad.GetLastErrorMessage);
+    SetError(PCXLoad.GetLoadPCXError);
     Exit;
   end;
 

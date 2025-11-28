@@ -37,6 +37,7 @@ type
 
 { Loading / freeing }
 function XMLLoadFile(const FileName: string; var Root: PXMLNode): Boolean;
+function GetLoadXMLError: string;
 procedure XMLFreeTree(Node: PXMLNode);
 
 { Query helpers }
@@ -57,6 +58,16 @@ implementation
 
 uses
   Dos;
+
+{ ===== Error reporting ===== }
+
+var
+  XMLLoadError: string;
+
+function GetLoadXMLError: string;
+begin
+  GetLoadXMLError := XMLLoadError;
+end;
 
 { ===== Utility: whitespace & small helpers ===== }
 
@@ -666,20 +677,35 @@ var
 begin
   Root := nil;
   FileBuf := nil;
+  XMLLoadError := '';
 
   { Read the whole file into dynamically allocated buffer }
   Assign(F, FileName);
   {$I-}
   Reset(F, 1);
   {$I+}
-  if IOResult <> 0 then begin XMLLoadFile := False; Exit; end;
+  if IOResult <> 0 then
+  begin
+    XMLLoadError := 'File not found: ' + FileName;
+    XMLLoadFile := False;
+    Exit;
+  end;
 
   sz := FileSize(F);
 
   { Hard cap for single near-pointer block in TP7 real mode }
-  if (sz <= 0) or (sz > 65500) then
+  if sz <= 0 then
   begin
     Close(F);
+    XMLLoadError := 'Empty file';
+    XMLLoadFile := False;
+    Exit;
+  end;
+
+  if sz > 65500 then
+  begin
+    Close(F);
+    XMLLoadError := 'File too large (max 65500 bytes)';
     XMLLoadFile := False;
     Exit;
   end;
@@ -736,7 +762,13 @@ begin
   if FileBuf <> nil then
     FreeMem(FileBuf, sz);
 
-  XMLLoadFile := Root <> nil;
+  if Root = nil then
+  begin
+    XMLLoadError := 'No valid XML elements found';
+    XMLLoadFile := False;
+  end
+  else
+    XMLLoadFile := True;
 end;
 
 function XMLReadWordArray(const Node: PXMLNode; var Arr: PWord; var Count: Word): Boolean;
