@@ -91,6 +91,7 @@ IMGTEST.EXE
 
 **APIs:**
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
+- **[VGAUI.md](DOCS/VGAUI.md)** - UI widgets (Label, Button, Checkbox, LineEdit)
 - **[KEYBOARD.md](DOCS/KEYBOARD.md)** - Keyboard handler & scan codes
 - **[MOUSE.md](DOCS/MOUSE.md)** - Mouse input & buttons
 - **[SBDSP.md](DOCS/SBDSP.md)** - Sound Blaster driver
