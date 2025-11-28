@@ -1,18 +1,3 @@
-{ ========================================================================== }
-{ XILOGIC.PAS - XICLONE Game Logic                                          }
-{                                                                            }
-{ Core game rules and mechanics for XICLONE puzzle game.                    }
-{                                                                            }
-{ Features:                                                                  }
-{   - Stack operations: spawn, rotate, random gem generation                }
-{   - Collision detection: boundary and playfield checks                    }
-{   - Match detection: 4-directional scanning (horiz/vert/diag)             }
-{   - Gravity: cascade gems downward after removal                          }
-{   - Flash system: mark matched gems for visual feedback                   }
-{                                                                            }
-{ All functions use explicit parameters (no globals) for testability.       }
-{ ========================================================================== }
-
 unit XILogic;
 
 interface

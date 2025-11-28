@@ -14,7 +14,6 @@ const
 type
   PPShortString = ^PShortString;
   TPShortStringArray = array[0..7] of PShortString;  { Max XML_MaxAttrsCount }
-  PPShortStringArray = ^TPShortStringArray;
 
   PXMLNode = ^TXMLNode;
   TXMLNode = record
@@ -26,10 +25,9 @@ type
     TextCap : Word;      { allocated capacity in bytes }
 
     AttrMap : TStringMap;
-    AttrKeys  : PPShortString;  { Dynamic array of string pointers }
-    AttrValues: PPShortString;  { Dynamic array of string pointers }
+    AttrKeys  : TPShortStringArray;  { Static array of string pointers (max 8) }
+    AttrValues: TPShortStringArray;  { Static array of string pointers (max 8) }
     AttrCount : Integer;
-    AttrCap   : Integer;        { Allocated capacity }
 
     FirstChild : PXMLNode;
     NextSibling: PXMLNode;
@@ -143,10 +141,7 @@ begin
   N.TextLen := 0;
   N.TextCap := 0;
 
-  N.AttrKeys := nil;
-  N.AttrValues := nil;
   N.AttrCount := 0;
-  N.AttrCap := 0;
   MapInit(N.AttrMap);
   N.FirstChild := nil;
   N.NextSibling := nil;
@@ -171,44 +166,10 @@ end;
 
 procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
 var
-  idx, NewCap, i: Integer;
-  NewKeys, NewValues: PPShortStringArray;
+  idx: Integer;
   pKey, pVal: PShortString;
-  OldKeys, OldValues: PPShortStringArray;
 begin
   if (Node = nil) or (Node^.AttrCount >= MAX_ATTRS) then Exit;
-
-  { Grow arrays if needed }
-  if Node^.AttrCount >= Node^.AttrCap then
-  begin
-    if Node^.AttrCap = 0 then
-      NewCap := 2
-    else
-      NewCap := Node^.AttrCap * 2;
-    if NewCap > MAX_ATTRS then NewCap := MAX_ATTRS;
-
-    { Allocate new arrays }
-    GetMem(NewKeys, NewCap * SizeOf(PShortString));
-    GetMem(NewValues, NewCap * SizeOf(PShortString));
-
-    { Copy existing pointers }
-    if Node^.AttrCap > 0 then
-    begin
-      OldKeys := PPShortStringArray(Node^.AttrKeys);
-      OldValues := PPShortStringArray(Node^.AttrValues);
-      for i := 0 to Node^.AttrCount - 1 do
-      begin
-        NewKeys^[i] := OldKeys^[i];
-        NewValues^[i] := OldValues^[i];
-      end;
-      FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
-      FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
-    end;
-
-    Node^.AttrKeys := PPShortString(NewKeys);
-    Node^.AttrValues := PPShortString(NewValues);
-    Node^.AttrCap := NewCap;
-  end;
 
   { Allocate strings for key and value }
   idx := Node^.AttrCount;
@@ -217,8 +178,8 @@ begin
   pKey^ := Key;
   pVal^ := Value;
 
-  PPShortStringArray(Node^.AttrKeys)^[idx] := pKey;
-  PPShortStringArray(Node^.AttrValues)^[idx] := pVal;
+  Node^.AttrKeys[idx] := pKey;
+  Node^.AttrValues[idx] := pVal;
 
   MapPut(Node^.AttrMap, Key, Pointer(pVal));
 
@@ -332,15 +293,10 @@ begin
   MapFree(Node^.AttrMap);
 
   { Free dynamically allocated attribute strings }
-  if Node^.AttrCap > 0 then
+  for i := 0 to Node^.AttrCount - 1 do
   begin
-    for i := 0 to Node^.AttrCount - 1 do
-    begin
-      Dispose(PPShortStringArray(Node^.AttrKeys)^[i]);
-      Dispose(PPShortStringArray(Node^.AttrValues)^[i]);
-    end;
-    FreeMem(Node^.AttrKeys, Node^.AttrCap * SizeOf(PShortString));
-    FreeMem(Node^.AttrValues, Node^.AttrCap * SizeOf(PShortString));
+    Dispose(Node^.AttrKeys[i]);
+    Dispose(Node^.AttrValues[i]);
   end;
 
   { Free large text buffer if used }

@@ -1,9 +1,3 @@
-{ ========================================================================== }
-{ LOGGER.PAS - Simple File Logger                                           }
-{                                                                            }
-{ Provides simple file-based logging with log levels.                       }
-{ ========================================================================== }
-
 unit Logger;
 
 interface
@@ -27,10 +21,6 @@ var
   LogFilePath: string;
   LogLevel: Byte;
   LogInitialized: Boolean;
-
-{ ========================================================================== }
-{ Private Helper Functions                                                   }
-{ ========================================================================== }
 
 procedure LogToFile(const LevelStr, Msg: string; MsgLevel: Byte);
 var
@@ -68,10 +58,6 @@ begin
   Close(F);
   {$I+}
 end;
-
-{ ========================================================================== }
-{ Public Interface                                                           }
-{ ========================================================================== }
 
 procedure InitLogger(const Path: string; Level: Byte);
 begin

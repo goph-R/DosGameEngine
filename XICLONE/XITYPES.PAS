@@ -1,15 +1,3 @@
-{ ========================================================================== }
-{ XITYPES.PAS - XICLONE Types and Constants                                 }
-{                                                                            }
-{ Shared type definitions and configuration constants for XICLONE.          }
-{                                                                            }
-{ Contents:                                                                  }
-{   - TGemColor: Enumeration of gem types                                   }
-{   - TPlayfield: Game grid with dirty flags                                }
-{   - TGemStack: Falling stack state                                        }
-{   - Game constants: dimensions, speeds, file paths, positions             }
-{ ========================================================================== }
-
 unit XITypes;
 
 interface

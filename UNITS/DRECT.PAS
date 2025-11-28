@@ -1,24 +1,3 @@
-{ ========================================================================== }
-{ DRECT.PAS - Dirty Rectangle System                                        }
-{                                                                            }
-{ Reusable selective rendering system for VGA Mode 13h games.               }
-{                                                                            }
-{ Purpose:                                                                   }
-{   Dramatically improve frame rate on slow CPUs by only copying changed    }
-{   screen regions instead of the entire framebuffer.                       }
-{                                                                            }
-{ Performance Impact:                                                        }
-{   286 8MHz:  Full copy ~100ms (10 FPS) vs Dirty rects ~5ms (60+ FPS)     }
-{   286 12MHz: Full copy ~50ms (20 FPS)  vs Dirty rects ~3ms (200+ FPS)    }
-{                                                                            }
-{ Usage:                                                                     }
-{   1. Call AddDirtyRect() for each changed region during rendering         }
-{   2. Call FlushDirtyRects() once per frame to copy all dirty regions      }
-{   3. System auto-clears the dirty list after flushing                     }
-{                                                                            }
-{ Capacity: 256 rectangles maximum                                          }
-{ ========================================================================== }
-
 unit DRect;
 
 interface
