@@ -5,7 +5,7 @@
 *.exe binary
 *.obj binary
 *.tpu binary
-*.pkm binary
+*.pcx binary
 *.hsc binary
 *.voc binary
 *.wav binary
