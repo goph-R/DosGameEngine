@@ -81,6 +81,7 @@ type
     constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
     procedure HandleEvent(var Event: TEvent); virtual;
+    procedure Update(DeltaTime: Real); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
@@ -159,7 +160,7 @@ type
     procedure Clear;
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
-    procedure Update(DeltaTime: Real);
+    procedure Update(DeltaTime: Real); virtual;
     destructor Done; virtual;
   end;
 
@@ -182,7 +183,10 @@ type
     procedure SetFocus(Widget: PWidget);
     procedure FocusNext;
     procedure FocusPrev;
+    procedure FocusInDirection(DX, DY: Integer);  { Focus closest widget in direction }
+    procedure DispatchKeyboardEvents;  { Check all keyboard keys and dispatch events }
     procedure HandleEvent(var Event: TEvent);
+    procedure Update(DeltaTime: Real);  { Update all widgets }
     procedure RenderAll;
     procedure SetStyle(const NewStyle: TUIStyle);
     procedure Done;
@@ -253,6 +257,11 @@ begin
   { Default implementation: call event handler if set }
   if EventHandler <> nil then
     TEventHandler(EventHandler)(Self, Event);
+end;
+
+procedure TWidget.Update(DeltaTime: Real);
+begin
+  { Base implementation - override in subclasses that need updating }
 end;
 
 procedure TWidget.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
@@ -800,10 +809,135 @@ begin
   end;
 end;
 
+procedure TUIManager.FocusInDirection(DX, DY: Integer);
+{ Focuses the closest widget in the given direction (DX, DY) }
+{ DX: -1=left, 1=right, DY: -1=up, 1=down }
+var
+  Node: PListEntry;
+  Widget: PWidget;
+  BestWidget: PWidget;
+  BestDistance: LongInt;
+  Distance: LongInt;
+  CenterX, CenterY: Integer;
+  TargetCenterX, TargetCenterY: Integer;
+  DeltaX, DeltaY: Integer;
+  InDirection: Boolean;
+begin
+  if FocusedWidget = nil then Exit;
+  if Widgets.First = nil then Exit;
+
+  { Calculate center of currently focused widget }
+  CenterX := FocusedWidget^.Rectangle.X + Integer(FocusedWidget^.Rectangle.Width) div 2;
+  CenterY := FocusedWidget^.Rectangle.Y + Integer(FocusedWidget^.Rectangle.Height) div 2;
+
+  BestWidget := nil;
+  BestDistance := 2147483647;  { MaxLongInt }
+
+  { Find closest widget in the specified direction }
+  Node := Widgets.First;
+  while Node <> nil do
+  begin
+    Widget := PWidget(Node^.Value);
+
+    { Skip current widget and disabled widgets }
+    if (Widget <> FocusedWidget) and Widget^.Enabled then
+    begin
+      { Calculate center of candidate widget }
+      TargetCenterX := Widget^.Rectangle.X + Integer(Widget^.Rectangle.Width) div 2;
+      TargetCenterY := Widget^.Rectangle.Y + Integer(Widget^.Rectangle.Height) div 2;
+
+      { Calculate delta }
+      DeltaX := TargetCenterX - CenterX;
+      DeltaY := TargetCenterY - CenterY;
+
+      { Check if widget is in the requested direction }
+      InDirection := False;
+      if DX <> 0 then
+      begin
+        { Horizontal movement: check if target is in correct X direction }
+        if (DX > 0) and (DeltaX > 0) then InDirection := True
+        else if (DX < 0) and (DeltaX < 0) then InDirection := True;
+      end;
+      if DY <> 0 then
+      begin
+        { Vertical movement: check if target is in correct Y direction }
+        if (DY > 0) and (DeltaY > 0) then InDirection := True
+        else if (DY < 0) and (DeltaY < 0) then InDirection := True;
+      end;
+
+      if InDirection then
+      begin
+        { Calculate Manhattan distance (abs(dx) + abs(dy)) }
+        if DeltaX < 0 then Distance := -DeltaX else Distance := DeltaX;
+        if DeltaY < 0 then Distance := Distance - DeltaY else Distance := Distance + DeltaY;
+
+        { Keep closest widget }
+        if Distance < BestDistance then
+        begin
+          BestDistance := Distance;
+          BestWidget := Widget;
+        end;
+      end;
+    end;
+
+    Node := Node^.Next;
+  end;
+
+  { Focus the best widget found }
+  if BestWidget <> nil then
+    SetFocus(BestWidget);
+end;
+
 procedure TUIManager.HandleEvent(var Event: TEvent);
 begin
+  { Let the focused widget handle the event first }
   if FocusedWidget <> nil then
     FocusedWidget^.HandleEvent(Event);
+
+  { If the event was not handled and it's a cursor key, do directional focus }
+  if (not Event.Handled) and (Event.EventType = Event_KeyPress) then
+  begin
+    case Event.KeyCode of
+      Key_Up:    FocusInDirection(0, -1);
+      Key_Down:  FocusInDirection(0, 1);
+      Key_Left:  FocusInDirection(-1, 0);
+      Key_Right: FocusInDirection(1, 0);
+    end;
+  end;
+end;
+
+procedure TUIManager.DispatchKeyboardEvents;
+{ Checks all keyboard keys and dispatches events to the UI system }
+var
+  Event: TEvent;
+  ScanCode: Byte;
+begin
+  { Check all scan codes from 1 to 127 }
+  for ScanCode := 1 to 127 do
+  begin
+    if IsKeyPressed(ScanCode) then
+    begin
+      Event.EventType := Event_KeyPress;
+      Event.KeyCode := ScanCode;
+      Event.Handled := False;
+      HandleEvent(Event);
+    end;
+  end;
+end;
+
+procedure TUIManager.Update(DeltaTime: Real);
+{ Update all widgets (for animations, timers, etc.) }
+var
+  Node: PListEntry;
+  Widget: PWidget;
+begin
+  Node := Widgets.First;
+  while Node <> nil do
+  begin
+    Widget := PWidget(Node^.Value);
+    Widget^.Update(DeltaTime);
+    Node := Node^.Next;
+  end;
 end;
 
 procedure TUIManager.RenderAll;

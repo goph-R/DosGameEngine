@@ -4,13 +4,14 @@
 { Tests the VGAUI system with all widget types.                             }
 {                                                                            }
 { Controls:                                                                  }
-{   Tab       - Focus next widget                                           }
-{   Shift+Tab - Focus previous widget                                       }
-{   Enter     - Activate button / submit text input                         }
-{   Space     - Toggle checkbox / activate button                           }
-{   Type      - Text input (LineEdit)                                       }
-{   Backspace - Delete character (LineEdit)                                 }
-{   Escape    - Exit                                                        }
+{   Tab          - Focus next widget                                        }
+{   Shift+Tab    - Focus previous widget                                    }
+{   Arrow Keys   - Focus closest widget in direction (Up/Down/Left/Right)  }
+{   Enter        - Activate button / submit text input                      }
+{   Space        - Toggle checkbox / activate button                        }
+{   Type         - Text input (LineEdit)                                    }
+{   Backspace    - Delete character (LineEdit)                              }
+{   Escape       - Exit                                                     }
 { ========================================================================== }
 
 program UITest;
@@ -280,16 +281,6 @@ end;
 { Main Loop                                                                  }
 { ========================================================================== }
 
-procedure DispatchKey(ScanCode: Byte);
-var
-  Event: TEvent;
-begin
-  Event.EventType := Event_KeyPress;
-  Event.KeyCode := ScanCode;
-  Event.Handled := False;
-  UI.HandleEvent(Event);
-end;
-
 procedure MainLoop;
 begin
   LogInfo('MainLoop: Starting');
@@ -310,62 +301,11 @@ begin
     if IsKeyPressed(Key_Tab) then
       UI.FocusNext;
 
-    { Dispatch all printable keys to UI for LineEdit }
-    { Letters }
-    if IsKeyPressed(Key_A) then DispatchKey(Key_A);
-    if IsKeyPressed(Key_B) then DispatchKey(Key_B);
-    if IsKeyPressed(Key_C) then DispatchKey(Key_C);
-    if IsKeyPressed(Key_D) then DispatchKey(Key_D);
-    if IsKeyPressed(Key_E) then DispatchKey(Key_E);
-    if IsKeyPressed(Key_F) then DispatchKey(Key_F);
-    if IsKeyPressed(Key_G) then DispatchKey(Key_G);
-    if IsKeyPressed(Key_H) then DispatchKey(Key_H);
-    if IsKeyPressed(Key_I) then DispatchKey(Key_I);
-    if IsKeyPressed(Key_J) then DispatchKey(Key_J);
-    if IsKeyPressed(Key_K) then DispatchKey(Key_K);
-    if IsKeyPressed(Key_L) then DispatchKey(Key_L);
-    if IsKeyPressed(Key_M) then DispatchKey(Key_M);
-    if IsKeyPressed(Key_N) then DispatchKey(Key_N);
-    if IsKeyPressed(Key_O) then DispatchKey(Key_O);
-    if IsKeyPressed(Key_P) then DispatchKey(Key_P);
-    if IsKeyPressed(Key_Q) then DispatchKey(Key_Q);
-    if IsKeyPressed(Key_R) then DispatchKey(Key_R);
-    if IsKeyPressed(Key_S) then DispatchKey(Key_S);
-    if IsKeyPressed(Key_T) then DispatchKey(Key_T);
-    if IsKeyPressed(Key_U) then DispatchKey(Key_U);
-    if IsKeyPressed(Key_V) then DispatchKey(Key_V);
-    if IsKeyPressed(Key_W) then DispatchKey(Key_W);
-    if IsKeyPressed(Key_X) then DispatchKey(Key_X);
-    if IsKeyPressed(Key_Y) then DispatchKey(Key_Y);
-    if IsKeyPressed(Key_Z) then DispatchKey(Key_Z);
+    { Dispatch all keyboard events to UI system }
+    UI.DispatchKeyboardEvents;
 
-    { Numbers }
-    if IsKeyPressed(Key_0) then DispatchKey(Key_0);
-    if IsKeyPressed(Key_1) then DispatchKey(Key_1);
-    if IsKeyPressed(Key_2) then DispatchKey(Key_2);
-    if IsKeyPressed(Key_3) then DispatchKey(Key_3);
-    if IsKeyPressed(Key_4) then DispatchKey(Key_4);
-    if IsKeyPressed(Key_5) then DispatchKey(Key_5);
-    if IsKeyPressed(Key_6) then DispatchKey(Key_6);
-    if IsKeyPressed(Key_7) then DispatchKey(Key_7);
-    if IsKeyPressed(Key_8) then DispatchKey(Key_8);
-    if IsKeyPressed(Key_9) then DispatchKey(Key_9);
-
-    { Special keys }
-    if IsKeyPressed(Key_Enter) then DispatchKey(Key_Enter);
-    if IsKeyPressed(Key_Space) then DispatchKey(Key_Space);
-    if IsKeyPressed(Key_Backspace) then DispatchKey(Key_Backspace);
-
-    { Punctuation }
-    if IsKeyPressed(Key_Minus) then DispatchKey(Key_Minus);
-    if IsKeyPressed(Key_Equals) then DispatchKey(Key_Equals);
-    if IsKeyPressed(Key_Comma) then DispatchKey(Key_Comma);
-    if IsKeyPressed(Key_Period) then DispatchKey(Key_Period);
-    if IsKeyPressed(Key_Slash) then DispatchKey(Key_Slash);
-
-    { Update LineEdit cursor blink }
-    if NameInput <> nil then
-      NameInput^.Update(DeltaTime);
+    { Update all widgets (cursor blink, animations, etc.) }
+    UI.Update(DeltaTime);
 
     { Clear background to dark blue }
     ClearFrameBuffer(BackBuffer);
