@@ -22,7 +22,7 @@ program XICLONE;
 
 uses
   Crt, VGA, PCXLoad, Keyboard, RTCTimer, VGAPrint, StrUtil, DRect, XITypes,
-  XILogic, XIRender, VGAFont;
+  XILogic, XIRender, VGAFont, Config, SndBank, SBDSP;
 
 var
   { Frame buffers }
@@ -33,6 +33,9 @@ var
   { Images }
   BackgroundImage: TImage;
   GemsImage: TImage;
+
+  { Dialog related }
+  DialogImage: TImage;
 
   { Fonts }
   FontLarge: TFont;
@@ -71,6 +74,20 @@ var
   { Palette }
   Palette: TPalette;
 
+  { Configuration }
+  GameConfig: TConfig;
+
+  { Sound }
+  SoundEnabled: Boolean;
+  SoundBank: TSoundBank;
+  LandSoundId: Integer;
+  EnterSoundId: Integer;
+  SwitchSoundId: Integer;
+  MatchSoundId: Integer;
+  RotateSoundId: Integer;
+  GameOverSoundId: Integer;
+  NextLevelSoundId: Integer;
+
   { Next stack preview gems }
   NextStackGems: array [0..2] of TGemColor;
 
@@ -81,6 +98,13 @@ begin
 
   { Cleanup keyboard }
   DoneKeyboard;
+
+  { Cleanup sound }
+  if SoundEnabled then
+  begin
+    SoundBank.Done;
+    UninstallHandler;
+  end;
 
   { Free fonts }
   FreeFont(FontLarge);
@@ -120,7 +144,65 @@ begin
   end;
 end;
 
-{ Rendering }
+procedure ShowDialog(const Dialog: TDialog);
+var
+  X, Y: Integer;
+begin
+  { Apply dithered darkening effect }
+  RenderDialogBackground(BackBuffer);
+
+  { Put the dialog image at the center }
+  PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, FrameBuffer);
+
+  { Show the darkened screen }
+  CopyFrameBuffer(BackBuffer, ScreenBuffer);
+
+  { Clear the escape key press }
+  ClearKeyPressed;
+
+  { Wait for another Escape press }
+  while not IsKeyPressed(Key_Escape) do
+  begin
+    ClearKeyPressed;
+    { Small delay to reduce CPU usage }
+    Delay(10);
+  end;
+
+  { Restore full game screen }
+  { Copy background to BackBuffer }
+  CopyFrameBuffer(BackgroundBuffer, BackBuffer);
+
+  { Clear escape key so game doesn't exit }
+  ClearKeyPressed;
+end;
+
+procedure FullRenderGame;
+var
+  X, Y: Integer;
+begin
+  { Mark all playfield tiles as changed to force full redraw }
+  for Y := 0 to PlayfieldRows - 1 do
+    for X := 0 to PlayfieldCols - 1 do
+      Playfield.TileChanged[X, Y] := True;
+
+  { Force HUD redraw by invalidating last values }
+  LastScore := -1;
+  LastLevel := -1;
+  LastBlocks := -1;
+
+  { Re-render all game elements }
+  RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
+  RenderStack(CurrentStack, LastStackX, LastStackY);
+  RenderNextStack(NextStackGems);
+  RenderHUD(FPS, ShowFPS, ShowMem, Score, Level, Blocks, LastScore, LastLevel, LastBlocks, FontLarge, FontSmall);
+
+  { Display the restored screen }
+  CopyFrameBuffer(BackBuffer, ScreenBuffer);
+
+  { Reset timing to prevent delta time jump }
+  LastTime := GetTimeSeconds;
+  DeltaTimeAccum := 0.0;
+end;
 
 procedure RenderFrame;
 begin
@@ -312,8 +394,14 @@ end;
 
 procedure UpdateGame;
 begin
-  { Check for exit }
+  { Check for pause }
   if IsKeyPressed(Key_Escape) then
+  begin
+    ShowDialog;  { Pause game, wait for unpause }
+    FullRenderGame; { Re-render the game }
+  end;
+
+  if IsKeyPressed(Key_Q) then
     Running := False;
 
   { Update flash timer }
@@ -420,46 +508,70 @@ procedure InitGame;
 begin
   WriteLn('XICLONE - Initializing...');
 
-  { Load fonts }
-  if not LoadFont(DataPath + FontSmallXML, DataPath + FontSmallImage, FontSmall) then
+  { Load configuration }
+  LoadConfig(GameConfig);
+
+  { Initialize sound system if Sound Blaster is configured }
+  SoundEnabled := False;
+  if GameConfig.SoundCard = SoundCard_SoundBlaster then
+    if ResetDSP(GameConfig.SBPort, GameConfig.SBIRQ, GameConfig.SBDMA, 0) then
+      if SoundBank.Init then
+        SoundEnabled := True
+      else
+        WriteLn('Sound bank initialization failed')
+    else
+      WriteLn('Sound Blaster initialization failed');
+
+  { Load sound effects }
+  if SoundEnabled then
   begin
-    WriteLn('Error loading small font: ', GetLoadFontError);
-    Halt(1);
+    LandSoundId := SoundBank.LoadSound(DataPath + 'LAND.VOC');
+    EnterSoundId := SoundBank.LoadSound(DataPath + 'ENTER.VOC');
+    SwitchSoundId := SoundBank.LoadSound(DataPath + 'SELECT.VOC');
+    MatchSoundId := SoundBank.LoadSound(DataPath + 'MATCH.VOC');
+    RotateSoundId := SoundBank.LoadSound(DataPath + 'ROTATE.VOC');
+    GameOverSoundId := SoundBank.LoadSound(DataPath + 'GAMEOVER.VOC');
+    NextLevelSoundId := SoundBank.LoadSound(DataPath + 'NEXTLVL.VOC');
   end;
 
-  if not LoadFont(DataPath + FontLargeXML, DataPath + FontLargeImage, FontLarge) then
+  { Load fonts }
+  if (not LoadFont(DataPath + FontSmallXML, DataPath + FontSmallImage, FontSmall)) or
+     (not LoadFont(DataPath + FontLargeXML, DataPath + FontLargeImage, FontLarge)) then
   begin
-    WriteLn('Error loading large font: ', GetLoadFontError);
+    WriteLn('Error loading font: ', GetLoadFontError);
     Halt(1);
   end;
 
   { Create framebuffers }
-  BackBuffer := CreateFrameBuffer;       { 64K }
-  BackgroundBuffer := CreateFrameBuffer; { 64K }
+  BackBuffer := CreateFrameBuffer;
+  BackgroundBuffer := CreateFrameBuffer;
 
   { Clear buffers }
   ClearFrameBuffer(BackBuffer);
   ClearFrameBuffer(BackgroundBuffer);
 
-  { Load background }
-  if not LoadPCXWithPalette(DataPath + BackgroundFile, BackgroundImage, Palette) then
+  { Load gem sprites and dialog }
+  if (not LoadPCXWithPalette(DataPath + GemsFile, GemsImage, Palette)) or
+     (not LoadPCX(DataPath + DialogFile, DialogImage)) then
   begin
     WriteLn(PCXLoad.GetLastErrorMessage);
     Halt(1);
   end;
 
-  { Copy background image to BackgroundBuffer }
-  PutImage(BackgroundImage, 0, 0, False, BackgroundBuffer);
+  { --- Load and render a backround image }
 
-  { Free background image - we don't need it anymore }
+  { Load background }
+  if (not LoadPCX(DataPath + BackgroundFile, BackgroundImage))
+  begin
+    WriteLn(PCXLoad.GetLastErrorMessage);
+    Halt(1);
+  end;
+
+  { Copy and free background image to BackgroundBuffer }
+  PutImage(BackgroundImage, 0, 0, False, BackgroundBuffer);
   FreeImage(BackgroundImage);
 
-  { Load gem sprites }
-  if not LoadPCX(DataPath + GemsFile, GemsImage) then
-  begin
-    WriteLn(PCXLoad.GetLastErrorMessage);
-    Halt(1);
-  end;
+  { --- Render game static background }
 
   { Render static labels to background buffer }
   PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall, BackgroundBuffer);
@@ -467,8 +579,7 @@ begin
   PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall, BackgroundBuffer);
   PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall, BackgroundBuffer);
 
-  { Copy background to BackBuffer }
-  Move(BackgroundBuffer^, BackBuffer^, 64000);
+  CopyFrameBuffer(BackgroundBuffer, BackBuffer);
 
   { Initialize renderer }
   InitRenderer(BackgroundBuffer, BackBuffer, GemsImage);

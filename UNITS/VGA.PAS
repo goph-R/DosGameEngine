@@ -30,6 +30,7 @@ type
 
 procedure InitVGA;
 procedure CloseVGA;
+procedure SetClipRectangle(X, Y: Integer; Width, Height: Word);  { Set clipping bounds for rendering }
 function CreateFrameBuffer: PFrameBuffer;  { Allocates off-screen buffer for double-buffering }
 function GetScreenBuffer: PFrameBuffer;    { Returns pointer to VGA memory for direct drawing }
 procedure ClearFrameBuffer(FrameBuffer: PFrameBuffer);
@@ -44,6 +45,8 @@ procedure WaitForVSync;
 
 { Drawing primitives }
 procedure DrawLine(X1, Y1, X2, Y2: Integer; Color: Byte; FrameBuffer: PFrameBuffer);
+procedure DrawFillRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer);
+procedure DrawRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer);
 
 { Image operations }
 procedure GetImage(var Image: TImage; X, Y, Width, Height: Word; FrameBuffer: PFrameBuffer);
@@ -60,6 +63,7 @@ implementation
 
 var
   OldMode: byte;
+  ClipRectangle: TRectangle;  { Global clipping bounds }
 
 procedure InitVGA; assembler;
  asm
@@ -69,6 +73,16 @@ procedure InitVGA; assembler;
 
   mov ax, 13h
   int 10h
+end;
+
+procedure SetClipRectangle(X, Y: Integer; Width, Height: Word);
+{ Sets the clipping rectangle for all rendering operations }
+{ Default is (0, 0, 320, 200) - full screen }
+begin
+  ClipRectangle.X := X;
+  ClipRectangle.Y := Y;
+  ClipRectangle.Width := Width;
+  ClipRectangle.Height := Height;
 end;
 
 procedure CloseVGA; assembler;
@@ -135,49 +149,49 @@ begin
   { Early exit for zero dimensions }
   if (Width <= 0) or (Height <= 0) then Exit;
 
-  { --- Clipping Logic (Preserved from original) --- }
-  
+  { --- Clipping Logic (Uses global ClipRectangle) --- }
+
   { Clip source rectangle to source buffer bounds }
-  if SrcX < 0 then
+  if SrcX < ClipRectangle.X then
   begin
-    Width := Width + SrcX;
-    DstX := DstX - SrcX;
-    SrcX := 0;
+    Width := Width + (SrcX - ClipRectangle.X);
+    DstX := DstX - (SrcX - ClipRectangle.X);
+    SrcX := ClipRectangle.X;
   end;
 
-  if SrcY < 0 then
+  if SrcY < ClipRectangle.Y then
   begin
-    Height := Height + SrcY;
-    DstY := DstY - SrcY;
-    SrcY := 0;
+    Height := Height + (SrcY - ClipRectangle.Y);
+    DstY := DstY - (SrcY - ClipRectangle.Y);
+    SrcY := ClipRectangle.Y;
   end;
 
-  if SrcX + Width > 320 then
-    Width := 320 - SrcX;
+  if SrcX + Width > ClipRectangle.X + Integer(ClipRectangle.Width) then
+    Width := ClipRectangle.X + Integer(ClipRectangle.Width) - SrcX;
 
-  if SrcY + Height > 200 then
-    Height := 200 - SrcY;
+  if SrcY + Height > ClipRectangle.Y + Integer(ClipRectangle.Height) then
+    Height := ClipRectangle.Y + Integer(ClipRectangle.Height) - SrcY;
 
   { Clip destination to destination buffer bounds }
-  if DstX < 0 then
+  if DstX < ClipRectangle.X then
   begin
-    Width := Width + DstX;
-    SrcX := SrcX - DstX;
-    DstX := 0;
+    Width := Width + (DstX - ClipRectangle.X);
+    SrcX := SrcX - (DstX - ClipRectangle.X);
+    DstX := ClipRectangle.X;
   end;
 
-  if DstY < 0 then
+  if DstY < ClipRectangle.Y then
   begin
-    Height := Height + DstY;
-    SrcY := SrcY - DstY;
-    DstY := 0;
+    Height := Height + (DstY - ClipRectangle.Y);
+    SrcY := SrcY - (DstY - ClipRectangle.Y);
+    DstY := ClipRectangle.Y;
   end;
 
-  if DstX + Width > 320 then
-    Width := 320 - DstX;
+  if DstX + Width > ClipRectangle.X + Integer(ClipRectangle.Width) then
+    Width := ClipRectangle.X + Integer(ClipRectangle.Width) - DstX;
 
-  if DstY + Height > 200 then
-    Height := 200 - DstY;
+  if DstY + Height > ClipRectangle.Y + Integer(ClipRectangle.Height) then
+    Height := ClipRectangle.Y + Integer(ClipRectangle.Height) - DstY;
 
   { --- Final Validation and Optimization --- }
 
@@ -399,6 +413,200 @@ begin
   end;
 end;
 
+procedure DrawFillRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer); assembler;
+{ Draws a filled rectangle using fast assembly }
+{ Uses REP STOSB for optimal 286 performance }
+asm
+  push ds
+  cld
+
+  { Load rectangle parameters from pointer }
+  les di, R
+  mov ax, es:[di]        { AX = R.X (Integer) }
+  mov bx, es:[di+2]      { BX = R.Y (Integer) }
+  mov cx, es:[di+4]      { CX = R.Width (Word) }
+  mov dx, es:[di+6]      { DX = R.Height (Word) }
+
+  { Early exit if width or height is zero }
+  or cx, cx
+  jz @Done
+  or dx, dx
+  jz @Done
+
+  { Calculate starting address: FrameBuffer + Y * 320 + X }
+  push ax                { Save X }
+  push cx                { Save Width }
+  push dx                { Save Height (MUL will clobber DX!) }
+  mov ax, bx             { AX = Y }
+  mov si, 320
+  mul si                 { DX:AX = Y * 320 }
+  pop dx                 { Restore Height }
+  pop cx                 { Restore Width }
+  pop si                 { SI = X }
+  add ax, si             { AX = Y * 320 + X }
+
+  les di, FrameBuffer
+  add di, ax             { ES:DI = FrameBuffer + start offset }
+
+  { Load color into AL }
+  mov al, Color
+
+  { Calculate stride (pixels to skip at end of each row) }
+  mov si, 320
+  sub si, cx             { SI = 320 - Width }
+
+  { DX already contains Height }
+  { CX already contains Width }
+
+@RowLoop:
+  push cx                { Save width for this row }
+  rep stosb              { Fill CX bytes with AL, ES:DI auto-increments }
+  pop cx                 { Restore width for next row }
+  add di, si             { Skip to next row (add stride) }
+  dec dx                 { Decrement row counter }
+  jnz @RowLoop
+
+@Done:
+  pop ds
+end;
+
+procedure DrawRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer); assembler;
+{ Draws a rectangle outline (border only) using fast assembly }
+{ Draws 4 edges: top, bottom, left, right }
+asm
+  push ds
+  cld
+
+  { Load rectangle parameters }
+  les di, R
+  mov ax, es:[di]        { AX = R.X }
+  mov bx, es:[di+2]      { BX = R.Y }
+  mov cx, es:[di+4]      { CX = R.Width }
+  mov dx, es:[di+6]      { DX = R.Height }
+
+  { Early exit if width or height is less than 2 }
+  cmp cx, 2
+  jl @Done
+  cmp dx, 2
+  jl @Done
+
+  { Save all parameters on stack for reuse }
+  push ax                { X }
+  push bx                { Y }
+  push cx                { Width }
+  push dx                { Height }
+
+  { --- Draw top edge: horizontal line from (X, Y) to (X+Width-1, Y) --- }
+  mov ax, bx             { AX = Y }
+  mov si, 320
+  mul si                 { DX:AX = Y * 320 }
+  pop dx                 { DX = Height (pop and save for later) }
+  pop cx                 { CX = Width }
+  pop bx                 { BX = Y }
+  pop si                 { SI = X }
+  push si                { Save all params again }
+  push bx
+  push cx
+  push dx
+
+  add ax, si             { AX = Y * 320 + X }
+  les di, FrameBuffer
+  add di, ax             { ES:DI = start of top edge }
+
+  mov al, Color
+  push cx                { Save width }
+  rep stosb              { Draw top edge }
+  pop cx                 { Restore width }
+
+  { --- Draw bottom edge: horizontal line from (X, Y+Height-1) to (X+Width-1, Y+Height-1) --- }
+  pop dx                 { DX = Height }
+  pop cx                 { CX = Width }
+  pop bx                 { BX = Y }
+  pop si                 { SI = X }
+  push si
+  push bx
+  push cx
+  push dx
+
+  mov ax, bx             { AX = Y }
+  add ax, dx             { AX = Y + Height }
+  dec ax                 { AX = Y + Height - 1 }
+  push cx
+  mov cx, 320
+  mul cx                 { DX:AX = (Y+Height-1) * 320 }
+  pop cx
+  add ax, si             { AX = (Y+Height-1) * 320 + X }
+  les di, FrameBuffer
+  add di, ax
+
+  mov al, Color
+  rep stosb              { Draw bottom edge }
+
+  { --- Draw left edge: vertical line from (X, Y+1) to (X, Y+Height-2) --- }
+  pop dx                 { DX = Height }
+  pop cx                 { CX = Width }
+  pop bx                 { BX = Y }
+  pop si                 { SI = X }
+  push si
+  push bx
+  push cx
+  push dx
+
+  { Start at Y+1 to avoid overdrawing corners }
+  inc bx                 { BX = Y + 1 }
+  mov ax, bx             { AX = Y + 1 }
+  push dx
+  mov dx, 320
+  mul dx                 { DX:AX = (Y+1) * 320 }
+  pop dx
+  add ax, si             { AX = (Y+1) * 320 + X }
+  les di, FrameBuffer
+  add di, ax
+
+  mov al, Color
+  sub dx, 2              { Height - 2 (skip top and bottom corners) }
+  mov cx, dx
+  jcxz @SkipLeft         { Skip if no pixels to draw }
+
+@LeftLoop:
+  mov es:[di], al        { Write pixel }
+  add di, 320            { Move to next row }
+  loop @LeftLoop
+
+@SkipLeft:
+  { --- Draw right edge: vertical line from (X+Width-1, Y+1) to (X+Width-1, Y+Height-2) --- }
+  pop dx                 { DX = Height }
+  pop cx                 { CX = Width }
+  pop bx                 { BX = Y }
+  pop si                 { SI = X }
+
+  add si, cx             { SI = X + Width }
+  dec si                 { SI = X + Width - 1 }
+
+  inc bx                 { BX = Y + 1 }
+  mov ax, bx             { AX = Y + 1 }
+  push dx
+  mov dx, 320
+  mul dx                 { DX:AX = (Y+1) * 320 }
+  pop dx
+  add ax, si             { AX = (Y+1) * 320 + (X+Width-1) }
+  les di, FrameBuffer
+  add di, ax
+
+  mov al, Color
+  sub dx, 2              { Height - 2 }
+  mov cx, dx
+  jcxz @Done             { Skip if no pixels to draw }
+
+@RightLoop:
+  mov es:[di], al        { Write pixel }
+  add di, 320            { Move to next row }
+  loop @RightLoop
+
+@Done:
+  pop ds
+end;
+
 
 { Image operations }
 
@@ -456,11 +664,16 @@ var
   ClippedRect: TRectangle;
   ClippedX, ClippedY: Integer;
   ClipAmount: Integer;
+  ClipRight, ClipBottom: Integer;
 begin
+  { Calculate clipping bounds }
+  ClipRight := ClipRectangle.X + Integer(ClipRectangle.Width);
+  ClipBottom := ClipRectangle.Y + Integer(ClipRectangle.Height);
+
   { Early exit checks - completely off screen }
-  if (X >= 320) or (Y >= 200) or
-     (X + Integer(SourceRect.Width) <= 0) or
-     (Y + Integer(SourceRect.Height) <= 0) then
+  if (X >= ClipRight) or (Y >= ClipBottom) or
+     (X + Integer(SourceRect.Width) <= ClipRectangle.X) or
+     (Y + Integer(SourceRect.Height) <= ClipRectangle.Y) then
     Exit;
 
   { Initialize clipped values with original parameters }
@@ -468,11 +681,11 @@ begin
   ClippedX := X;
   ClippedY := Y;
 
-  { Clip left edge (screen X < 0) }
-  if X < 0 then
+  { Clip left edge (screen X < ClipRectangle.X) }
+  if X < ClipRectangle.X then
   begin
-    ClipAmount := -X;
-    ClippedX := 0;
+    ClipAmount := ClipRectangle.X - X;
+    ClippedX := ClipRectangle.X;
 
     if FlipX then
       { FlipX: reading right-to-left, so reduce width (clips from right of source) }
@@ -485,11 +698,11 @@ begin
       end;
   end;
 
-  { Clip top edge (screen Y < 0) }
-  if Y < 0 then
+  { Clip top edge (screen Y < ClipRectangle.Y) }
+  if Y < ClipRectangle.Y then
   begin
-    ClipAmount := -Y;
-    ClippedY := 0;
+    ClipAmount := ClipRectangle.Y - Y;
+    ClippedY := ClipRectangle.Y;
 
     if FlipY then
       { FlipY: reading bottom-to-top, so reduce height (clips from bottom of source) }
@@ -502,10 +715,10 @@ begin
       end;
   end;
 
-  { Clip right edge (screen X + Width > 320) }
-  if ClippedX + Integer(ClippedRect.Width) > 320 then
+  { Clip right edge (screen X + Width > ClipRight) }
+  if ClippedX + Integer(ClippedRect.Width) > ClipRight then
   begin
-    ClipAmount := ClippedX + Integer(ClippedRect.Width) - 320;
+    ClipAmount := ClippedX + Integer(ClippedRect.Width) - ClipRight;
 
     if FlipX then
       { FlipX: reading right-to-left, so skip from left of source }
@@ -518,10 +731,10 @@ begin
       ClippedRect.Width := ClippedRect.Width - ClipAmount;
   end;
 
-  { Clip bottom edge (screen Y + Height > 200) }
-  if ClippedY + Integer(ClippedRect.Height) > 200 then
+  { Clip bottom edge (screen Y + Height > ClipBottom) }
+  if ClippedY + Integer(ClippedRect.Height) > ClipBottom then
   begin
-    ClipAmount := ClippedY + Integer(ClippedRect.Height) - 200;
+    ClipAmount := ClippedY + Integer(ClippedRect.Height) - ClipBottom;
 
     if FlipY then
       { FlipY: reading bottom-to-top, so skip from top of source }
@@ -811,4 +1024,10 @@ begin
   end;
 end;
 
+begin
+  { Initialize default clipping rectangle to full screen }
+  ClipRectangle.X := 0;
+  ClipRectangle.Y := 0;
+  ClipRectangle.Width := 320;
+  ClipRectangle.Height := 200;
 end.

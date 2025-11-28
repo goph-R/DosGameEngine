@@ -37,6 +37,7 @@ const
   { Resource filenames }
   BackgroundFile = 'BG1.PCX';
   GemsFile = 'GEMS1.PCX';
+  DialogFIle = 'DIALOG.PCX';
   FontLargeImage = 'FONT-LG.PCX';
   FontLargeXML = 'FONT-LG.XML';
   FontSmallImage = 'FONT-SM.PCX';
@@ -49,6 +50,8 @@ const
   NextLabelY = 17;
 
   StatLabelsX = 99;
+
+  MaxDialogButtons = 10;
 
 type
   { Gem colors }

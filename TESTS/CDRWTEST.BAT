@@ -16,6 +16,10 @@ echo Compiling KEYBOARD.PAS...
 tpc KEYBOARD.PAS
 if errorlevel 1 goto error
 
+echo Compiling VGAPRINT.PAS...
+tpc VGAPRINT.PAS
+if errorlevel 1 goto error
+
 echo Compiling DRWTEST.PAS...
 cd ..\TESTS
 tpc -U..\UNITS DRWTEST.PAS

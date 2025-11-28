@@ -179,14 +179,32 @@ ClearKeyPressed;  { At end of loop }
 - **RTCTIMER.PAS:** InitRTC(1024), GetTimeSeconds, DoneRTC
 - **VGAPRINT.PAS:** PrintText (FPS, score, level)
 - **STRUTIL.PAS:** IntToStr
+- **CONFIG.PAS:** LoadConfig (reads CONFIG.INI for Sound Blaster settings)
+- **SBDSP.PAS:** ResetDSP, UninstallHandler (Sound Blaster driver)
+- **SNDBANK.PAS:** TSoundBank.Init/LoadSound/PlaySound/Done (XMS-based sound management)
 
 ## Assets
 
 **Graphics:**
 - `DATA\BG1.PCX` - Background (320×200)
 - `DATA\GEMS1.PCX` - Gem sprites (8×16×16: Empty, Red, Yellow, Green, Blue, Pink, Purple, MagicJewel)
-- `DATA\FONT-LG.PCX/XML` - Large font (unused in current phase)
-- `DATA\FONT-SM.PCX/XML` - Small font (unused in current phase)
+- `DATA\FONT-LG.PCX/XML` - Large font
+- `DATA\FONT-SM.PCX/XML` - Small font
+
+**Sound Effects:** (VOC format, 8-bit PCM, 11025 Hz mono)
+- `DATA\LAND.VOC` - Stack lands on playfield (LandSoundId)
+- `DATA\ENTER.VOC` - Menu selection confirmed (EnterSoundId)
+- `DATA\SELECT.VOC` - Menu option changed (SwitchSoundId)
+- `DATA\MATCH.VOC` - Gems matched (MatchSoundId)
+- `DATA\ROTATE.VOC` - Stack rotated (RotateSoundId)
+- `DATA\GAMEOVER.VOC` - Game over (GameOverSoundId)
+- `DATA\NEXTLVL.VOC` - Player advances to next level (NextLevelSoundId)
+
+**Sound System:**
+- Only initializes if `CONFIG.INI` has `SoundCard=2` (Sound Blaster)
+- Requires HIMEM.SYS for XMS memory (sound bank storage)
+- Sound files loaded into XMS, played via DMA on demand
+- Gracefully degrades if sound card not configured or XMS unavailable
 
 **Current Phase Status:** Phase 4+ (playable with flash effects, gravity, chain reactions)
 
@@ -212,8 +230,8 @@ ClearKeyPressed;  { At end of loop }
 - Magic Jewel mechanics (7% of code present, not active)
 - Difficulty levels (Novice/Amateur/Pro with 4/5/6 colors)
 - Combo system (chain reaction tracking)
-- Sound effects (SBDSP/SndBank integration)
-- Music (HSC integration)
+- Sound effect triggers (system integrated, not yet called in game events)
+- Music (HSC/IMF integration)
 - Title/menu screens
 - Game over detection
 - Level progression

@@ -39,6 +39,9 @@ procedure RenderHUD(FPS: Integer; ShowFPS: Boolean; ShowMem: Boolean; Score: Lon
                     var LastScore: LongInt; var LastLevel, LastBlocks: Integer;
                     var FontLarge, FontSmall: TFont);
 
+{ Dialog rendering }
+procedure RenderDialogBackground(FrameBuffer: PFrameBuffer);
+
 implementation
 
 var
@@ -119,6 +122,9 @@ var
   FlashOn: Boolean;
   TileIndex: Integer;
 begin
+  { Set clipping to playfield bounds only }
+  SetClipRectangle(PlayfieldX, PlayfieldY, PlayfieldCols * TileSize, PlayfieldRows * TileSize);
+
   { Calculate flash state (blink every 100ms) }
   FlashOn := FlashActive and (Trunc(FlashTimer * 10) mod 2 = 0);
 
@@ -158,6 +164,9 @@ begin
       end;
     end;
   end;
+
+  { Reset clipping to full screen }
+  SetClipRectangle(0, 0, 320, 200);
 end;
 
 procedure RenderStack(const Stack: TGemStack; var LastX: Integer; var LastY: Real);
@@ -167,6 +176,9 @@ var
   R: TRectangle;
 begin
   if not Stack.Active then Exit;
+
+  { Set clipping to playfield bounds only }
+  SetClipRectangle(PlayfieldX, PlayfieldY, PlayfieldCols * TileSize, PlayfieldRows * TileSize);
 
   { --- STEP 1: CLEAR OLD POSITION --- }
 
@@ -213,6 +225,9 @@ begin
   { Save current position for next frame }
   LastX := Stack.PixelX;
   LastY := Stack.PixelY;
+
+  { Reset clipping to full screen }
+  SetClipRectangle(0, 0, 320, 200);
 end;
 
 procedure RenderNextStack(const NextGems: array of TGemColor);
@@ -349,4 +364,54 @@ begin
   end;
 end;
 
+procedure RenderDialogBackground(FrameBuffer: PFrameBuffer);
+begin
+  { Optimized assembly checkerboard dither for 286 }
+  { Odd rows (1,3,5...): black at even X positions (0,2,4...) }
+  { Even rows (0,2,4...): black at odd X positions (1,3,5...) }
+  asm
+    push ds
+    les di, FrameBuffer    { ES:DI = framebuffer base }
+    xor bx, bx             { BX = row counter (0-199) }
+    cld                    { Clear direction flag }
+
+  @RowLoop:
+    { Calculate row start address: FrameBuffer + (row * 320) }
+    les di, FrameBuffer
+    mov ax, bx             { AX = row number }
+    mov cx, 320
+    mul cx                 { DX:AX = row * 320 }
+    add di, ax             { ES:DI = framebuffer + row offset }
+
+    { Check if row is odd or even }
+    test bl, 1             { Test bit 0 of row number }
+    jnz @OddRow
+
+  @EvenRow:
+    { Even rows: write black at odd positions (1,3,5,...) }
+    inc di                 { Start at offset 1 }
+    mov cx, 160            { 320/2 = 160 pixels to write }
+    xor al, al             { AL = 0 (black color) }
+  @EvenLoop:
+    stosb                  { Write black to [ES:DI], DI++ }
+    inc di                 { Skip next pixel (DI++) }
+    loop @EvenLoop
+    jmp @NextRow
+
+  @OddRow:
+    { Odd rows: write black at even positions (0,2,4,...) }
+    mov cx, 160            { 320/2 = 160 pixels to write }
+    xor al, al             { AL = 0 (black color) }
+  @OddLoop:
+    stosb                  { Write black to [ES:DI], DI++ }
+    inc di                 { Skip next pixel (DI++) }
+    loop @OddLoop
+
+  @NextRow:
+    inc bx                 { Next row }
+    cmp bx, 200
+    jl @RowLoop
+
+    pop ds
+  end;
 end.
