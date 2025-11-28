@@ -3,4 +3,4 @@
 *.tpu
 *.bak
 *.exe
-setup.cfg
+config.ini
