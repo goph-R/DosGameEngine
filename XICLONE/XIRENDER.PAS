@@ -364,54 +364,54 @@ begin
   end;
 end;
 
-procedure RenderDialogBackground(FrameBuffer: PFrameBuffer);
-begin
-  { Optimized assembly checkerboard dither for 286 }
-  { Odd rows (1,3,5...): black at even X positions (0,2,4...) }
-  { Even rows (0,2,4...): black at odd X positions (1,3,5...) }
-  asm
-    push ds
-    les di, FrameBuffer    { ES:DI = framebuffer base }
-    xor bx, bx             { BX = row counter (0-199) }
-    cld                    { Clear direction flag }
+procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
+{ Optimized assembly checkerboard dither for 286 }
+{ Odd rows (1,3,5...): black at even X positions (0,2,4...) }
+{ Even rows (0,2,4...): black at odd X positions (1,3,5...) }
+asm
+  push ds
+  les di, FrameBuffer    { ES:DI = framebuffer base }
+  xor bx, bx             { BX = row counter (0-199) }
+  cld                    { Clear direction flag }
 
-  @RowLoop:
-    { Calculate row start address: FrameBuffer + (row * 320) }
-    les di, FrameBuffer
-    mov ax, bx             { AX = row number }
-    mov cx, 320
-    mul cx                 { DX:AX = row * 320 }
-    add di, ax             { ES:DI = framebuffer + row offset }
+@RowLoop:
+  { Calculate row start address: FrameBuffer + (row * 320) }
+  les di, FrameBuffer
+  mov ax, bx             { AX = row number }
+  mov cx, 320
+  mul cx                 { DX:AX = row * 320 }
+  add di, ax             { ES:DI = framebuffer + row offset }
 
-    { Check if row is odd or even }
-    test bl, 1             { Test bit 0 of row number }
-    jnz @OddRow
+  { Check if row is odd or even }
+  test bl, 1             { Test bit 0 of row number }
+  jnz @OddRow
 
-  @EvenRow:
-    { Even rows: write black at odd positions (1,3,5,...) }
-    inc di                 { Start at offset 1 }
-    mov cx, 160            { 320/2 = 160 pixels to write }
-    xor al, al             { AL = 0 (black color) }
-  @EvenLoop:
-    stosb                  { Write black to [ES:DI], DI++ }
-    inc di                 { Skip next pixel (DI++) }
-    loop @EvenLoop
-    jmp @NextRow
+@EvenRow:
+  { Even rows: write black at odd positions (1,3,5,...) }
+  inc di                 { Start at offset 1 }
+  mov cx, 160            { 320/2 = 160 pixels to write }
+  xor al, al             { AL = 0 (black color) }
+@EvenLoop:
+  stosb                  { Write black to [ES:DI], DI++ }
+  inc di                 { Skip next pixel (DI++) }
+  loop @EvenLoop
+  jmp @NextRow
 
-  @OddRow:
-    { Odd rows: write black at even positions (0,2,4,...) }
-    mov cx, 160            { 320/2 = 160 pixels to write }
-    xor al, al             { AL = 0 (black color) }
-  @OddLoop:
-    stosb                  { Write black to [ES:DI], DI++ }
-    inc di                 { Skip next pixel (DI++) }
-    loop @OddLoop
+@OddRow:
+  { Odd rows: write black at even positions (0,2,4,...) }
+  mov cx, 160            { 320/2 = 160 pixels to write }
+  xor al, al             { AL = 0 (black color) }
+@OddLoop:
+  stosb                  { Write black to [ES:DI], DI++ }
+  inc di                 { Skip next pixel (DI++) }
+  loop @OddLoop
 
-  @NextRow:
-    inc bx                 { Next row }
-    cmp bx, 200
-    jl @RowLoop
+@NextRow:
+  inc bx                 { Next row }
+  cmp bx, 200
+  jl @RowLoop
 
-    pop ds
-  end;
+  pop ds
+end;
+
 end.

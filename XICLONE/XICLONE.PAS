@@ -144,7 +144,7 @@ begin
   end;
 end;
 
-procedure ShowDialog(const Dialog: TDialog);
+procedure ShowDialog;
 var
   X, Y: Integer;
 begin
@@ -152,7 +152,7 @@ begin
   RenderDialogBackground(BackBuffer);
 
   { Put the dialog image at the center }
-  PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, FrameBuffer);
+  PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, False, BackBuffer);
 
   { Show the darkened screen }
   CopyFrameBuffer(BackBuffer, ScreenBuffer);
@@ -561,7 +561,7 @@ begin
   { --- Load and render a backround image }
 
   { Load background }
-  if (not LoadPCX(DataPath + BackgroundFile, BackgroundImage))
+  if not LoadPCX(DataPath + BackgroundFile, BackgroundImage) then
   begin
     WriteLn(PCXLoad.GetLastErrorMessage);
     Halt(1);
