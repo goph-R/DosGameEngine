@@ -413,61 +413,46 @@ begin
   end;
 end;
 
-procedure DrawFillRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer); assembler;
-{ Draws a filled rectangle using fast assembly }
-{ Uses REP STOSB for optimal 286 performance }
-asm
-  push ds
-  cld
+procedure DrawFillRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer);
+{ Draws a filled rectangle with clipping }
+var
+  ClippedRect: TRectangle;
+  X1, Y1, X2, Y2: Integer;
+  ClipX2, ClipY2: Integer;
+  Row: Integer;
+  Offset: Word;
+begin
+  { Calculate clipping bounds }
+  ClipX2 := ClipRectangle.X + ClipRectangle.Width - 1;
+  ClipY2 := ClipRectangle.Y + ClipRectangle.Height - 1;
 
-  { Load rectangle parameters from pointer }
-  les di, R
-  mov ax, es:[di]        { AX = R.X (Integer) }
-  mov bx, es:[di+2]      { BX = R.Y (Integer) }
-  mov cx, es:[di+4]      { CX = R.Width (Word) }
-  mov dx, es:[di+6]      { DX = R.Height (Word) }
+  { Calculate rectangle bounds }
+  X1 := R.X;
+  Y1 := R.Y;
+  X2 := R.X + R.Width - 1;
+  Y2 := R.Y + R.Height - 1;
 
-  { Early exit if width or height is zero }
-  or cx, cx
-  jz @Done
-  or dx, dx
-  jz @Done
+  { Clip to bounds }
+  if X1 < ClipRectangle.X then X1 := ClipRectangle.X;
+  if Y1 < ClipRectangle.Y then Y1 := ClipRectangle.Y;
+  if X2 > ClipX2 then X2 := ClipX2;
+  if Y2 > ClipY2 then Y2 := ClipY2;
 
-  { Calculate starting address: FrameBuffer + Y * 320 + X }
-  push ax                { Save X }
-  push cx                { Save Width }
-  push dx                { Save Height (MUL will clobber DX!) }
-  mov ax, bx             { AX = Y }
-  mov si, 320
-  mul si                 { DX:AX = Y * 320 }
-  pop dx                 { Restore Height }
-  pop cx                 { Restore Width }
-  pop si                 { SI = X }
-  add ax, si             { AX = Y * 320 + X }
+  { Check if completely outside clip region }
+  if (X1 > X2) or (Y1 > Y2) then Exit;
 
-  les di, FrameBuffer
-  add di, ax             { ES:DI = FrameBuffer + start offset }
+  { Build clipped rectangle }
+  ClippedRect.X := X1;
+  ClippedRect.Y := Y1;
+  ClippedRect.Width := X2 - X1 + 1;
+  ClippedRect.Height := Y2 - Y1 + 1;
 
-  { Load color into AL }
-  mov al, Color
-
-  { Calculate stride (pixels to skip at end of each row) }
-  mov si, 320
-  sub si, cx             { SI = 320 - Width }
-
-  { DX already contains Height }
-  { CX already contains Width }
-
-@RowLoop:
-  push cx                { Save width for this row }
-  rep stosb              { Fill CX bytes with AL, ES:DI auto-increments }
-  pop cx                 { Restore width for next row }
-  add di, si             { Skip to next row (add stride) }
-  dec dx                 { Decrement row counter }
-  jnz @RowLoop
-
-@Done:
-  pop ds
+  { Draw clipped rectangle row by row }
+  for Row := 0 to ClippedRect.Height - 1 do
+  begin
+    Offset := (ClippedRect.Y + Row) * 320 + ClippedRect.X;
+    FillChar(FrameBuffer^[Offset], ClippedRect.Width, Color);
+  end;
 end;
 
 procedure DrawRect(const R: TRectangle; Color: Byte; FrameBuffer: PFrameBuffer); assembler;

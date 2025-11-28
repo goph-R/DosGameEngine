@@ -105,7 +105,7 @@ begin
   if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
   begin
     Music.Init(0);
-    Music.LoadFile('..\DATA\FANTASY.HSC');
+    Music.LoadFile('DATA\FANTASY.HSC');
     Music.Start;
   end;
   
@@ -150,7 +150,7 @@ begin
     { Load sounds into XMS }
     WriteLn('Loading sounds into XMS memory...');
 
-    ExplosionID := Bank.LoadSound('..\DATA\EXPLODE.VOC');
+    ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
     if ExplosionID < 0 then
     begin
       WriteLn('ERROR: Failed to load EXPLODE.VOC');
@@ -162,7 +162,7 @@ begin
 
 
   { Load test image and palette }
-  if not LoadPCXWithPalette('..\DATA\TEST.PCX', BackgroundImage, Palette) then
+  if not LoadPCXWithPalette('DATA\TEST.PCX', BackgroundImage, Palette) then
   begin
     WriteLn('Error: Could not load TEST.PCX');
     Halt(1);

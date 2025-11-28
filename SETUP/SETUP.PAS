@@ -3,8 +3,8 @@ program Setup;
 uses Crt, TextUI, Keyboard, Config, PlayHSC, SBDSP, VocLoad, StrUtil;
 
 const
-  TestMusic = '..\DATA\FANTASY.HSC';
-  TestSound = '..\DATA\EXPLODE.VOC';
+  TestMusic = '..\TESTS\DATA\FANTASY.HSC';
+  TestSound = '..\TESTS\DATA\EXPLODE.VOC';
 
 var
   GameConfig: TConfig;

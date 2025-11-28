@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -51,11 +51,11 @@ type
     EventHandler: Pointer;  { TEventHandler - defined below }
     Tag: Integer;
 
-    procedure Init(X, Y: Integer; W, H: Word);
+    constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
-    procedure Done; virtual;
+    destructor Done; virtual;
   end;
 
   PWidget = ^TWidget;
@@ -91,10 +91,10 @@ type
     Text: PShortString;
     Font: PFont;
 
-    procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
+    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
     procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
-    procedure Done; virtual;
+    destructor Done; virtual;
   end;
 
   PLabel = ^TLabel;
@@ -105,11 +105,11 @@ type
     Font: PFont;
     Pressed: Boolean;  { Visual state for rendering }
 
-    procedure Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
+    constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
-    procedure Done; virtual;
+    destructor Done; virtual;
   end;
 
   PButton = ^TButton;
@@ -123,14 +123,14 @@ type
     ImageHeight: Word;
     Checked: Boolean;
 
-    procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
+    constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
                    CheckboxImage: PImage; ImgW, ImgH: Word);
     procedure SetText(const NewText: string);
     procedure SetChecked(Value: Boolean);
     function IsChecked: Boolean;
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
-    procedure Done; virtual;
+    destructor Done; virtual;
   end;
 
   PCheckbox = ^TCheckbox;
@@ -143,14 +143,14 @@ type
     CursorVisible: Boolean;
     CursorTimer: Real;
 
-    procedure Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
+    constructor Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
     procedure SetText(const NewText: string);
     function GetText: string;
     procedure Clear;
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte); virtual;
     procedure Update(DeltaTime: Real);
-    procedure Done; virtual;
+    destructor Done; virtual;
   end;
 
   PLineEdit = ^TLineEdit;
@@ -220,7 +220,7 @@ end;
 { TWidget Base Implementation                                                }
 { ========================================================================== }
 
-procedure TWidget.Init(X, Y: Integer; W, H: Word);
+constructor TWidget.Init(X, Y: Integer; W, H: Word);
 begin
   Rectangle.X := X;
   Rectangle.Y := Y;
@@ -250,7 +250,7 @@ begin
   { Abstract - must be overridden }
 end;
 
-procedure TWidget.Done;
+destructor TWidget.Done;
 begin
   { Base cleanup - override in subclasses }
 end;
@@ -259,10 +259,10 @@ end;
 { TLabel Implementation                                                      }
 { ========================================================================== }
 
-procedure TLabel.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
+constructor TLabel.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
 begin
   { Initialize base widget }
-  TWidget.Init(X, Y, GetTextWidth(TextStr, FontPtr^), FontPtr^.Height);
+  inherited Init(X, Y, GetTextWidth(TextStr, FontPtr^), FontPtr^.Height);
   Enabled := False;  { Labels cannot receive focus }
 
   { Allocate and copy text }
@@ -287,7 +287,7 @@ begin
   PrintFontText(Rectangle.X, Rectangle.Y, Text^, Font^, FrameBuffer);
 end;
 
-procedure TLabel.Done;
+destructor TLabel.Done;
 begin
   if Text <> nil then
   begin
@@ -300,9 +300,9 @@ end;
 { TButton Implementation                                                     }
 { ========================================================================== }
 
-procedure TButton.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
+constructor TButton.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
 begin
-  TWidget.Init(X, Y, W, H);
+  inherited Init(X, Y, W, H);
 
   { Allocate and copy text }
   New(Text);
@@ -333,28 +333,39 @@ end;
 
 procedure TButton.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
 var
-  Style: TUIStyle;
   TextWidth: Integer;
   TextX, TextY: Integer;
+  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
-  { Render 3D panel }
-  Style.Init(HighColor, NormalColor, LowColor, FocusColor);
-  Style.RenderPanel(Rectangle, Pressed, FrameBuffer);
+  { Render 3D panel - draw filled rectangle for background }
+  DrawFillRect(Rectangle, NormalColor, FrameBuffer);
+
+  { Draw simple border }
+  DrawRect(Rectangle, HighColor, FrameBuffer);
 
   { Render centered text }
-  TextWidth := GetTextWidth(Text^, Font^);
-  TextX := Rectangle.X + (Rectangle.Width - TextWidth) div 2;
-  TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
-  PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
+  if (Text <> nil) and (Font <> nil) then
+  begin
+    TextWidth := GetTextWidth(Text^, Font^);
+    TextX := Rectangle.X + (Rectangle.Width - TextWidth) div 2;
+    TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
+    PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
+  end;
 
   { Render focus border if focused }
   if Focused then
-    DrawRect(Rectangle.X - 1, Rectangle.Y - 1, Rectangle.Width + 2, Rectangle.Height + 2, FocusColor, FrameBuffer);
+  begin
+    FocusRect.X := Rectangle.X - 1;
+    FocusRect.Y := Rectangle.Y - 1;
+    FocusRect.Width := Rectangle.Width + 2;
+    FocusRect.Height := Rectangle.Height + 2;
+    DrawRect(FocusRect, FocusColor, FrameBuffer);
+  end;
 end;
 
-procedure TButton.Done;
+destructor TButton.Done;
 begin
   if Text <> nil then
   begin
@@ -367,14 +378,14 @@ end;
 { TCheckbox Implementation                                                   }
 { ========================================================================== }
 
-procedure TCheckbox.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
+constructor TCheckbox.Init(X, Y: Integer; const TextStr: string; FontPtr: PFont;
                          CheckboxImage: PImage; ImgW, ImgH: Word);
 var
   TextWidth: Integer;
 begin
   { Calculate total width: image + gap + text }
   TextWidth := GetTextWidth(TextStr, FontPtr^);
-  TWidget.Init(X, Y, ImgW + 4 + TextWidth, ImgH);
+  inherited Init(X, Y, ImgW + 4 + TextWidth, ImgH);
 
   { Allocate and copy text }
   New(Text);
@@ -421,6 +432,7 @@ procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, Lo
 var
   SrcRect: TRectangle;
   TextX: Integer;
+  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
@@ -441,10 +453,16 @@ begin
 
   { Render focus border if focused }
   if Focused then
-    DrawRect(Rectangle.X - 1, Rectangle.Y - 1, Rectangle.Width + 2, Rectangle.Height + 2, FocusColor, FrameBuffer);
+  begin
+    FocusRect.X := Rectangle.X - 1;
+    FocusRect.Y := Rectangle.Y - 1;
+    FocusRect.Width := Rectangle.Width + 2;
+    FocusRect.Height := Rectangle.Height + 2;
+    DrawRect(FocusRect, FocusColor, FrameBuffer);
+  end;
 end;
 
-procedure TCheckbox.Done;
+destructor TCheckbox.Done;
 begin
   if Text <> nil then
   begin
@@ -457,9 +475,9 @@ end;
 { TLineEdit Implementation                                                   }
 { ========================================================================== }
 
-procedure TLineEdit.Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
+constructor TLineEdit.Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
 begin
-  TWidget.Init(X, Y, W, H);
+  inherited Init(X, Y, W, H);
 
   { Allocate empty text }
   New(Text);
@@ -495,63 +513,24 @@ begin
     Text^ := '';
 end;
 
-{ Helper: Convert scancode to ASCII character }
-function ScancodeToChar(Scancode: Byte; ShiftPressed: Boolean): Char;
+{ Helper: Convert scancode to ASCII character using KEYBOARD.PAS character maps }
+function ScancodeToChar(Scancode: Byte): Char;
+var
+  ShiftPressed: Boolean;
 begin
-  { Letters A-Z (scancodes $10-$19, $1E-$26, $2C-$32) }
-  case Scancode of
-    $10: if ShiftPressed then ScancodeToChar := 'Q' else ScancodeToChar := 'q';
-    $11: if ShiftPressed then ScancodeToChar := 'W' else ScancodeToChar := 'w';
-    $12: if ShiftPressed then ScancodeToChar := 'E' else ScancodeToChar := 'e';
-    $13: if ShiftPressed then ScancodeToChar := 'R' else ScancodeToChar := 'r';
-    $14: if ShiftPressed then ScancodeToChar := 'T' else ScancodeToChar := 't';
-    $15: if ShiftPressed then ScancodeToChar := 'Y' else ScancodeToChar := 'y';
-    $16: if ShiftPressed then ScancodeToChar := 'U' else ScancodeToChar := 'u';
-    $17: if ShiftPressed then ScancodeToChar := 'I' else ScancodeToChar := 'i';
-    $18: if ShiftPressed then ScancodeToChar := 'O' else ScancodeToChar := 'o';
-    $19: if ShiftPressed then ScancodeToChar := 'P' else ScancodeToChar := 'p';
-    $1E: if ShiftPressed then ScancodeToChar := 'A' else ScancodeToChar := 'a';
-    $1F: if ShiftPressed then ScancodeToChar := 'S' else ScancodeToChar := 's';
-    $20: if ShiftPressed then ScancodeToChar := 'D' else ScancodeToChar := 'd';
-    $21: if ShiftPressed then ScancodeToChar := 'F' else ScancodeToChar := 'f';
-    $22: if ShiftPressed then ScancodeToChar := 'G' else ScancodeToChar := 'g';
-    $23: if ShiftPressed then ScancodeToChar := 'H' else ScancodeToChar := 'h';
-    $24: if ShiftPressed then ScancodeToChar := 'J' else ScancodeToChar := 'j';
-    $25: if ShiftPressed then ScancodeToChar := 'K' else ScancodeToChar := 'k';
-    $26: if ShiftPressed then ScancodeToChar := 'L' else ScancodeToChar := 'l';
-    $2C: if ShiftPressed then ScancodeToChar := 'Z' else ScancodeToChar := 'z';
-    $2D: if ShiftPressed then ScancodeToChar := 'X' else ScancodeToChar := 'x';
-    $2E: if ShiftPressed then ScancodeToChar := 'C' else ScancodeToChar := 'c';
-    $2F: if ShiftPressed then ScancodeToChar := 'V' else ScancodeToChar := 'v';
-    $30: if ShiftPressed then ScancodeToChar := 'B' else ScancodeToChar := 'b';
-    $31: if ShiftPressed then ScancodeToChar := 'N' else ScancodeToChar := 'n';
-    $32: if ShiftPressed then ScancodeToChar := 'M' else ScancodeToChar := 'm';
+  { Check if either shift key is pressed }
+  ShiftPressed := IsKeyDown(Key_LShift) or IsKeyDown(Key_RShift);
 
-    { Numbers 0-9 }
-    $02: if ShiftPressed then ScancodeToChar := '!' else ScancodeToChar := '1';
-    $03: if ShiftPressed then ScancodeToChar := '@' else ScancodeToChar := '2';
-    $04: if ShiftPressed then ScancodeToChar := '#' else ScancodeToChar := '3';
-    $05: if ShiftPressed then ScancodeToChar := '$' else ScancodeToChar := '4';
-    $06: if ShiftPressed then ScancodeToChar := '%' else ScancodeToChar := '5';
-    $07: if ShiftPressed then ScancodeToChar := '^' else ScancodeToChar := '6';
-    $08: if ShiftPressed then ScancodeToChar := '&' else ScancodeToChar := '7';
-    $09: if ShiftPressed then ScancodeToChar := '*' else ScancodeToChar := '8';
-    $0A: if ShiftPressed then ScancodeToChar := '(' else ScancodeToChar := '9';
-    $0B: if ShiftPressed then ScancodeToChar := ')' else ScancodeToChar := '0';
-
-    { Space }
-    $39: ScancodeToChar := ' ';
-
-    { Punctuation }
-    $0C: if ShiftPressed then ScancodeToChar := '_' else ScancodeToChar := '-';
-    $0D: if ShiftPressed then ScancodeToChar := '+' else ScancodeToChar := '=';
-    $33: if ShiftPressed then ScancodeToChar := '<' else ScancodeToChar := ',';
-    $34: if ShiftPressed then ScancodeToChar := '>' else ScancodeToChar := '.';
-    $35: if ShiftPressed then ScancodeToChar := '?' else ScancodeToChar := '/';
-
+  { Use character map from KEYBOARD.PAS }
+  if Scancode <= 127 then
+  begin
+    if ShiftPressed then
+      ScancodeToChar := CharMapShift[Scancode]
     else
-      ScancodeToChar := #0;  { Invalid/unsupported key }
-  end;
+      ScancodeToChar := CharMapNormal[Scancode];
+  end
+  else
+    ScancodeToChar := #0;  { Invalid scancode }
 end;
 
 procedure TLineEdit.HandleEvent(var Event: TEvent);
@@ -577,8 +556,7 @@ begin
     { Character input }
     else
     begin
-      { TODO: Get shift state from KEYBOARD.PAS }
-      Ch := ScancodeToChar(Event.KeyCode, False);
+      Ch := ScancodeToChar(Event.KeyCode);
       if (Ch <> #0) and (Length(Text^) < MaxLength) then
       begin
         Text^ := Text^ + Ch;
@@ -590,18 +568,21 @@ end;
 
 procedure TLineEdit.Render(FrameBuffer: PFrameBuffer; HighColor, NormalColor, LowColor, FocusColor: Byte);
 var
-  Style: TUIStyle;
   TextX, TextY: Integer;
   DisplayText: string;
   TextWidth: Integer;
   AvailableWidth: Integer;
   CursorX: Integer;
+  FocusRect: TRectangle;
 begin
   if not Visible then Exit;
 
-  { Render 3D panel }
-  Style.Init(HighColor, NormalColor, LowColor, FocusColor);
-  Style.RenderPanel(Rectangle, False, FrameBuffer);
+  { Render background panel }
+  DrawFillRect(Rectangle, LowColor, FrameBuffer);
+  DrawRect(Rectangle, HighColor, FrameBuffer);
+
+  { Safety check }
+  if (Text = nil) or (Font = nil) then Exit;
 
   { Calculate text display }
   AvailableWidth := Rectangle.Width - 8;  { 4px padding on each side }
@@ -632,7 +613,13 @@ begin
 
   { Render focus border if focused }
   if Focused then
-    DrawRect(Rectangle.X - 1, Rectangle.Y - 1, Rectangle.Width + 2, Rectangle.Height + 2, FocusColor, FrameBuffer);
+  begin
+    FocusRect.X := Rectangle.X - 1;
+    FocusRect.Y := Rectangle.Y - 1;
+    FocusRect.Width := Rectangle.Width + 2;
+    FocusRect.Height := Rectangle.Height + 2;
+    DrawRect(FocusRect, FocusColor, FrameBuffer);
+  end;
 end;
 
 procedure TLineEdit.Update(DeltaTime: Real);
@@ -646,7 +633,7 @@ begin
   end;
 end;
 
-procedure TLineEdit.Done;
+destructor TLineEdit.Done;
 begin
   if Text <> nil then
   begin
@@ -678,7 +665,7 @@ procedure TUIManager.RemoveWidget(Widget: PWidget);
 begin
   if FocusedWidget = Widget then
     FocusedWidget := nil;
-  ListRemove(Widgets, Widget);
+  ListRemoveByValue(Widgets, Widget);
 end;
 
 procedure TUIManager.SetFocus(Widget: PWidget);
@@ -709,39 +696,39 @@ end;
 
 procedure TUIManager.FocusNext;
 var
-  Node: PListNode;
+  Node: PListEntry;
   Found: Boolean;
   FirstEnabled: PWidget;
 begin
-  if Widgets.Head = nil then Exit;
+  if Widgets.First = nil then Exit;
 
   Found := False;
   FirstEnabled := nil;
-  Node := Widgets.Head;
+  Node := Widgets.First;
 
   { Find first enabled widget (for wrap-around) }
   while Node <> nil do
   begin
-    if PWidget(Node^.Data)^.Enabled then
+    if PWidget(Node^.Value)^.Enabled then
     begin
       if FirstEnabled = nil then
-        FirstEnabled := PWidget(Node^.Data);
+        FirstEnabled := PWidget(Node^.Value);
       Break;
     end;
     Node := Node^.Next;
   end;
 
   { Find current focused widget and move to next }
-  Node := Widgets.Head;
+  Node := Widgets.First;
   while Node <> nil do
   begin
-    if Found and PWidget(Node^.Data)^.Enabled then
+    if Found and PWidget(Node^.Value)^.Enabled then
     begin
-      SetFocus(PWidget(Node^.Data));
+      SetFocus(PWidget(Node^.Value));
       Exit;
     end;
 
-    if PWidget(Node^.Data) = FocusedWidget then
+    if PWidget(Node^.Value) = FocusedWidget then
       Found := True;
 
     Node := Node^.Next;
@@ -754,29 +741,29 @@ end;
 
 procedure TUIManager.FocusPrev;
 var
-  Node: PListNode;
+  Node: PListEntry;
   PrevWidget: PWidget;
   LastEnabled: PWidget;
 begin
-  if Widgets.Head = nil then Exit;
+  if Widgets.First = nil then Exit;
 
   PrevWidget := nil;
   LastEnabled := nil;
 
   { Find last enabled widget (for wrap-around) }
-  Node := Widgets.Head;
+  Node := Widgets.First;
   while Node <> nil do
   begin
-    if PWidget(Node^.Data)^.Enabled then
-      LastEnabled := PWidget(Node^.Data);
+    if PWidget(Node^.Value)^.Enabled then
+      LastEnabled := PWidget(Node^.Value);
     Node := Node^.Next;
   end;
 
   { Find current focused widget and move to previous }
-  Node := Widgets.Head;
+  Node := Widgets.First;
   while Node <> nil do
   begin
-    if PWidget(Node^.Data) = FocusedWidget then
+    if PWidget(Node^.Value) = FocusedWidget then
     begin
       if PrevWidget <> nil then
       begin
@@ -792,8 +779,8 @@ begin
       end;
     end;
 
-    if PWidget(Node^.Data)^.Enabled then
-      PrevWidget := PWidget(Node^.Data);
+    if PWidget(Node^.Value)^.Enabled then
+      PrevWidget := PWidget(Node^.Value);
 
     Node := Node^.Next;
   end;
@@ -807,15 +794,15 @@ end;
 
 procedure TUIManager.RenderAll;
 var
-  Node: PListNode;
+  Node: PListEntry;
   Widget: PWidget;
 begin
-  Node := Widgets.Head;
+  Node := Widgets.First;
   while Node <> nil do
   begin
-    Widget := PWidget(Node^.Data);
+    Widget := PWidget(Node^.Value);
     if Widget^.Visible then
-      Widget^.Render(BackBuffer, Style.HighColor, Style.NormalColor, Style.LowColor, Style.FocusColor);
+      Widget^.Render(Self.BackBuffer, Style.HighColor, Style.NormalColor, Style.LowColor, Style.FocusColor);
     Node := Node^.Next;
   end;
 end;

@@ -18,7 +18,7 @@ begin
 
   { Load font }
   WriteLn('Loading large font...');
-  if not LoadFont('..\DATA\FONT-LG.XML', '..\DATA\FONT-LG.PCX', LargeFont) then
+  if not LoadFont('DATA\FONT-LG.XML', 'DATA\FONT-LG.PCX', LargeFont) then
   begin
     WriteLn;
     WriteLn('ERROR: Failed to large load font!');
@@ -27,7 +27,7 @@ begin
   end;
 
   WriteLn('Loading small font...');
-  if not LoadFont('..\DATA\FONT-SM.XML', '..\DATA\FONT-SM.PCX', SmallFont) then
+  if not LoadFont('DATA\FONT-SM.XML', 'DATA\FONT-SM.PCX', SmallFont) then
   begin
     FreeFont(LargeFont);
     WriteLn;

@@ -113,7 +113,7 @@ begin
 
   { Load tilemap }
   WriteLn('Loading tilemap from DATA\TEST.TMX...');
-  if not LoadTileMap('..\DATA\TEST.TMX', TileMap, nil) then
+  if not LoadTileMap('DATA\TEST.TMX', TileMap, nil) then
   begin
     WriteLn('ERROR: ', GetLoadTileMapError);
     Halt(1);
@@ -144,14 +144,14 @@ begin
 
   { Load palette }
   WriteLn('Loading palette from DATA\TEST.PAL...');
-  if not LoadPalette('..\DATA\TEST.PAL', Palette) then
+  if not LoadPalette('DATA\TEST.PAL', Palette) then
   begin
     WriteLn('Could not load palette.');
     Halt(1);
   end;
 
   WriteLn('Loading background from DATA\BG.PCX...');
-  if not LoadPCX('..\DATA\BG.PCX', Background) then
+  if not LoadPCX('DATA\BG.PCX', Background) then
   begin
     WriteLn('Could not background.');
     Halt(1);

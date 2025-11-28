@@ -11,12 +11,12 @@ var
   Count: Word;
 
 begin
-  WriteLn('MiniXML Test - Loading ..\DATA\TEST.XML');
+  WriteLn('MiniXML Test - Loading DATA\TEST.XML');
   WriteLn('=========================================');
   WriteLn;
 
   { Load the XML file }
-  if not XMLLoadFile('..\DATA\TEST.XML', Root) then
+  if not XMLLoadFile('DATA\TEST.XML', Root) then
   begin
     WriteLn('ERROR: Failed to load XML file!');
     Halt(1);

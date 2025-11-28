@@ -179,7 +179,7 @@ end;
 begin
   { Load player sprite sheet }
   WriteLn('Loading player sprite sheet from DATA\PLAYER.PCX...');
-  if not LoadPCXWithPalette('..\DATA\PLAYER.PCX', PlayerImage, Palette) then
+  if not LoadPCXWithPalette('DATA\PLAYER.PCX', PlayerImage, Palette) then
   begin
     WriteLn('ERROR: Could not load PLAYER.PCX');
     Halt(1);

@@ -105,6 +105,7 @@ IMGTEST.EXE
 - **VGA.PAS**: VGA Mode 13h (320×200 256-color)
   - double-buffering
   - palette control (0-63 RGB)
+  - DrawFillRect with clipping support
 - **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
@@ -113,6 +114,11 @@ IMGTEST.EXE
 - **TMXDRAW.PAS**: TMX renderer
 - **VGAFONT.PAS**: Variable-width fonts (PCX + XML)
 - **SPRITE.PAS**: Sprite animation (3 play modes)
+- **VGAUI.PAS**: UI widget system (Label, Button, Checkbox, LineEdit)
+  - keyboard-driven navigation (Tab, Enter, Space)
+  - event-driven architecture with procedure pointers
+  - focus management and rendering
+  - requires constructor/destructor pattern for VMT initialization
 
 ### Audio
 - **PLAYHSC.PAS**: HSC music player (Adlib/OPL2, interrupt-based)
@@ -133,10 +139,11 @@ IMGTEST.EXE
 - **LINKLIST.PAS**: Linked list
 
 ### Tools
-- **SETUP.PAS**: Basic setup utility (sound card config),
-- **TEXTUI.PAS**: Text UI library,
-- Test programs,
-- Automated builds
+- **SETUP.PAS**: Basic setup utility (sound card config)
+- **TEXTUI.PAS**: Text mode UI library
+- **LOGGER.PAS**: File-based debug logger (startup/shutdown only, NOT for render loops)
+- Test programs (VGATEST, FNTTEST, SPRTEST, TMXTEST, UITEST, etc.)
+- Automated builds (CxxxTEST.BAT scripts)
 
 ## 📁 Project Structure
 

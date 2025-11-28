@@ -18,7 +18,7 @@ begin
 
   { Load PCX image with palette }
   WriteLn('Loading TEST.PCX...');
-  if not LoadPCXWithPalette('..\DATA\TEST.PCX', TestImage, Palette) then
+  if not LoadPCXWithPalette('DATA\TEST.PCX', TestImage, Palette) then
   begin
     WriteLn('Error: Could not load TEST.PCX');
     WriteLn(GetLastErrorMessage);

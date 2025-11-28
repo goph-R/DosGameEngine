@@ -35,7 +35,7 @@ D:\ENGINE\
 cd TESTS
 CVGATEST.BAT  CDRWTEST.BAT  CFNTTEST.BAT  CSNDTEST.BAT  CIMGTEST.BAT
 CTMXTEST.BAT  CSPRTEST.BAT  CMOUTEST.BAT  CMAPTEST.BAT  CXMLTEST.BAT
-CPCXTEST.BAT  CIMFTEST.BAT
+CPCXTEST.BAT  CIMFTEST.BAT  CUITEST.BAT
 cd ..\SETUP
 CSETUP.BAT
 ```
@@ -157,6 +157,25 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - DrawTileMapLayer(map,layer,x,y,w,h,fb)
 - Viewport rendering, auto-clip, skips tile ID=0
 
+**VGAUI.PAS** - VGA Mode 13h UI system (2025)
+- TUIStyle: Theme/panel rendering (Init, RenderPanel virtual method)
+- TWidget: Base object (Init constructor, HandleEvent/Render virtual, Done destructor)
+- TLabel: Non-interactive text display
+- TButton: Clickable button (Enter/Space activation)
+- TCheckbox: Toggle control (Space to toggle, sprite sheet image)
+- TLineEdit: Text input (typing, backspace, max length, cursor blink)
+- TUIManager: Widget manager (AddWidget, SetFocus, FocusNext/Prev, HandleEvent, RenderAll)
+- **CRITICAL**: Use constructor/destructor syntax `New(Button, Init(...))` and `Dispose(Button, Done)` for VMT initialization
+- **NOTE**: Widgets use simplified rendering (DrawFillRect + DrawRect) instead of Style.RenderPanel for stability
+- Keyboard-only navigation (Tab, Enter, Space), event-driven architecture
+- Integrates with LINKLIST, VGAFONT, KEYBOARD, VGA
+
+**LOGGER.PAS** - File-based debug logger (2025)
+- InitLogger(path,level), CloseLogger
+- LogError/Warning/Info/Debug with log levels 0-3
+- **WARNING**: Do NOT use in render loops - file I/O causes stack overflow at 60 FPS
+- Safe for startup/shutdown logging only
+
 ## File Formats
 
 **PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite/GIMP-compatible, palette 0-255 auto-converted to 0-63)
@@ -231,6 +250,17 @@ while run do
 DoneRTC;
 ```
 
+**UI (VGAUI)**:
+```pascal
+UI.Init(BackBuffer); Style.Init(15,7,8,14); UI.SetStyle(Style);
+New(Button, Init(x,y,w,h,'Click',@Font)); { MUST use constructor syntax! }
+Button^.SetEventHandler(@OnClick); UI.AddWidget(Button);
+while run do
+  if IsKeyPressed(Key_Tab) then UI.FocusNext;
+  UI.HandleEvent(Event); UI.RenderAll; ClearKeyPressed;
+UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done;
+```
+
 ## Common Pitfalls
 
 1. **Interrupts**: Always call Done/Unhook before exit (HSC_obj.Done, DoneKeyboard, DoneRTC, UninstallHandler) or system hangs
@@ -245,6 +275,9 @@ DoneRTC;
 10. **Palette**: PCX palette values 0-255 auto-converted to 0-63 for VGA DAC
 11. **Paths**: DOS 8.3, backslashes
 12. **IRQ0 conflict**: Never read PIT Timer 0 or hook IRQ0 with HSC active. Use RTCTimer (IRQ8) - completely isolated
+13. **VMT initialization**: Objects with virtual methods MUST use `New(Ptr, Constructor)` syntax, not `New(Ptr); Ptr^.Init`
+14. **VGA clipping**: DrawFillRect includes clipping; widgets assume screen bounds (0-319, 0-199)
+15. **Logging**: LOGGER.PAS is for startup/shutdown only - file I/O in render loops causes Runtime Error 202 (stack overflow)
 
 ## Technical Constraints
 

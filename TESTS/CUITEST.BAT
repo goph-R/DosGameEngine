@@ -1,12 +1,57 @@
 @echo off
-REM Compile UITEST.PAS - VGAUI Test Program
+echo Compiling UITEST and dependencies...
+echo.
 
-echo Compiling VGAUI unit...
 cd ..\UNITS
+
+echo Compiling GENTYPES.PAS...
+tpc GENTYPES.PAS
+if errorlevel 1 goto error
+
+echo Compiling STRUTIL.PAS...
+tpc STRUTIL.PAS
+if errorlevel 1 goto error
+
+echo Compiling STRMAP.PAS...
+tpc STRMAP.PAS
+if errorlevel 1 goto error
+
+echo Compiling MINIXML.PAS...
+tpc MINIXML.PAS
+if errorlevel 1 goto error
+
+echo Compiling LINKLIST.PAS...
+tpc LINKLIST.PAS
+if errorlevel 1 goto error
+
+echo Compiling KEYBOARD.PAS...
+tpc KEYBOARD.PAS
+if errorlevel 1 goto error
+
+echo Compiling VGA.PAS...
+tpc VGA.PAS
+if errorlevel 1 goto error
+
+echo Compiling PCXLOAD.PAS...
+tpc PCXLOAD.PAS
+if errorlevel 1 goto error
+
+echo Compiling VGAFONT.PAS...
+tpc VGAFONT.PAS
+if errorlevel 1 goto error
+
+echo Compiling RTCTIMER.PAS...
+tpc RTCTIMER.PAS
+if errorlevel 1 goto error
+
+echo Compiling LOGGER.PAS...
+tpc LOGGER.PAS
+if errorlevel 1 goto error
+
+echo Compiling VGAUI.PAS...
 tpc VGAUI.PAS
 if errorlevel 1 goto error
 
-echo.
 echo Compiling UITEST.PAS...
 cd ..\TESTS
 tpc -U..\UNITS UITEST.PAS
@@ -19,6 +64,6 @@ goto end
 :error
 echo.
 echo Build failed!
-goto end
+cd ..\TESTS
 
 :end
