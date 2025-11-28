@@ -665,10 +665,9 @@ end;
 6. Test memory cleanup (valgrind-style manual checking)
 
 **Integration Tests (XICLONE menu):**
-1. Replace TEXTUI menu with VGAUI menu
-2. Verify pause dialog works
-3. Verify settings screen with checkboxes
-4. Verify game over screen with replay button
+1. Verify pause dialog works with VGAUI
+2. Verify settings screen with checkboxes
+3. Verify game over screen with replay button
 
 ## Acceptance Criteria
 
