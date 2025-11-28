@@ -395,8 +395,18 @@ begin
 end;
 
 procedure BSkipWS(var B: TBuf);
+var
+  P: ^Byte;
+  ch: Char;
 begin
-  while (not BEOF(B)) and IsWhite(BPeek(B)) do Inc(B.Pos);
+  { Inline BEOF, BPeek, and IsWhite for speed }
+  while B.Pos <= B.Len do
+  begin
+    P := Ptr(Seg(B.Data^), Ofs(B.Data^) + B.Pos - 1);
+    ch := Char(P^);
+    if not ((ch = ' ') or (ch = #9) or (ch = #10) or (ch = #13)) then Exit;
+    Inc(B.Pos);
+  end;
 end;
 
 function StartsWithAt(var B: TBuf; const Pat: string; idx: Integer): Boolean;
@@ -442,13 +452,17 @@ end;
 
 function ParseName(var B: TBuf): string;
 var
-  c: Char; start: Integer;
+  start: Integer;
+  P: ^Byte;
+  ch: Char;
 begin
   start := B.Pos;
-  while (not BEOF(B)) do
+  { Inline BEOF and BPeek for speed }
+  while B.Pos <= B.Len do
   begin
-    c := BPeek(B);
-    if (c in ['a'..'z','A'..'Z','0'..'9','_','-','.',':']) then
+    P := Ptr(Seg(B.Data^), Ofs(B.Data^) + B.Pos - 1);
+    ch := Char(P^);
+    if (ch in ['a'..'z','A'..'Z','0'..'9','_','-','.',':']) then
       Inc(B.Pos)
     else
       Break;
@@ -705,7 +719,7 @@ begin
       else
       begin
         { wrap multiple top-level nodes in a synthetic root }
-        if (Root <> nil) and (Root^.Name <> '#document') then
+        if Root^.Name <> '#document' then  { Root is already non-nil in else block }
         begin
           child := Root;
           New(Root);
@@ -729,117 +743,80 @@ function XMLReadWordArray(const Node: PXMLNode; var Arr: PWord; var Count: Word)
 var
   SrcPtr: Pointer;
   SrcLen: Word;
-
-  function GetSrc(var P: Pointer; var L: Word): Boolean;
-  begin
-    if (Node = nil) or (Node^.TextBuf = nil) or (Node^.TextLen = 0) then
-    begin
-      GetSrc := False;
-      Exit;
-    end;
-
-    P := Node^.TextBuf;
-    L := Node^.TextLen;
-    GetSrc := True;
-  end;
-
-  function IsDigit(ch: Char): Boolean;
-  begin
-    IsDigit := (ch >= '0') and (ch <= '9');
-  end;
-
-var
   p: ^Byte;
   ch: Char;
   inNum: Boolean;
   tmpVal: LongInt;
-  tmpCount: Word;
-
-  procedure FirstPassCount;
-  var
-    i: Word;
-  begin
-    tmpCount := 0; inNum := False; tmpVal := 0;
-    p := SrcPtr;
-    for i := 1 to SrcLen do
-    begin
-      ch := Char(p^);
-      if IsDigit(ch) then
-      begin
-        inNum := True;
-        tmpVal := tmpVal * 10 + Ord(ch) - Ord('0');
-        if tmpVal > 65535 then tmpVal := 65535; { clamp to Word }
-      end
-      else
-      begin
-        if inNum then
-        begin
-          Inc(tmpCount);
-          inNum := False;
-          tmpVal := 0;
-        end;
-      end;
-      Inc(p);
-    end;
-    if inNum then Inc(tmpCount); { trailing number }
-  end;
-
-  procedure SecondPassFill;
-  var
-    i: Word;
-    idx: Word;
-    ArrAccess: PWordArray;
-  begin
-    ArrAccess := PWordArray(Arr);
-    idx := 0; inNum := False; tmpVal := 0;
-    p := SrcPtr;
-    for i := 1 to SrcLen do
-    begin
-      ch := Char(p^);
-      if IsDigit(ch) then
-      begin
-        inNum := True;
-        tmpVal := tmpVal * 10 + Ord(ch) - Ord('0');
-        if tmpVal > 65535 then tmpVal := 65535;
-      end
-      else
-      begin
-        if inNum then
-        begin
-          ArrAccess^[idx] := Word(tmpVal);
-          Inc(idx);
-          inNum := False;
-          tmpVal := 0;
-        end;
-      end;
-      Inc(p);
-    end;
-    if inNum then
-    begin
-      ArrAccess^[idx] := Word(tmpVal);
-    end;
-  end;
-
+  idx: Word;
+  MaxCount: Word;
+  ArrAccess: PWordArray;
+  i: Word;
 begin
   Arr := nil; Count := 0;
-  if not GetSrc(SrcPtr, SrcLen) then
+
+  { Early exit checks }
+  if (Node = nil) or (Node^.TextBuf = nil) or (Node^.TextLen = 0) then
   begin
     XMLReadWordArray := False;
     Exit;
   end;
 
-  FirstPassCount;
-  if tmpCount = 0 then
+  SrcPtr := Node^.TextBuf;
+  SrcLen := Node^.TextLen;
+
+  { Estimate max count: worst case is every other char is a separator }
+  MaxCount := (SrcLen + 1) shr 1;  { Divide by 2 using shift }
+  if MaxCount = 0 then MaxCount := 1;
+
+  { Allocate for estimated max }
+  GetMem(Arr, MaxCount * SizeOf(Word));
+  ArrAccess := PWordArray(Arr);
+
+  { Single-pass parsing }
+  idx := 0;
+  inNum := False;
+  tmpVal := 0;
+  p := SrcPtr;
+
+  for i := 1 to SrcLen do
   begin
-    XMLReadWordArray := False;
-    Exit;
+    ch := Char(p^);
+    if (ch >= '0') and (ch <= '9') then
+    begin
+      inNum := True;
+      tmpVal := tmpVal * 10 + Ord(ch) - Ord('0');
+      if tmpVal > 65535 then tmpVal := 65535; { clamp to Word }
+    end
+    else
+    begin
+      if inNum then
+      begin
+        ArrAccess^[idx] := Word(tmpVal);
+        Inc(idx);
+        inNum := False;
+        tmpVal := 0;
+      end;
+    end;
+    Inc(p);
   end;
 
-  GetMem(Arr, tmpCount * SizeOf(Word));
-  Count := tmpCount;
+  { Handle trailing number }
+  if inNum then
+  begin
+    ArrAccess^[idx] := Word(tmpVal);
+    Inc(idx);
+  end;
 
-  SecondPassFill;
-  XMLReadWordArray := True;
+  Count := idx;
+
+  if Count = 0 then
+  begin
+    FreeMem(Arr, MaxCount * SizeOf(Word));
+    Arr := nil;
+    XMLReadWordArray := False;
+  end
+  else
+    XMLReadWordArray := True;
 end;
 
 end.
