@@ -19,9 +19,9 @@ Lightweight widget-based UI framework for DOS VGA Mode 13h. Keyboard-driven navi
 ### TUIStyle
 ```pascal
 TUIStyle = object
-  HighColor: Byte;      { Light color for raised panels }
-  NormalColor: Byte;    { Medium color for flat panels }
-  LowColor: Byte;       { Dark color for pressed panels }
+  HighColor: Byte;      { Light edge color (highlight) }
+  NormalColor: Byte;    { Middle/fill color }
+  LowColor: Byte;       { Dark edge color (shadow) }
   FocusColor: Byte;     { Border color for focused widgets (palette animated) }
 
   procedure Init(High, Normal, Low, Focus: Byte);
@@ -30,11 +30,41 @@ end;
 ```
 
 **Design Notes:**
-- Provides consistent theming across all widgets
-- `RenderPanel` draws 3D-style panels (raised when Pressed=False, sunken when Pressed=True)
-- Virtual method allows custom panel rendering styles
+- Provides consistent 3D panel theming across all widgets
+- **Edge Colors (3D beveled panels):**
+  - **HighColor**: Light edge (top-left when released, bottom-right when pressed)
+  - **NormalColor**: Middle fill color
+  - **LowColor**: Dark edge (bottom-right when released, top-left when pressed)
+- `RenderPanel` draws 3D-style beveled panels:
+  - **Pressed=False (released)**: High on top-left edges, Low on bottom-right edges (raised look)
+  - **Pressed=True**: Low on top-left edges, High on bottom-right edges (sunken look)
+- Virtual method allows custom panel rendering styles (can be overridden)
 - Default colors: High=15 (white), Normal=7 (light gray), Low=8 (dark gray), Focus=14 (yellow)
 - Focus color animated via palette rotation for fade in/out effect
+
+**RenderPanel Implementation:**
+```pascal
+{ Default implementation - can be overridden }
+procedure TUIStyle.RenderPanel(const R: TRectangle; Pressed: Boolean; FrameBuffer: PFrameBuffer);
+begin
+  if Pressed then
+  begin
+    { Sunken: dark top-left, light bottom-right }
+    DrawLine(R.X, R.Y, R.X + R.Width - 1, R.Y, LowColor, FrameBuffer);  { Top }
+    DrawLine(R.X, R.Y, R.X, R.Y + R.Height - 1, LowColor, FrameBuffer); { Left }
+    DrawLine(R.X + R.Width - 1, R.Y, R.X + R.Width - 1, R.Y + R.Height - 1, HighColor, FrameBuffer); { Right }
+    DrawLine(R.X, R.Y + R.Height - 1, R.X + R.Width - 1, R.Y + R.Height - 1, HighColor, FrameBuffer); { Bottom }
+  end
+  else
+  begin
+    { Raised: light top-left, dark bottom-right }
+    DrawLine(R.X, R.Y, R.X + R.Width - 1, R.Y, HighColor, FrameBuffer);  { Top }
+    DrawLine(R.X, R.Y, R.X, R.Y + R.Height - 1, HighColor, FrameBuffer); { Left }
+    DrawLine(R.X + R.Width - 1, R.Y, R.X + R.Width - 1, R.Y + R.Height - 1, LowColor, FrameBuffer); { Right }
+    DrawLine(R.X, R.Y + R.Height - 1, R.X + R.Width - 1, R.Y + R.Height - 1, LowColor, FrameBuffer); { Bottom }
+  end;
+end;
+```
 
 ### TEventType
 ```pascal
@@ -74,7 +104,7 @@ TWidget = object
   procedure Init(X, Y: Integer; W, H: Word);
   procedure SetEventHandler(Handler: TEventHandler);
   procedure HandleEvent(var Event: TEvent); virtual;
-  procedure Render(FrameBuffer: PFrameBuffer); virtual; abstract;
+  procedure Render(FrameBuffer: PFrameBuffer; var Style: TUIStyle); virtual; abstract;
   procedure Done; virtual;
 end;
 ```
@@ -95,7 +125,7 @@ TLabel = object(TWidget)
 
   procedure Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
   procedure SetText(const NewText: string);
-  procedure Render(FrameBuffer: PFrameBuffer); virtual;
+  procedure Render(FrameBuffer: PFrameBuffer; var Style: TUIStyle); virtual;
   procedure Done; virtual;
 end;
 ```
@@ -116,17 +146,18 @@ TButton = object(TWidget)
                  FontPtr: PFont);
   procedure SetText(const NewText: string);
   procedure HandleEvent(var Event: TEvent); virtual;
-  procedure Render(FrameBuffer: PFrameBuffer); virtual;
+  procedure Render(FrameBuffer: PFrameBuffer; var Style: TUIStyle); virtual;
   procedure Done; virtual;
 end;
 ```
 
 **Behavior:**
 - Interactive (can receive focus)
-- Renders border (DrawRect) + centered text
-- Focused: border drawn with UIManager.Style.FocusColor (palette animated for fade effect)
+- Renders 3D panel using UIManager.Style.RenderPanel (Pressed=False) + centered text
+- Focused: outer border drawn with UIManager.Style.FocusColor (palette animated for fade effect)
 - Responds to Enter/Space: fires EventHandler with Event_KeyPress
 - Text color determined by font image (no runtime color changes)
+- Uses Style.RenderPanel for consistent 3D beveled appearance
 
 ### TCheckbox
 ```pascal
@@ -144,7 +175,7 @@ TCheckbox = object(TWidget)
   procedure SetChecked(Value: Boolean);
   function IsChecked: Boolean;
   procedure HandleEvent(var Event: TEvent); virtual;
-  procedure Render(FrameBuffer: PFrameBuffer); virtual;
+  procedure Render(FrameBuffer: PFrameBuffer; var Style: TUIStyle); virtual;
   procedure Done; virtual;
 end;
 ```
@@ -179,7 +210,7 @@ TLineEdit = object(TWidget)
   function GetText: string;
   procedure Clear;
   procedure HandleEvent(var Event: TEvent); virtual;
-  procedure Render(FrameBuffer: PFrameBuffer); virtual;
+  procedure Render(FrameBuffer: PFrameBuffer; var Style: TUIStyle); virtual;
   procedure Update(DeltaTime: Real); { For cursor blinking }
   procedure Done; virtual;
 end;
@@ -187,8 +218,8 @@ end;
 
 **Behavior:**
 - Interactive (can receive focus)
-- Renders border (DrawRect) + text + blinking cursor
-- Focused: border drawn with UIManager.Style.FocusColor (palette animated)
+- Renders 3D panel using UIManager.Style.RenderPanel (Pressed=False) + text + blinking cursor
+- Focused: outer border drawn with UIManager.Style.FocusColor (palette animated)
 - Cursor always at end of text (no navigation)
 - Responds to:
   - **Printable keys (A-Z, 0-9, Space, etc.)**: Append character if Length < MaxLength
@@ -197,6 +228,7 @@ end;
 - Cursor blinks every 0.5 seconds when focused
 - Text auto-scrolls left if wider than widget width
 - Text color determined by font image
+- Uses Style.RenderPanel for consistent 3D beveled appearance
 
 **Character Input:**
 - Use KEYBOARD.PAS scancodes + shift state to convert to ASCII
@@ -234,7 +266,7 @@ TUIManager = object
   procedure FocusPrev;       { Shift+Tab: move focus to previous }
   procedure HandleEvent(var Event: TEvent);
   procedure RenderAll;       { Render all visible widgets }
-  procedure SetStyle(High, Normal, Low, Focus: Byte); { Configure theme colors }
+  procedure SetStyle(const NewStyle: TUIStyle); { Configure theme - accepts custom TUIStyle subclasses }
   procedure Done;
 end;
 ```
@@ -246,6 +278,11 @@ end;
 - Labels cannot receive focus (Enabled = False by default)
 - Focus indicated by border (DrawRect) using Style.FocusColor
 - Focus color can be palette animated externally for fade in/out effect
+
+**Theming:**
+- SetStyle accepts TUIStyle instance (can be custom subclass with overridden RenderPanel)
+- Allows complete customization of panel rendering (bevels, flat, gradients, etc.)
+- Widgets call UIManager.Style.RenderPanel for consistent appearance
 
 ## Focus Animation
 
@@ -326,7 +363,7 @@ begin
     Widget := PWidget(Node^.Data);
     if Widget^.Visible then
     begin
-      Widget^.Render(BackBuffer);
+      Widget^.Render(BackBuffer, UIManager.Style);
       R := Widget^.Rectangle;
       AddDirtyRect(R);  { From your dirty rect system }
     end;
@@ -334,6 +371,8 @@ begin
   end;
 end;
 ```
+
+**Note:** Widgets receive Style as var parameter to access RenderPanel method and theme colors.
 
 ## Memory Management
 
@@ -438,9 +477,9 @@ end;
 
 ### Phase 3: TButton
 1. Implement TButton.Init/Done
-2. Implement TButton.Render (DrawRect + centered text)
+2. Implement TButton.Render (use UIManager.Style.RenderPanel + centered text)
 3. Implement TButton.HandleEvent (Enter/Space detection)
-4. Test button focus and events
+4. Test button focus and events, verify 3D panel rendering
 
 ### Phase 4: TCheckbox
 1. Implement TCheckbox.Init/Done
@@ -450,19 +489,19 @@ end;
 
 ### Phase 5: TLineEdit
 1. Implement TLineEdit.Init/Done (string allocation)
-2. Implement TLineEdit.Render (DrawRect + text + cursor)
+2. Implement TLineEdit.Render (use UIManager.Style.RenderPanel + text + cursor)
 3. Implement TLineEdit.HandleEvent (character input, backspace)
 4. Implement TLineEdit.Update (cursor blink timing)
 5. Implement scancode to ASCII conversion
-6. Test text input, max length, scrolling
+6. Test text input, max length, scrolling, verify 3D panel rendering
 
 ### Phase 6: UI Manager
 1. Implement TUIManager.Init/Done (initialize default Style)
-2. Implement SetStyle (configure theme colors)
+2. Implement SetStyle (accepts TUIStyle instance, copies to internal Style)
 3. Implement AddWidget/RemoveWidget (LinkList operations)
 4. Implement SetFocus/FocusNext/FocusPrev
 5. Implement HandleEvent (dispatch to focused widget)
-6. Implement RenderAll
+6. Implement RenderAll (widgets call UIManager.Style.RenderPanel)
 
 ### Phase 7: Testing
 1. Create UITEST.PAS with all widget types
@@ -497,15 +536,17 @@ var
   NameLineEdit: PLineEdit;
   Font: TFont;
   CheckboxImage: TImage;
+  DefaultStyle: TUIStyle;
 
 begin
   { Load resources }
   LoadFont('FONT.XML', 'FONT.PCX', Font);
   LoadPCX('CHECKBOX.PCX', CheckboxImage);
 
-  { Initialize UI }
+  { Initialize UI and style }
   UI.Init(BackBuffer);
-  UI.SetStyle(15, 7, 8, 14);  { High=white, Normal=gray, Low=dark gray, Focus=yellow }
+  DefaultStyle.Init(15, 7, 8, 14);  { High=white, Normal=gray, Low=dark gray, Focus=yellow }
+  UI.SetStyle(DefaultStyle);
 
   { Create widgets }
   New(TitleLabel);
