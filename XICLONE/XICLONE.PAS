@@ -156,7 +156,7 @@ var
 begin
   RenderDialogBackground(BackBuffer);
   PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, False, BackBuffer);
-  PrintFontTextCentered(160, 63, Title, FontLarge, BackBuffer);
+  PrintFontTextCentered(160, 67, Title, FontLarge, BackBuffer);
   CopyFrameBuffer(BackBuffer, ScreenBuffer);
   ClearKeyPressed;
 end;
@@ -245,6 +245,9 @@ begin
   LastTime := GetTimeSeconds;
   while Paused do
   begin
+    if IsKeyPressed(Key_Escape) then
+      Paused := False;
+
     CurrentTime := GetTimeSeconds;
     DeltaTimeMS := Round((CurrentTime - LastTime) * 1000);
     LastTime := CurrentTime;

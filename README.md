@@ -20,12 +20,12 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
         <small>TMXTEST.PAS</small>
       </td>
       <td align="center">
-        <a href="DOCS/SCREENS/FNTTEST.png">
-          <img src="DOCS/SCREENS/FNTTEST-thumb.png" alt="Variable-Width Font Test">
+        <a href="DOCS/SCREENS/XICLONE.png">
+          <img src="DOCS/SCREENS/XICLONE-thumb.png" alt="Variable-Width Font Test">
         </a>
         <br>
-        <strong>Variable-Width Fonts</strong><br>
-        <small>FNTTEST.PAS</small>
+        <strong>Example Game</strong><br>
+        <small>XICLONE.PAS</small>
       </td>
     </tr>
     <tr>
