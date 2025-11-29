@@ -16,6 +16,10 @@ echo Compiling STRMAP.PAS...
 tpc STRMAP.PAS
 if errorlevel 1 goto error
 
+echo Compiling LINKLIST.PAS...
+tpc LINKLIST.PAS
+if errorlevel 1 goto error
+
 echo Compiling MINIXML.PAS...
 tpc MINIXML.PAS
 if errorlevel 1 goto error
@@ -64,6 +68,10 @@ echo Compiling VGAFONT.PAS...
 tpc VGAFONT.PAS
 if errorlevel 1 goto error
 
+echo Compiling VGAUI.PAS...
+tpc VGAUI.PAS
+if errorlevel 1 goto error
+
 echo Compiling XITYPES.PAS...
 cd ..\XICLONE
 tpc XITYPES.PAS
@@ -75,6 +83,10 @@ if errorlevel 1 goto error
 
 echo Compiling XIRENDER.PAS...
 tpc -U..\UNITS XIRENDER.PAS
+if errorlevel 1 goto error
+
+echo Compiling XISTYLE.PAS...
+tpc -U..\UNITS XISTYLE.PAS
 if errorlevel 1 goto error
 
 echo Compiling XICLONE.PAS...

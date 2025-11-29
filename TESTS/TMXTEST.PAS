@@ -19,6 +19,8 @@ var
   I: Integer;
   Palette: TPalette;
   BlocksVisible: Boolean;
+  InfoVisible: Boolean;
+  FpsVisible: Boolean;
 
 procedure UpdateFPS;
 var
@@ -82,31 +84,39 @@ procedure DrawUI;
 var
   FreeMem: LongInt;
 begin
-  { Display camera position and FPS }
-  Str(CameraX, StatusText);
-  StatusText := 'Cam X: ' + StatusText;
-  PrintText(5, 5, StatusText, 15, FrameBuffer);
+  if FpsVisible then
+  begin
+    Str(FPS:0:1, StatusText);
+    StatusText := 'FPS: ' + StatusText;
+    PrintText(5, 5, StatusText, 15, FrameBuffer);
+  end;
 
-  Str(CameraY, StatusText);
-  StatusText := 'Cam Y: ' + StatusText;
-  PrintText(5, 15, StatusText, 15, FrameBuffer);
+  if InfoVisible then
+  begin
+    { Display camera position and FPS }
+    Str(CameraX, StatusText);
+    StatusText := 'Cam X: ' + StatusText;
+    PrintText(5, 20, StatusText, 15, FrameBuffer);
 
-  Str(FPS:0:1, StatusText);
-  StatusText := 'FPS: ' + StatusText;
-  PrintText(5, 25, StatusText, 15, FrameBuffer);
+    Str(CameraY, StatusText);
+    StatusText := 'Cam Y: ' + StatusText;
+    PrintText(5, 30, StatusText, 15, FrameBuffer);
 
-  { Display free conventional memory }
-  FreeMem := MemAvail;
-  Str(FreeMem, StatusText);
-  StatusText := 'Free: ' + StatusText + ' bytes';
-  PrintText(5, 35, StatusText, 15, FrameBuffer);
+    { Display free conventional memory }
+    FreeMem := MemAvail;
+    Str(FreeMem, StatusText);
+    StatusText := 'Free: ' + StatusText + ' bytes';
+    PrintText(5, 45, StatusText, 15, FrameBuffer);
 
-  { Instructions }
-  PrintText(5, 45, 'Arrow keys: Scroll', 14, FrameBuffer);
-  PrintText(5, 55, 'ESC: Exit', 14, FrameBuffer);
+    { Instructions }
+    PrintText(5, 60, 'Arrows: Scroll', 15, FrameBuffer);
+    PrintText(5, 70, 'ESC: Exit', 15, FrameBuffer);
+    PrintText(5, 80, 'F: Toggle FPS', 15, FrameBuffer);
+    PrintText(5, 90, 'I: Toggle info', 15, FrameBuffer);
 
-  if TileMap.BlocksLayer <> nil then
-    PrintText(5, 65, 'B: Toggle blocks visibility', 14, FrameBuffer);
+    if TileMap.BlocksLayer <> nil then
+      PrintText(5, 100, 'B: Toggle blocks', 15, FrameBuffer);
+  end;
 end;
 
 begin
@@ -164,6 +174,8 @@ begin
   FPS := 0.0;
   FrameCount := 0;
   BlocksVisible := TileMap.BlocksLayer <> nil;
+  FpsVisible := True;
+  InfoVisible := True;
 
   { Initialize keyboard handler }
   InitKeyboard;
@@ -214,6 +226,12 @@ begin
 
     if IsKeyPressed(Key_B) then
       BlocksVisible := not BlocksVisible;
+
+    if IsKeyPressed(Key_F) then
+      FpsVisible := not FpsVisible;
+
+    if IsKeyPressed(Key_I) then
+      InfoVisible := not InfoVisible;
 
     { Render background image }
     CopyFrameBuffer(BackBuffer, FrameBuffer);

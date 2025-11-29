@@ -22,20 +22,23 @@ program XICLONE;
 
 uses
   Crt, VGA, PCXLoad, Keyboard, RTCTimer, VGAPrint, StrUtil, DRect, XITypes,
-  XILogic, XIRender, VGAFont, Config, SndBank, SBDSP;
+  XILogic, XIRender, VGAFont, Config, SndBank, SBDSP, VGAUI, XIStyle;
 
 var
   { Frame buffers }
   BackBuffer: PFrameBuffer;
   ScreenBuffer: PFrameBuffer;
   BackgroundBuffer: PFrameBuffer;
+  DialogBackgroundBuffer: PFrameBuffer;  
 
   { Images }
   BackgroundImage: TImage;
   GemsImage: TImage;
 
-  { Dialog related }
+  { UI related }
   DialogImage: TImage;
+  UI: TUIManager;
+  CustomStyle: TXIStyle;
 
   { Fonts }
   FontLarge: TFont;
@@ -91,6 +94,8 @@ var
   { Next stack preview gems }
   NextStackGems: array [0..2] of TGemColor;
 
+  Paused: Boolean;
+
 procedure CleanupGame;
 begin
   { Cleanup timer }
@@ -117,6 +122,7 @@ begin
   { Free framebuffers }
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(BackgroundBuffer);
+  FreeFrameBuffer(DialogBackgroundBuffer);
 
   { Close VGA }
   CloseVGA;
@@ -144,35 +150,20 @@ begin
   end;
 end;
 
-procedure ShowDialog;
+procedure ShowDialog(Title: String);
 var
   X, Y: Integer;
 begin
-  { Apply dithered darkening effect }
   RenderDialogBackground(BackBuffer);
-
-  { Put the dialog image at the center }
   PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, False, BackBuffer);
-
-  { Show the darkened screen }
+  PrintFontTextCentered(160, 63, Title, FontLarge, BackBuffer);
   CopyFrameBuffer(BackBuffer, ScreenBuffer);
-
-  { Clear the escape key press }
   ClearKeyPressed;
+end;
 
-  { Wait for another Escape press }
-  while not IsKeyPressed(Key_Escape) do
-  begin
-    ClearKeyPressed;
-    { Small delay to reduce CPU usage }
-    Delay(10);
-  end;
-
-  { Restore full game screen }
-  { Copy background to BackBuffer }
+procedure DestroyDialog;
+begin
   CopyFrameBuffer(BackgroundBuffer, BackBuffer);
-
-  { Clear escape key so game doesn't exit }
   ClearKeyPressed;
 end;
 
@@ -202,6 +193,77 @@ begin
   { Reset timing to prevent delta time jump }
   LastTime := GetTimeSeconds;
   DeltaTimeAccum := 0.0;
+end;
+
+{$F+}
+
+procedure ContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if (Event.EventType = Event_KeyPress) and (Event.KeyCode = Key_Enter) then
+  begin
+    Paused := False;
+  end;
+end;
+
+procedure QuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if (Event.EventType = Event_KeyPress) and (Event.KeyCode = Key_Enter) then
+  begin
+    Running := False;
+    Paused := False;
+  end;
+end;
+
+{$F-}
+
+procedure ShowPauseDialog;  
+var
+  DeltaTimeMS: LongInt;
+  ContinueButton, QuitButton: PButton;
+begin
+  ShowDialog('PAUSED');
+
+  { Save UI background }
+  CopyFrameBuffer(BackBuffer, DialogBackgroundBuffer);
+
+  { Create UI }
+  UI.Init(BackBuffer, DialogBackgroundBuffer);
+  UI.SetStyle(@CustomStyle);
+
+  New(ContinueButton, Init(100, 97, 120, 14, 'Continue Game', @FontSmall));
+  ContinueButton^.SetEventHandler(@ContinueButtonEvent);
+  UI.AddWidget(ContinueButton);
+
+  New(QuitButton, Init(100, 115, 120, 14, 'Quit to Menu', @FontSmall));
+  QuitButton^.SetEventHandler(@QuitButtonEvent);
+  UI.AddWidget(QuitButton);
+
+  UI.SetFocus(ContinueButton);
+
+  { Run UI }
+  Paused := True;
+  LastTime := GetTimeSeconds;
+  while Paused do
+  begin
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeMS := Round((CurrentTime - LastTime) * 1000);
+    LastTime := CurrentTime;
+
+    UI.Update(DeltaTimeMS);
+    UI.RenderDirty;
+
+    WaitForVSync;    
+    ClearKeyPressed;
+  end;
+
+  { Destory UI }
+  UI.RemoveWidget(ContinueButton); Dispose(ContinueButton, Done);
+  UI.RemoveWidget(QuitButton); Dispose(QuitButton, Done);
+  UI.Done;  
+
+  { Back to game }
+  DestroyDialog;
+  FullRenderGame;
 end;
 
 procedure RenderFrame;
@@ -397,8 +459,7 @@ begin
   { Check for pause }
   if IsKeyPressed(Key_Escape) then
   begin
-    ShowDialog;  { Pause game, wait for unpause }
-    FullRenderGame; { Re-render the game }
+    ShowPauseDialog;  { Pause game, wait for unpause }
   end;
 
   if IsKeyPressed(Key_Q) then
@@ -542,13 +603,13 @@ begin
     Halt(1);
   end;
 
+  { Initialize UI style }
+  CustomStyle.Init(186, 188, 189, 15);
+
   { Create framebuffers }
   BackBuffer := CreateFrameBuffer;
   BackgroundBuffer := CreateFrameBuffer;
-
-  { Clear buffers }
-  ClearFrameBuffer(BackBuffer);
-  ClearFrameBuffer(BackgroundBuffer);
+  DialogBackgroundBuffer := CreateFrameBuffer;
 
   { Load gem sprites and dialog }
   if (not LoadPCXWithPalette(DataPath + GemsFile, GemsImage, Palette)) or
@@ -677,7 +738,7 @@ end;
 
 begin
   ParseCommandLine;
-  InitGame;
+  InitGame;  
   GameLoop;
   CleanupGame;
 end.

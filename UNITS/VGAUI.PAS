@@ -170,7 +170,7 @@ type
     BackBuffer: PFrameBuffer;
     BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
     FirstRender: Boolean;            { Force full redraw on first frame }
-    Style: TUIStyle;
+    Style: PUIStyle;
 
     procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);
@@ -182,7 +182,7 @@ type
     procedure Update(DeltaTime: LongInt);  { Update all widgets (DeltaTime in milliseconds) }
     procedure RenderAll;
     procedure RenderDirty;           { Smart dirty rectangle rendering }
-    procedure SetStyle(const NewStyle: TUIStyle);
+    procedure SetStyle(NewStyle: PUIStyle);
     procedure Done;
   end;
 
@@ -191,6 +191,9 @@ type
 { ========================================================================== }
 
 implementation
+
+var
+  DefaultStyle: TUIStyle;  { Module-level default style }
 
 { ========================================================================== }
 { TUIStyle Implementation                                                    }
@@ -209,6 +212,7 @@ begin
   if Pressed then
   begin
     { Sunken: dark top-left, light bottom-right }
+    DrawFillRect(R, LowColor, FrameBuffer);
     DrawHLine(R.X, R.Y, R.Width, LowColor, FrameBuffer);                      { Top }
     DrawVLine(R.X, R.Y, R.Height, LowColor, FrameBuffer);                     { Left }
     DrawVLine(R.X + R.Width - 1, R.Y, R.Height, HighColor, FrameBuffer);      { Right }
@@ -217,6 +221,7 @@ begin
   else
   begin
     { Raised: light top-left, dark bottom-right }
+    DrawFillRect(R, NormalColor, FrameBuffer);  
     DrawHLine(R.X, R.Y, R.Width, HighColor, FrameBuffer);                     { Top }
     DrawVLine(R.X, R.Y, R.Height, HighColor, FrameBuffer);                    { Left }
     DrawVLine(R.X + R.Width - 1, R.Y, R.Height, LowColor, FrameBuffer);       { Right }
@@ -404,9 +409,6 @@ var
   TextX, TextY: Integer;
 begin
   if not Visible then Exit;
-
-  { Render background }
-  DrawFillRect(Rectangle, Style^.NormalColor, FrameBuffer);
 
   { Render 3D panel border using shared style instance }
   Style^.RenderPanel(Rectangle, Pressed, FrameBuffer);
@@ -642,9 +644,6 @@ var
 begin
   if not Visible then Exit;
 
-  { Render background }
-  DrawFillRect(Rectangle, Style^.LowColor, FrameBuffer);
-
   { Render sunken 3D panel border using shared style instance (text input fields are sunken) }
   Style^.RenderPanel(Rectangle, True, FrameBuffer);
 
@@ -718,9 +717,8 @@ begin
   BackgroundBuffer := Background;
   FirstRender := True;
 
-  { Initialize default style with VMT }
-  { Calling constructor on instance variable initializes VMT + fields }
-  Style.Init(15, 7, 8, 14);  { white, gray, dark gray, yellow }
+  { Point to default style (user can override with SetStyle) }
+  Style := @DefaultStyle;
 end;
 
 procedure TUIManager.AddWidget(Widget: PWidget);
@@ -912,7 +910,7 @@ begin
   begin
     Widget := PWidget(Node^.Value);
     if Widget^.Visible then
-      Widget^.Render(Self.BackBuffer, @Self.Style);
+      Widget^.Render(Self.BackBuffer, Self.Style);
     Node := Node^.Next;
   end;
 end;
@@ -986,7 +984,7 @@ begin
       Widget := PWidget(Node^.Value);
       if Widget^.Visible then
       begin
-        Widget^.Render(Self.BackBuffer, @Self.Style);
+        Widget^.Render(Self.BackBuffer, Self.Style);
         ExpandRectForFocusBorder(Widget^.Rectangle, Widget^.Focused, DirtyRect);
         AddDirtyRect(DirtyRect);
       end;
@@ -1013,7 +1011,7 @@ begin
             CopyFrameBufferRect(BackgroundBuffer, DirtyRect, BackBuffer, DirtyRect.X, DirtyRect.Y);
 
           { Redraw this widget }
-          Widget^.Render(Self.BackBuffer, @Self.Style);
+          Widget^.Render(Self.BackBuffer, Self.Style);
 
           AddDirtyRect(DirtyRect);
           Widget^.NeedsRedraw := False;
@@ -1027,7 +1025,7 @@ begin
   FlushDirtyRects(BackBuffer);
 end;
 
-procedure TUIManager.SetStyle(const NewStyle: TUIStyle);
+procedure TUIManager.SetStyle(NewStyle: PUIStyle);
 begin
   Style := NewStyle;
 end;
@@ -1038,4 +1036,7 @@ begin
   FocusedWidget := nil;
 end;
 
+begin
+  { Initialize default style }
+  DefaultStyle.Init(15, 7, 8, 14);  { white, gray, dark gray, yellow }
 end.
