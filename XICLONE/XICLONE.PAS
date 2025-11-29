@@ -158,13 +158,13 @@ begin
   PutImage(DialogImage, 160 - DialogImage.Width div 2, 100 - DialogImage.Height div 2, False, BackBuffer);
   PrintFontTextCentered(160, 67, Title, FontLarge, BackBuffer);
   CopyFrameBuffer(BackBuffer, ScreenBuffer);
-  ClearKeyPressed;
+  ClearAllKeyStates;
 end;
 
 procedure DestroyDialog;
 begin
   CopyFrameBuffer(BackgroundBuffer, BackBuffer);
-  ClearKeyPressed;
+  ClearAllKeyStates;
 end;
 
 procedure FullRenderGame;
