@@ -2,9 +2,8 @@
 <resources>
   <music name="main" path="DATA\TEST.HSC" />
   <sound name="explode" path="DATA\EXPLODE.VOC" />
-  <level name="first" path="DATA\TEST.TMX" />
-  
-  <image name="player" path="DATA\PLAYER.PCX" />
+  <level name="first" path="DATA\TEST.TMX" />  
+  <image name="player" path="DATA\PLAYER.PCX" use-palette />
   <font name="default" path="DATA\FONT-SM.XML" />
 
   <sprite name="player_idle" image="player" duration="0.8">

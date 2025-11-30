@@ -22,8 +22,8 @@ Centralized resource management system for loading and accessing game assets fro
   <music name="main" path="DATA\TEST.HSC" />
   <sound name="explode" path="DATA\EXPLODE.VOC" />
   <level name="first" path="DATA\TEST.TMX" />
-
   <image name="player" path="DATA\PLAYER.PCX" />
+  <image name="background" path="DATA\BG1.PCX" use-palette />
   <font name="small" path="DATA\FONT-SM.XML" />
 
   <sprite name="player_idle" image="player" duration="0.8">
@@ -44,6 +44,9 @@ Centralized resource management system for loading and accessing game assets fro
 </resources>
 ```
 
+**Note on Image Resources:**
+The `<image>` tag references a PCX file (e.g. `DATA\BG1.PCX`). If the `use-palette` attribute is present the `LoadPCXWithPalette` will be used, otherwise the `LoadPCX`.
+ 
 **Note on Font Resources:**
 The `<font>` tag references an XML file (e.g., `DATA\FONT-SM.XML`) which contains the font definition including the PCX image path. The font XML specifies the image path via an `image` attribute, which is relative to the XML file's location.
 
@@ -108,6 +111,7 @@ type
   PImageData = ^TImageData;
   TImageData = record
     Image: TImage;            { VGA.PAS image }
+    UsePalette: Boolean;
   end;
 
   { Font resource data }
@@ -404,6 +408,8 @@ end;
 function TResourceManager.LoadImageResource(Desc: PResourceDescriptor): Boolean;
 var
   ImgData: PImageData;
+  LoadResult: Boolean;
+  Palette: TPalette;
 begin
   LoadImageResource := False;
 
@@ -417,7 +423,18 @@ begin
   New(ImgData);
 
   { Load PCX file }
-  if not LoadPCX(Desc^.Path^, ImgData^.Image) then
+  if ImageData^.UsePalette then
+  begin
+    { With palette }
+    LoadResult := LoadPCXWithPalette(Desc^.Path^, ImgData^.Image, Palette);
+    if LoadResult then
+      SetPalette(Palette);
+  end
+  else
+    { Without palette }
+    LoadResult := LoadPCX(Desc^.Path^, ImgData^.Image);
+  
+  if not LoadResult then
   begin
     LastError := 'Failed to load image: ' + Desc^.Path^;
     Dispose(ImgData);
