@@ -154,10 +154,11 @@ Far-call procedure pointer for event callbacks.
 ```pascal
 {$F+}
 TEventHandler = procedure(var Widget: TWidget; var Event: TEvent);
+TUpdateProcedure = procedure;  { User update callback (no parameters) }
 {$F-}
 ```
 
-**CRITICAL:** Event handlers MUST be defined in `{$F+}/{$F-}` blocks for far calls.
+**CRITICAL:** Event handlers and update procedures MUST be defined in `{$F+}/{$F-}` blocks for far calls.
 
 ## Widget Types
 
@@ -171,14 +172,19 @@ TWidget = object
   Visible: Boolean;             { Render if True }
   Enabled: Boolean;             { Can receive focus/events }
   Focused: Boolean;             { Currently has keyboard focus }
+  NeedsRedraw: Boolean;         { Widget needs rendering (dirty flag) }
   EventHandler: Pointer;        { TEventHandler callback }
   Tag: Integer;                 { User data for identification }
 
   constructor Init(X, Y: Integer; W, H: Word);
   procedure SetEventHandler(Handler: Pointer);
+  procedure MarkDirty;          { Request redraw of this widget }
+  procedure SetVisible(Value: Boolean);  { Set visibility and mark dirty if changed }
+  procedure SetEnabled(Value: Boolean);  { Set enabled state and mark dirty if changed }
   procedure HandleEvent(var Event: TEvent); virtual;
-  procedure Update(DeltaTime: LongInt); virtual;
+  procedure Update(DeltaTime: Real); virtual;
   procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
+  procedure RenderFocusRectangle(FrameBuffer: PFrameBuffer; Style: PUIStyle);
   destructor Done; virtual;
 end;
 ```
@@ -203,7 +209,7 @@ TLabel = object(TWidget)
   Text: PShortString;
   Font: PFont;
 
-  constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont);
+  constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
   procedure SetText(const NewText: string);
   procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
   destructor Done; virtual;
@@ -219,8 +225,10 @@ end;
 **Example:**
 ```pascal
 var Label: PLabel;
+    TextWidth: Integer;
 begin
-  New(Label, Init(10, 10, 'Score: 0', @Font));
+  TextWidth := GetTextWidth('Score: 0', Font);
+  New(Label, Init(10, 10, TextWidth, Font.Height, 'Score: 0', @Font));
   UI.AddWidget(Label);
 
   { Update text later }
@@ -288,11 +296,9 @@ TCheckbox = object(TWidget)
   Text: PShortString;
   Font: PFont;
   Image: PImage;        { Sprite sheet: unchecked (row 0) + checked (row 1) }
-  ImageWidth: Word;     { Width of single checkbox image }
-  ImageHeight: Word;    { Height of single checkbox image }
   Checked: Boolean;     { Current state }
 
-  constructor Init(X, Y: Integer; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
+  constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
   procedure SetText(const NewText: string);
   procedure SetChecked(Value: Boolean);
   function IsChecked: Boolean;
@@ -312,11 +318,12 @@ end;
 **Image Format:**
 ```
 ┌────────────┐
-│ Unchecked  │  ← Row 0 (ImageWidth × ImageHeight)
+│ Unchecked  │  ← Row 0 (Image.Width × (Image.Height / 2))
 ├────────────┤
-│ Checked ✓  │  ← Row 1 (ImageWidth × ImageHeight)
+│ Checked ✓  │  ← Row 1 (Image.Width × (Image.Height / 2))
 └────────────┘
-Total: ImageWidth × (ImageHeight × 2)
+Total: Image.Width × Image.Height
+Note: Image.Height should be 2× the height of a single checkbox state
 ```
 
 **Example:**
@@ -340,9 +347,11 @@ end;
 var
   CheckboxImage: TImage;
   SoundCheckbox: PCheckbox;
+  TextWidth: Integer;
 begin
   LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage);
-  New(SoundCheckbox, Init(100, 100, 'Sound Effects', @Font, @CheckboxImage));
+  TextWidth := CheckboxImage.Width + 4 + GetTextWidth('Sound Effects', Font);
+  New(SoundCheckbox, Init(100, 100, TextWidth, CheckboxImage.Height div 2, 'Sound Effects', @Font, @CheckboxImage));
   SoundCheckbox^.SetEventHandler(@OnSoundToggle);
   UI.AddWidget(SoundCheckbox);
 end;
@@ -358,7 +367,7 @@ TLineEdit = object(TWidget)
   Font: PFont;
   MaxLength: Byte;      { Maximum characters (1-255) }
   CursorVisible: Boolean; { Blinking cursor state }
-  CursorTimer: LongInt; { Milliseconds for blink animation }
+  CursorTimer: Real;    { Seconds for blink animation }
 
   constructor Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
   procedure SetText(const NewText: string);
@@ -366,7 +375,7 @@ TLineEdit = object(TWidget)
   procedure Clear;
   procedure HandleEvent(var Event: TEvent); virtual;
   procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
-  procedure Update(DeltaTime: LongInt); virtual;
+  procedure Update(DeltaTime: Real); virtual;
   destructor Done; virtual;
 end;
 ```
@@ -374,7 +383,7 @@ end;
 **Behavior:**
 - Interactive (can receive focus)
 - Renders 3D sunken panel + text + blinking cursor
-- Cursor blinks every 500ms when focused
+- Cursor blinks every 0.5 seconds when focused
 - Text auto-scrolls left if wider than widget
 - Responds to:
   - **Printable keys (A-Z, 0-9, punctuation)**: Append character if Length < MaxLength
@@ -466,23 +475,28 @@ Central manager for all widgets.
 
 ```pascal
 TUIManager = object
-  Widgets: TLinkedList;      { All widgets }
-  FocusedWidget: PWidget;    { Currently focused widget }
-  BackBuffer: PFrameBuffer;  { Target framebuffer }
-  Style: TUIStyle;           { Theme for all widgets }
+  Widgets: TLinkedList;            { All widgets }
+  FocusedWidget: PWidget;          { Currently focused widget }
+  BackBuffer: PFrameBuffer;        { Target framebuffer }
+  BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
+  FirstRender: Boolean;            { Force full redraw on first frame }
+  Style: PUIStyle;                 { Theme for all widgets (pointer) }
+  Running: Boolean;                { UI loop running flag }
 
-  procedure Init(FrameBuffer: PFrameBuffer);
+  procedure Init(FrameBuffer, Background: PFrameBuffer);
   procedure AddWidget(Widget: PWidget);
   procedure RemoveWidget(Widget: PWidget);
   procedure SetFocus(Widget: PWidget);
-  procedure FocusNext;       { Tab: move to next enabled widget }
-  procedure FocusPrev;       { Shift+Tab: move to previous }
   procedure FocusInDirection(DX, DY: Integer);  { Arrow key navigation }
   procedure DispatchKeyboardEvents;  { Check all keys and dispatch }
   procedure HandleEvent(var Event: TEvent);
-  procedure Update(DeltaTime: LongInt);  { Update all widgets (ms) }
-  procedure RenderAll;
-  procedure SetStyle(const NewStyle: TUIStyle);
+  procedure Update(DeltaTime: Real);  { Update all widgets (seconds) }
+  procedure RenderAll;              { Render all widgets unconditionally }
+  procedure RenderDirty;            { Smart dirty rectangle rendering }
+  procedure SetStyle(NewStyle: PUIStyle);
+  function IsEnter(var Event: TEvent): Boolean;  { Helper to check Enter key }
+  procedure Run(UpdateProcedure: Pointer);  { Main UI loop with optional update callback }
+  procedure Stop;                   { Stop the UI loop }
   procedure Done;
 end;
 ```
@@ -491,36 +505,209 @@ end;
 
 **Focus Order:**
 - Only one widget can have focus at a time
-- Arrow keys focus nearest widget in direction
-- Focus order = insertion order (order widgets added)
+- Arrow keys focus nearest widget in that direction (geometric navigation)
 - Labels cannot receive focus (Enabled = False)
 
 **Navigation Keys:**
-- **Arrow Keys**: FocusInDirection (geometric navigation)
+- **Arrow Keys (Up/Down/Left/Right)**: FocusInDirection (geometric navigation)
 
 ### Rendering
 
+**Render Modes:**
+
+1. **RenderAll**: Renders all visible widgets unconditionally
+   - Use for initial render or full screen updates
+   - Simple but slower for frequent updates
+
+2. **RenderDirty**: Smart dirty rectangle rendering (optimized)
+   - Only renders widgets with NeedsRedraw = True
+   - Restores background from BackgroundBuffer before redrawing
+   - Tracks dirty regions via DRECT.PAS
+   - Significantly faster for interactive UIs
+
 **Render Order:**
 - Widgets render in insertion order (first added = back, last added = front)
-- Only visible widgets render, and on RenderDirty case only dirty
+- Only visible widgets render
 - Each widget renders to BackBuffer
-- Caller must call RenderFrameBuffer(BackBuffer) after UI.RenderDirty / UI.RenderAll
+- Caller must call RenderFrameBuffer(BackBuffer) or FlushDirtyRects(BackBuffer) after rendering
 
-**Example:**
+**Example (Using UI.Run - Recommended):**
 ```pascal
-{ Main loop }
-while Running do
+{$F+}
+procedure OnUpdate;
 begin
-  { Update }
-  UI.Update(DeltaTime); { DeltaTime is in milliseconds }
+  if IsKeyPressed(Key_Escape) then
+    UI.Stop;
+end;
+{$F-}
 
-  { Render only changes}
-  UI.RenderDirty;
+var BackBuffer, Background: PFrameBuffer;
+begin
+  InitVGA;
+  BackBuffer := CreateFrameBuffer;
+  Background := CreateFrameBuffer;
 
-  { Copy BackBuffer to the screen memory }
-  RenderFrameBuffer(BackBuffer);
+  { Draw static background to Background buffer }
+  { ... draw background art ... }
+  CopyFrameBuffer(Background, BackBuffer);
 
-  ClearKeyPressed;
+  UI.Init(BackBuffer, Background);
+
+  { Add widgets... }
+
+  { Run UI loop with update callback }
+  UI.Run(@OnUpdate);  { Handles timing, rendering, and keyboard automatically }
+
+  UI.Done;
+  FreeFrameBuffer(BackBuffer);
+  FreeFrameBuffer(Background);
+  CloseVGA;
+end;
+```
+
+**Example (Manual Loop - Advanced):**
+```pascal
+var BackBuffer, Background: PFrameBuffer;
+begin
+  InitVGA;
+  BackBuffer := CreateFrameBuffer;
+  Background := CreateFrameBuffer;
+
+  { Draw static background to Background buffer }
+  { ... draw background art ... }
+  CopyFrameBuffer(Background, BackBuffer);
+
+  UI.Init(BackBuffer, Background);
+
+  { Manual loop }
+  while Running do
+  begin
+    { Update - internally calls DispatchKeyboardEvents }
+    UI.Update(DeltaTime);  { DeltaTime in seconds }
+
+    { Render only dirty widgets + flush dirty rects }
+    UI.RenderDirty;
+
+    ClearKeyPressed;
+  end;
+
+  UI.Done;
+  FreeFrameBuffer(BackBuffer);
+  FreeFrameBuffer(Background);
+  CloseVGA;
+end;
+```
+
+**Example (Simple Full Render):**
+```pascal
+var BackBuffer: PFrameBuffer;
+begin
+  InitVGA;
+  BackBuffer := CreateFrameBuffer;
+  UI.Init(BackBuffer, nil);  { No background buffer }
+
+  while Running do
+  begin
+    UI.Update(DeltaTime);
+
+    { Clear and render everything }
+    ClearFrameBuffer(BackBuffer);
+    UI.RenderAll;
+    RenderFrameBuffer(BackBuffer);
+
+    ClearKeyPressed;
+  end;
+
+  UI.Done;
+  FreeFrameBuffer(BackBuffer);
+  CloseVGA;
+end;
+```
+
+### UI Loop Methods
+
+**UI.Run(UpdateProcedure: Pointer)**
+
+Built-in UI event loop that handles timing, rendering, and keyboard input automatically. This is the recommended way to run simple UI screens like menus and dialogs.
+
+```pascal
+procedure Run(UpdateProcedure: Pointer);
+```
+
+**Parameters:**
+- `UpdateProcedure`: Optional pointer to TUpdateProcedure (far-call procedure with no parameters)
+  - Called once per frame before widget updates
+  - Use for custom input handling (e.g., Escape key to close dialog)
+  - Pass `nil` if no custom update logic needed
+
+**Behavior:**
+- Maintains its own delta time calculation (in seconds)
+- Calls UpdateProcedure (if not nil)
+- Calls Update(DeltaTime) for widget updates (DeltaTime in seconds)
+- Calls RenderDirty for optimized rendering
+- Handles VSync and ClearKeyPressed automatically
+- Runs until Stop is called
+
+**UI.Stop**
+
+Stops the UI.Run loop by setting Running := False.
+
+```pascal
+procedure Stop;
+```
+
+**UI.IsEnter(var Event: TEvent): Boolean**
+
+Helper function to check if an event is an Enter key press.
+
+```pascal
+function IsEnter(var Event: TEvent): Boolean;
+```
+
+**Returns:** True if Event is a KeyPress event with KeyCode = Key_Enter
+
+**Example Usage:**
+
+```pascal
+{$F+}
+{ Custom update procedure - called each frame before widget updates }
+procedure OnDialogUpdate;
+begin
+  if IsKeyPressed(Key_Escape) then
+    UI.Stop;  { Close dialog on Escape }
+end;
+
+{ Button event handler }
+procedure OnOkButtonClick(var Widget: TWidget; var Event: TEvent);
+begin
+  if UI.IsEnter(Event) then
+  begin
+    { Process OK button click }
+    UI.Stop;  { Close dialog }
+  end;
+end;
+{$F-}
+
+var
+  BackBuffer, Background: PFrameBuffer;
+  OkButton: PButton;
+begin
+  { Setup UI }
+  UI.Init(BackBuffer, Background);
+  UI.SetStyle(@CustomStyle);
+
+  New(OkButton, Init(100, 100, 120, 24, 'OK', @Font));
+  OkButton^.SetEventHandler(@OnOkButtonClick);
+  UI.AddWidget(OkButton);
+  UI.SetFocus(OkButton);
+
+  { Run UI loop - Escape or OK button will exit }
+  UI.Run(@OnDialogUpdate);
+
+  { Cleanup }
+  UI.RemoveWidget(OkButton);
+  Dispose(OkButton, Done);
+  UI.Done;
 end;
 ```
 
@@ -532,7 +719,7 @@ end;
 var Style: TUIStyle;
 begin
   Style.Init(15, 7, 8, 14);  { High, Normal, Low, Focus }
-  UI.SetStyle(Style);
+  UI.SetStyle(@Style);  { Pass pointer to style }
 end;
 ```
 
@@ -559,7 +746,7 @@ end;
 var CustomStyle: TCustomStyle;
 begin
   CustomStyle.Init(15, 7, 8, 14);
-  UI.SetStyle(CustomStyle);
+  UI.SetStyle(@CustomStyle);  { Pass pointer to style }
 end;
 ```
 

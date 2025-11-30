@@ -22,7 +22,8 @@ var
   Sprite1, Sprite2: TImage;
   Frame: Integer;
   LastTime, CurrentTime: Real;
-  DeltaTime, ElapsedTime: LongInt;
+  DeltaTime, ElapsedTime: Real;
+  DeltaTimeMS: LongInt;
   FPS: Word;
   FPSStr: String;
   UseVSync: Boolean;
@@ -217,7 +218,7 @@ begin
   TestSprites[4].FlipX := True;
   TestSprites[4].FlipY := True;
 
-  ElapsedTime := 0;
+  ElapsedTime := 0.0;
   Frame := 0;
   Running := True;
   CurrentTime := GetTimeSeconds;
@@ -249,31 +250,32 @@ begin
 
     RenderFrameBuffer(FrontBuffer);
 
-    { Calculate delta time }
+    { Calculate delta time (seconds) }
     LastTime := CurrentTime;
     CurrentTime := GetTimeSeconds;
-    DeltaTime := Trunc((CurrentTime - LastTime) * 1000.0);
+    DeltaTime := CurrentTime - LastTime;
 
     { Calculate FPS }
     ElapsedTime := ElapsedTime + DeltaTime;
-    if ElapsedTime > 1000 then
+    if ElapsedTime > 1.0 then
     begin
       FPS := Frame;
-      ElapsedTime := ElapsedTime - 1000;
+      ElapsedTime := ElapsedTime - 1.0;
       Frame := 0;
     end;
 
     { Protect against negative or invalid delta times }
-    if DeltaTime < 0 then
-      DeltaTime := 0  { Use small value if time went backwards }
-    else if DeltaTime > 500 then
-      DeltaTime := 500;   { Prevent huge delta times }
+    if DeltaTime < 0.0 then
+      DeltaTime := 0.0  { Use zero if time went backwards }
+    else if DeltaTime > 0.5 then
+      DeltaTime := 0.5;   { Prevent huge delta times (cap at 0.5 seconds) }
 
     { Update all test sprite positions }
+    DeltaTimeMS := Trunc(DeltaTime * 1000.0);
     for i := 1 to 4 do
     begin
-      TestSprites[i].X := TestSprites[i].X + TestSprites[i].VX * DeltaTime;
-      TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTime;
+      TestSprites[i].X := TestSprites[i].X + TestSprites[i].VX * DeltaTimeMS;
+      TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTimeMS;
 
       { Bounce off edges - allow sprites to go partially off-screen for clipping test }
       if (TestSprites[i].X <= -32 shl 10) or (TestSprites[i].X >= 320 shl 10) then

@@ -24,7 +24,7 @@ SPRITE.PAS provides a frame-rate independent sprite animation system using delta
 - **Sprite sheet support** - Multiple animations from single image
 - **Flipping support** - Horizontal/vertical mirroring
 - **Shared sprite data** - Multiple instances from one definition
-- **Millisecond timing** - Precise animation control
+- **Second-based timing** - Precise animation control
 
 **Architecture:**
 - **TSprite** - Shared sprite definition (frames, timing, play mode)
@@ -44,7 +44,7 @@ type
     FrameCount: Byte;                           { Number of frames }
     Width: Word;                                { Frame width (informational) }
     Height: Word;                               { Frame height (informational) }
-    Duration: LongInt;                          { Total duration in milliseconds }
+    Duration: Real;                             { Total duration in seconds }
     PlayType: Byte;                             { Forward/PingPong/Once }
   end;
 
@@ -60,7 +60,7 @@ Sprite definition containing shared animation data. Multiple instances can refer
 - `FrameCount` - Number of frames in animation (1-64)
 - `Width` - Frame width in pixels (optional, for convenience)
 - `Height` - Frame height in pixels (optional, for convenience)
-- `Duration` - Total animation duration in milliseconds
+- `Duration` - Total animation duration in seconds
 - `PlayType` - Animation playback mode (see [Constants](#constants))
 
 **Example:**
@@ -76,7 +76,7 @@ begin
   { Setup sprite definition }
   PlayerRun.Image := @SpriteSheet;
   PlayerRun.FrameCount := 8;
-  PlayerRun.Duration := 800;  { 0.8 seconds total }
+  PlayerRun.Duration := 0.8;  { 0.8 seconds total }
   PlayerRun.PlayType := SpritePlayType_Forward;
 
   { Define frame rectangles (8 frames, 32×32 each, in a row) }
@@ -103,7 +103,7 @@ type
     Y: Integer;              { Screen Y position }
     FlipX: Boolean;          { Horizontal flip }
     FlipY: Boolean;          { Vertical flip }
-    CurrentTime: LongInt;    { Current time in milliseconds }
+    CurrentTime: Real;       { Current time in seconds }
     PlayBackward: Boolean;   { Internal: PingPong direction }
   end;
 
@@ -119,9 +119,9 @@ Per-entity sprite instance containing position, state, and animation time.
 - `X`, `Y` - Screen position (top-left corner)
 - `FlipX` - If `True`, flip horizontally (mirror left-right)
 - `FlipY` - If `True`, flip vertically (mirror top-bottom)
-- `CurrentTime` - Current animation time in milliseconds
-  - `-1` = Animation stopped (PlayType_Once finished)
-  - `0+` = Active animation time
+- `CurrentTime` - Current animation time in seconds
+  - `-1.0` = Animation stopped (PlayType_Once finished)
+  - `0.0+` = Active animation time
 - `PlayBackward` - Internal flag for PingPong mode direction
 
 **Example:**
@@ -136,7 +136,7 @@ begin
   Player.Y := 50;
   Player.FlipX := False;  { Facing right }
   Player.FlipY := False;
-  Player.CurrentTime := 0;  { Start at beginning }
+  Player.CurrentTime := 0.0;  { Start at beginning }
   Player.Hidden := False;
   Player.PlayBackward := False;
 end;
@@ -200,27 +200,27 @@ Maximum number of frames per sprite (0-63).
 ### UpdateSprite
 
 ```pascal
-procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: LongInt);
+procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: Real);
 ```
 
-Updates sprite animation time. **MUST be called once per frame** with delta time in milliseconds.
+Updates sprite animation time. **MUST be called once per frame** with delta time in seconds.
 
 **Parameters:**
 - `SpriteInstance` - Sprite instance to update (by reference)
-- `DeltaTime` - Time elapsed since last update in milliseconds
+- `DeltaTime` - Time elapsed since last update in seconds
 
 **Behavior:**
 - Advances `CurrentTime` by `DeltaTime`
 - When `CurrentTime` exceeds `Duration`:
-  - **Forward:** Wraps back to 0 (loops)
+  - **Forward:** Wraps back to 0.0 (loops)
   - **PingPong:** Reverses direction, continues
-  - **Once:** Stops animation (`CurrentTime = -1`)
-- If `CurrentTime = -1`, does nothing (animation stopped)
+  - **Once:** Stops animation (`CurrentTime = -1.0`)
+- If `CurrentTime < 0.0`, does nothing (animation stopped)
 
 **Example:**
 ```pascal
 var
-  DeltaTimeMS: LongInt;
+  DeltaTime: Real;
   LastTime, CurrentTime: Real;
 
 begin
@@ -231,11 +231,11 @@ begin
   begin
     { Calculate delta time }
     CurrentTime := GetTimeSeconds;
-    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
     { Update sprite - MUST call every frame }
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
 
     { Render }
     DrawSprite(Player, FrameBuffer);
@@ -245,7 +245,7 @@ begin
 end;
 ```
 
-**CRITICAL:** Call with actual delta time, not fixed value! Using fixed delta (e.g., `UpdateSprite(Player, 16)`) breaks frame-rate independence.
+**CRITICAL:** Call with actual delta time, not fixed value! Using fixed delta (e.g., `UpdateSprite(Player, 0.016)`) breaks frame-rate independence.
 
 ---
 
@@ -264,7 +264,7 @@ Renders current animation frame to framebuffer.
 **Behavior:**
 - If `Hidden = True`, the draw will not happen
 - Calculates current frame from `CurrentTime`
-- If `CurrentTime = -1`, shows last frame (stopped animation)
+- If `CurrentTime < 0.0`, shows last frame (stopped animation)
 - Applies `FlipX` and `FlipY` transformations
 - Draws with transparency (color 0 is transparent)
 - Automatically clips at screen boundaries
@@ -284,7 +284,7 @@ var
   PlayerRun: TSprite;
   Player: TSpriteInstance;
   FrameBuffer: PFrameBuffer;
-  DeltaTimeMS: LongInt;
+  DeltaTime: Real;
   LastTime, CurrentTime: Real;
   i: Integer;
 
@@ -299,7 +299,7 @@ begin
   { Setup sprite (8 frames, 32×32 each) }
   PlayerRun.Image := @SpriteSheet;
   PlayerRun.FrameCount := 8;
-  PlayerRun.Duration := 800;  { 0.8 seconds }
+  PlayerRun.Duration := 0.8;  { 0.8 seconds }
   PlayerRun.PlayType := SpritePlayType_Forward;
 
   { Define frames (horizontal strip) }
@@ -317,7 +317,7 @@ begin
   Player.Y := 84;
   Player.FlipX := False;
   Player.FlipY := False;
-  Player.CurrentTime := 0;
+  Player.CurrentTime := 0.0;
   Player.Hidden := False;
 
   { Animation loop }
@@ -326,11 +326,11 @@ begin
   begin
     { Calculate delta time }
     CurrentTime := GetTimeSeconds;
-    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
     { Update and render }
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
 
     ClearFrameBuffer(FrameBuffer);
     DrawSprite(Player, FrameBuffer);
@@ -368,7 +368,7 @@ begin
   { Setup idle animation (4 frames, row 0) }
   PlayerIdle.Image := @SpriteSheet;
   PlayerIdle.FrameCount := 4;
-  PlayerIdle.Duration := 1000;
+  PlayerIdle.Duration := 1.0;
   PlayerIdle.PlayType := SpritePlayType_PingPong;
 
   for i := 0 to 3 do
@@ -382,7 +382,7 @@ begin
   { Setup run animation (8 frames, row 1) }
   PlayerRun.Image := @SpriteSheet;
   PlayerRun.FrameCount := 8;
-  PlayerRun.Duration := 600;
+  PlayerRun.Duration := 0.6;
   PlayerRun.PlayType := SpritePlayType_Forward;
 
   for i := 0 to 7 do
@@ -397,7 +397,7 @@ begin
   Player.Sprite := @PlayerIdle;  { Start with idle }
   Player.X := 100;
   Player.Y := 50;
-  Player.CurrentTime := 0;
+  Player.CurrentTime := 0.0;
   Player.FlipX := False;
   PlayerState := PS_Idle;
 
@@ -411,7 +411,7 @@ begin
       if PlayerState <> PS_Running then
       begin
         Player.Sprite := @PlayerRun;
-        Player.CurrentTime := 0;  { Reset animation }
+        Player.CurrentTime := 0.0;  { Reset animation }
         PlayerState := PS_Running;
       end;
       Player.X := Player.X + 2;
@@ -422,7 +422,7 @@ begin
       if PlayerState <> PS_Running then
       begin
         Player.Sprite := @PlayerRun;
-        Player.CurrentTime := 0;
+        Player.CurrentTime := 0.0;
         PlayerState := PS_Running;
       end;
       Player.X := Player.X - 2;
@@ -434,13 +434,13 @@ begin
       if PlayerState <> PS_Idle then
       begin
         Player.Sprite := @PlayerIdle;
-        Player.CurrentTime := 0;
+        Player.CurrentTime := 0.0;
         PlayerState := PS_Idle;
       end;
     end;
 
     { Update and render }
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
     DrawSprite(Player, BackBuffer);
 
     ClearKeyPressed;
@@ -461,7 +461,7 @@ begin
   { Setup explosion (12 frames) }
   ExplosionAnim.Image := @ExplosionSheet;
   ExplosionAnim.FrameCount := 12;
-  ExplosionAnim.Duration := 500;  { Half second }
+  ExplosionAnim.Duration := 0.5;  { Half second }
   ExplosionAnim.PlayType := SpritePlayType_Once;
 
   { ... define frames ... }
@@ -470,16 +470,16 @@ begin
   Explosion.Sprite := @ExplosionAnim;
   Explosion.X := EnemyX;
   Explosion.Y := EnemyY;
-  Explosion.CurrentTime := 0;  { Start animation }
+  Explosion.CurrentTime := 0.0;  { Start animation }
   Explosion.Hidden := False;
 
   { Game loop }
   while GameRunning do
   begin
-    UpdateSprite(Explosion, DeltaTimeMS);
+    UpdateSprite(Explosion, DeltaTime);
 
     { Check if animation finished }
-    if Explosion.CurrentTime = -1 then
+    if Explosion.CurrentTime < 0.0 then
     begin
       WriteLn('Explosion finished!');
       Explosion.Hidden := True;  { Don't draw anymore }
@@ -505,7 +505,7 @@ begin
   { Setup shared sprite }
   EnemyWalk.Image := @EnemySheet;
   EnemyWalk.FrameCount := 6;
-  EnemyWalk.Duration := 600;
+  EnemyWalk.Duration := 0.6;
   EnemyWalk.PlayType := SpritePlayType_Forward;
   { ... define frames ... }
 
@@ -515,7 +515,7 @@ begin
     Enemies[i].Sprite := @EnemyWalk;  { All share same sprite }
     Enemies[i].X := Random(320);
     Enemies[i].Y := Random(200);
-    Enemies[i].CurrentTime := Random(600);  { Stagger animations }
+    Enemies[i].CurrentTime := Random(600) / 1000.0;  { Stagger animations }
     Enemies[i].FlipX := Random(2) = 0;
     Enemies[i].Hidden := False;
   end;
@@ -525,7 +525,7 @@ begin
   begin
     { Update all enemies }
     for i := 0 to 9 do
-      UpdateSprite(Enemies[i], DeltaTimeMS);
+      UpdateSprite(Enemies[i], DeltaTime);
 
     { Draw all enemies }
     ClearFrameBuffer(BackBuffer);
@@ -635,16 +635,16 @@ end;
 ### Frame Duration Calculation
 
 Given:
-- `Duration` = 800 milliseconds
+- `Duration` = 0.8 seconds
 - `FrameCount` = 8 frames
 
-Each frame displays for: `800 / 8 = 100 milliseconds`
+Each frame displays for: `0.8 / 8 = 0.1 seconds`
 
 **Example:**
 ```pascal
-PlayerRun.Duration := 800;    { Total 0.8 seconds }
+PlayerRun.Duration := 0.8;    { Total 0.8 seconds }
 PlayerRun.FrameCount := 8;    { 8 frames }
-{ Each frame shows for 100ms }
+{ Each frame shows for 0.1 seconds }
 ```
 
 ### Frame Rate vs Delta Time
@@ -652,41 +652,41 @@ PlayerRun.FrameCount := 8;    { 8 frames }
 **Fixed Frame Rate (wrong):**
 ```pascal
 { DON'T DO THIS - breaks on different CPUs }
-UpdateSprite(Player, 16);  { Assumes 60 FPS always }
+UpdateSprite(Player, 0.016);  { Assumes 60 FPS always }
 ```
 
 **Delta Time (correct):**
 ```pascal
 { DO THIS - frame-rate independent }
-CurrentTimeMS := Round(GetTimeSeconds * 1000);
-DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-LastTimeMS := CurrentTimeMS;
+CurrentTime := GetTimeSeconds;
+DeltaTime := CurrentTime - LastTime;
+LastTime := CurrentTime;
 
-UpdateSprite(Player, DeltaTimeMS);  { Adapts to actual frame rate }
+UpdateSprite(Player, DeltaTime);  { Adapts to actual frame rate }
 ```
 
 ### Synchronizing Animations
 
 **Start all at time 0:**
 ```pascal
-Enemy1.CurrentTime := 0;
-Enemy2.CurrentTime := 0;
-Enemy3.CurrentTime := 0;
+Enemy1.CurrentTime := 0.0;
+Enemy2.CurrentTime := 0.0;
+Enemy3.CurrentTime := 0.0;
 { All enemies animate in sync }
 ```
 
 **Stagger animations:**
 ```pascal
-Enemy1.CurrentTime := 0;
-Enemy2.CurrentTime := 200;  { 200ms offset }
-Enemy3.CurrentTime := 400;  { 400ms offset }
+Enemy1.CurrentTime := 0.0;
+Enemy2.CurrentTime := 0.2;  { 0.2s offset }
+Enemy3.CurrentTime := 0.4;  { 0.4s offset }
 { Enemies animate with offset - looks more organic }
 ```
 
 **Random start times:**
 ```pascal
 for i := 0 to 9 do
-  Enemies[i].CurrentTime := Random(Sprite.Duration);
+  Enemies[i].CurrentTime := Random(1000) / 1000.0 * Sprite.Duration;
 { Each enemy starts at random point in animation }
 ```
 
@@ -696,11 +696,11 @@ for i := 0 to 9 do
 
 ### CRITICAL Rules
 
-1. **MUST use delta time** - Never use fixed values (e.g., 16ms)
+1. **MUST use delta time** - Never use fixed values (e.g., 0.016s)
 2. **Call UpdateSprite every frame** - Even if sprite is hidden (or check first)
-3. **Duration in milliseconds** - Not frames, not seconds
+3. **Duration in seconds** - Not frames, not milliseconds
 4. **Shared sprite data** - Multiple instances can share one TSprite
-5. **CurrentTime = -1** means stopped (PlayType_Once finished)
+5. **CurrentTime < 0.0** means stopped (PlayType_Once finished)
 
 ### Performance Tips
 
@@ -711,13 +711,13 @@ for i := 0 to 9 do
 
 ### Common Mistakes
 
-1. **Fixed delta time** - Using constant like `16` instead of actual delta
+1. **Fixed delta time** - Using constant like `0.016` instead of actual delta
    ```pascal
    { WRONG }
-   UpdateSprite(Player, 16);
+   UpdateSprite(Player, 0.016);
 
    { RIGHT }
-   UpdateSprite(Player, DeltaTimeMS);
+   UpdateSprite(Player, DeltaTime);
    ```
 
 2. **Not resetting animation** - When switching animations
@@ -727,7 +727,7 @@ for i := 0 to 9 do
 
    { RIGHT - restart animation }
    Player.Sprite := @PlayerRun;
-   Player.CurrentTime := 0;
+   Player.CurrentTime := 0.0;
    ```
 
 3. **Forgetting to update** - Not calling UpdateSprite
@@ -736,49 +736,52 @@ for i := 0 to 9 do
    DrawSprite(Player, BackBuffer);
 
    { RIGHT }
-   UpdateSprite(Player, DeltaTimeMS);
+   UpdateSprite(Player, DeltaTime);
    DrawSprite(Player, BackBuffer);
    ```
 
-4. **Wrong duration units** - Using frames instead of milliseconds
+4. **Wrong duration units** - Using frames or milliseconds instead of seconds
    ```pascal
-   { WRONG - 8 frames is only 8ms (0.008 seconds)! }
+   { WRONG - 8 frames is meaningless }
    Sprite.Duration := 8;
 
-   { RIGHT - 800ms = 0.8 seconds }
+   { WRONG - 800 milliseconds is 800 seconds! }
    Sprite.Duration := 800;
+
+   { RIGHT - 0.8 seconds }
+   Sprite.Duration := 0.8;
    ```
 
 ### Frame Calculation
 
 Current frame is calculated as:
 ```pascal
-Progress := (CurrentTime × FrameCount) div Duration;
+Progress := Trunc((CurrentTime / Duration) * FrameCount);
 FrameNumber := Progress;  { Clamped to 0..FrameCount-1 }
 ```
 
 **Example:**
-- Duration = 800ms
+- Duration = 0.8s
 - FrameCount = 8
-- CurrentTime = 400ms
-- Progress = (400 × 8) / 800 = 4
+- CurrentTime = 0.4s
+- Progress = Trunc((0.4 / 0.8) * 8) = 4
 - Shows frame 4 (fifth frame)
 
 ### Animation State
 
 **Active animation:**
 ```pascal
-CurrentTime >= 0  { Animation running normally }
+CurrentTime >= 0.0  { Animation running normally }
 ```
 
 **Stopped animation (PlayType_Once finished):**
 ```pascal
-CurrentTime = -1  { Shows last frame, UpdateSprite does nothing }
+CurrentTime < 0.0  { Shows last frame, UpdateSprite does nothing }
 ```
 
 **Restart stopped animation:**
 ```pascal
-Instance.CurrentTime := 0;  { Reset to beginning }
+Instance.CurrentTime := 0.0;  { Reset to beginning }
 ```
 
 ### Flipping
@@ -818,10 +821,10 @@ begin
   while Running do
   begin
     CurrentTime := GetTimeSeconds;
-    DeltaTimeMS := Trunc((CurrentTime - LastTime) * 1000.0);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
   end;
 
   DoneRTC;
@@ -851,7 +854,7 @@ begin
       Player.FlipX := False;  { Face right }
     end;
 
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
     DrawSprite(Player, FrameBuffer);
 
     ClearKeyPressed;
@@ -875,7 +878,7 @@ begin
     DrawTileMapLayer(Map, TileMapLayer_Back, CameraX, CameraY, 320, 200, FrameBuffer);
 
     { Update and draw player sprite }
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
     DrawSprite(Player, FrameBuffer);
 
     { Draw foreground }
@@ -900,7 +903,7 @@ var
   Player: TSpriteInstance;
   PlayerState: TPlayerState;
   BackBuffer: PFrameBuffer;
-  LastTimeMS, CurrentTimeMS, DeltaTimeMS: LongInt;
+  LastTime, CurrentTime, DeltaTime: Real;
 
 procedure SetupAnimations;
 var
@@ -911,7 +914,7 @@ begin
   { Idle - 4 frames, row 0, ping-pong }
   PlayerIdle.Image := @SpriteSheet;
   PlayerIdle.FrameCount := 4;
-  PlayerIdle.Duration := 1000;
+  PlayerIdle.Duration := 1.0;
   PlayerIdle.PlayType := SpritePlayType_PingPong;
   for i := 0 to 3 do
   begin
@@ -924,7 +927,7 @@ begin
   { Walk - 8 frames, row 1, loop }
   PlayerWalk.Image := @SpriteSheet;
   PlayerWalk.FrameCount := 8;
-  PlayerWalk.Duration := 600;
+  PlayerWalk.Duration := 0.6;
   PlayerWalk.PlayType := SpritePlayType_Forward;
   for i := 0 to 7 do
   begin
@@ -937,7 +940,7 @@ begin
   { Jump - 3 frames, row 2, once }
   PlayerJump.Image := @SpriteSheet;
   PlayerJump.FrameCount := 3;
-  PlayerJump.Duration := 300;
+  PlayerJump.Duration := 0.3;
   PlayerJump.PlayType := SpritePlayType_Once;
   for i := 0 to 2 do
   begin
@@ -951,7 +954,7 @@ begin
   Player.Sprite := @PlayerIdle;
   Player.X := 144;
   Player.Y := 84;
-  Player.CurrentTime := 0;
+  Player.CurrentTime := 0.0;
   Player.FlipX := False;
   Player.FlipY := False;
   Player.Hidden := False;
@@ -964,7 +967,7 @@ begin
     Exit;
 
   PlayerState := NewState;
-  Player.CurrentTime := 0;  { Restart animation }
+  Player.CurrentTime := 0.0;  { Restart animation }
 
   case NewState of
     PS_Idle: Player.Sprite := @PlayerIdle;
@@ -981,14 +984,14 @@ begin
 
   SetupAnimations;
 
-  LastTimeMS := Round(GetTimeSeconds * 1000);
+  LastTime := GetTimeSeconds;
 
   while not IsKeyPressed(Key_Escape) do
   begin
     { Calculate delta time }
-    CurrentTimeMS := Round(GetTimeSeconds * 1000);
-    DeltaTimeMS := CurrentTimeMS - LastTimeMS;
-    LastTimeMS := CurrentTimeMS;
+    CurrentTime := GetTimeSeconds;
+    DeltaTime := CurrentTime - LastTime;
+    LastTime := CurrentTime;
 
     { Handle input }
     if IsKeyDown(Key_A) then
@@ -1013,11 +1016,11 @@ begin
     end;
 
     { Check if jump finished }
-    if (PlayerState = PS_Jumping) and (Player.CurrentTime = -1) then
+    if (PlayerState = PS_Jumping) and (Player.CurrentTime < 0.0) then
       SwitchAnimation(PS_Idle);
 
     { Update animation }
-    UpdateSprite(Player, DeltaTimeMS);
+    UpdateSprite(Player, DeltaTime);
 
     { Render }
     ClearFrameBuffer(BackBuffer);

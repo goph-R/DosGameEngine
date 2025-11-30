@@ -47,8 +47,8 @@ type
     function GetBottom: Integer;
     function GetLeft: Integer;
 
-    procedure PreUpdate(DeltaTime: LongInt);
-    procedure Update(DeltaTime: LongInt);
+    procedure PreUpdate(DeltaTime: Real);
+    procedure Update(DeltaTime: Real);
     procedure Draw(FrameBuffer: PFrameBuffer);
   end;
 
@@ -74,7 +74,7 @@ type
     Acceleration: LongInt;
     Gravity: LongInt;
 
-  	procedure Update(var Entity: TEntity; DeltaTime: LongInt);
+  	procedure Update(var Entity: TEntity; DeltaTime: Real);
   end;
 
 type
@@ -84,7 +84,7 @@ type
     procedure Init;
     procedure Add(Entity: PEntity);
     procedure Remove(Entity: PEntity);
-    procedure UpdateAll(DeltaTime: LongInt);
+    procedure UpdateAll(DeltaTime: Real);
     procedure Done;
   end;
 
@@ -112,7 +112,7 @@ begin
   ListAdd(RemoveEntityList, Entity);
 end;
 
-procedure TEntityManager.UpdateAll(DeltaTime: LongInt);
+procedure TEntityManager.UpdateAll(DeltaTime: Real);
 var
   Entry, NextEntry, SearchEntry: PListEntry;
   Entity: PEntity;
@@ -154,7 +154,7 @@ begin
   end;
 end;
 
-procedure TPhysics.Update(var EntityManager: TEntityManager; var Entity: TEntity; DeltaTime: LongInt);
+procedure TPhysics.Update(var EntityManager: TEntityManager; var Entity: TEntity; DeltaTime: Real);
 begin
   { TODO: Set X, Y via Velocity and DeltaTime }
   { TODO: Check collision with blocks }
@@ -210,12 +210,12 @@ begin
   GetLeft := GetGlobalX shr 10 + AlignH * Width;
 end;
 
-procedure TEntity.PreUpdate(DeltaTime: LongInt);
+procedure TEntity.PreUpdate(DeltaTime: Real);
 begin
   { Override in derived types if needed }
 end;
 
-procedure TEntity.Update(DeltaTime: LongInt);
+procedure TEntity.Update(DeltaTime: Real);
 begin
   if Disabled then
 	  Exit;

@@ -19,8 +19,7 @@ var
   { Timing }
   CurrentTime: Real;
   LastTime: Real;
-  DeltaTimeMS: LongInt;
-  DeltaTimeAccum: Real;  { Accumulator for fractional milliseconds }
+  DeltaTime: Real;
 
   { FPS calculation }
   FPS: Real;
@@ -46,7 +45,7 @@ begin
   SpriteIdle.FrameCount := 4;
   SpriteIdle.Width := 32;
   SpriteIdle.Height := 32;
-  SpriteIdle.Duration := 800; { 0.8 seconds in milliseconds }
+  SpriteIdle.Duration := 0.8; { 0.8 seconds }
   SpriteIdle.PlayType := SpritePlayType_Forward;
 
   { Setup idle animation frames (first row: 0,0 to 128,0) }
@@ -63,7 +62,7 @@ begin
   SpriteRun.FrameCount := 6;
   SpriteRun.Width := 32;
   SpriteRun.Height := 32;
-  SpriteRun.Duration := 500; { 0.5 seconds in milliseconds }
+  SpriteRun.Duration := 0.5; { 0.5 seconds }
   SpriteRun.PlayType := SpritePlayType_Forward;
 
   { Setup run animation frames (second row: 0,32 to 192,32) }
@@ -191,8 +190,8 @@ begin
   { Initialize sprite definitions }
   InitSprites;
 
-  WriteLn('  SpriteIdle: ', SpriteIdle.FrameCount, ' frames, ', SpriteIdle.Duration, 'ms duration');
-  WriteLn('  SpriteRun: ', SpriteRun.FrameCount, ' frames, ', SpriteRun.Duration, 'ms duration');
+  WriteLn('  SpriteIdle: ', SpriteIdle.FrameCount, ' frames, ', Trunc(SpriteIdle.Duration * 1000.0), 'ms duration');
+  WriteLn('  SpriteRun: ', SpriteRun.FrameCount, ' frames, ', Trunc(SpriteRun.Duration * 1000.0), 'ms duration');
 
   { Initialize player sprite instance }
   Player.Sprite := @SpriteIdle;
@@ -201,7 +200,7 @@ begin
   Player.Y := 84;   { Center of screen (200/2 - 32/2) }
   Player.FlipX := False;
   Player.FlipY := False;
-  Player.CurrentTime := 0;
+  Player.CurrentTime := 0.0;
   Player.PlayBackward := False;
 
   SpriteRect.X := Player.X;
@@ -215,7 +214,6 @@ begin
   VsyncEnabled := False;
   FPS := 0.0;
   FrameCount := 0;
-  DeltaTimeAccum := 0.0;
 
   WriteLn('Press any key to start...');
   ReadLn;
@@ -237,9 +235,9 @@ begin
   { Main loop }
   while Running do
   begin
-    { Calculate delta time and accumulate fractional milliseconds }
+    { Calculate delta time in seconds }
     CurrentTime := GetTimeSeconds;
-    DeltaTimeAccum := DeltaTimeAccum + ((CurrentTime - LastTime) * 1000.0);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
     { Handle input }
@@ -250,7 +248,7 @@ begin
     begin
       CurrentAnimation := 0;
       Player.Sprite := @SpriteIdle;
-      Player.CurrentTime := 0;
+      Player.CurrentTime := 0.0;
       Player.PlayBackward := False;
       DrawAnimationText;
     end;
@@ -259,7 +257,7 @@ begin
     begin
       CurrentAnimation := 1;
       Player.Sprite := @SpriteRun;
-      Player.CurrentTime := 0;
+      Player.CurrentTime := 0.0;
       Player.PlayBackward := False;
       DrawAnimationText;
     end;
@@ -273,14 +271,8 @@ begin
       DrawVsyncText;
     end;
 
-    { Update sprite animation only when we have at least 1ms accumulated }
-    { This prevents animation freezing on fast CPUs (100MHz+ 486/Pentium) }
-    if DeltaTimeAccum >= 1.0 then
-    begin
-      DeltaTimeMS := Trunc(DeltaTimeAccum);
-      DeltaTimeAccum := DeltaTimeAccum - DeltaTimeMS;
-      UpdateSprite(Player, DeltaTimeMS);
-    end;
+    { Update sprite animation }
+    UpdateSprite(Player, DeltaTime);
 
     { Clear only the sprite area }
     ClearRect(FrameBuffer, SpriteRect);

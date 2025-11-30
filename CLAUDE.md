@@ -243,25 +243,24 @@ DoneKeyboard;
 
 **Sprites (with DeltaTime)**:
 ```pascal
-var Last, Cur: Real; Delta: LongInt;
+var Last, Cur, Delta: Real;
 InitRTC(1024); Last := GetTimeSeconds;
 while run do
-  Cur := GetTimeSeconds; Delta := Round((Cur - Last) * 1000); Last := Cur;
+  Cur := GetTimeSeconds; Delta := Cur - Last; Last := Cur;
   UpdateSprite(Spr, Delta); DrawSprite(Spr, fb);
 DoneRTC;
 ```
 
 **UI (VGAUI)**:
 ```pascal
-var Last, Cur: Real; Delta: LongInt;
-UI.Init(BackBuffer); Style.Init(15,7,8,14); UI.SetStyle(Style);
+var Last, Cur, Delta: Real;
+UI.Init(BackBuffer, Background); Style.Init(15,7,8,14); UI.SetStyle(@Style);
 New(Button, Init(x,y,w,h,'Click',@Font)); { MUST use constructor syntax! }
 Button^.SetEventHandler(@OnClick); UI.AddWidget(Button);
 InitRTC(1024); Last := GetTimeSeconds;
 while run do
-  Cur := GetTimeSeconds; Delta := Round((Cur - Last) * 1000); Last := Cur;
-  if IsKeyPressed(Key_Tab) then UI.FocusNext;
-  UI.DispatchKeyboardEvents; UI.Update(Delta); UI.RenderAll; ClearKeyPressed;
+  Cur := GetTimeSeconds; Delta := Cur - Last; Last := Cur;
+  UI.Update(Delta); UI.RenderDirty; ClearKeyPressed;
 UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done; DoneRTC;
 ```
 
@@ -282,7 +281,7 @@ UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done; DoneRTC;
 13. **VMT initialization**: Objects with virtual methods MUST use `New(Ptr, Constructor)` syntax, not `New(Ptr); Ptr^.Init`
 14. **VGA clipping**: DrawFillRect includes clipping; widgets assume screen bounds (0-319, 0-199)
 15. **Logging**: LOGGER.PAS is for startup/shutdown only - file I/O in render loops causes Runtime Error 202 (stack overflow)
-16. **DeltaTime convention**: Use LongInt for DeltaTime in milliseconds. CurrentTime/LastTime should be Real (from GetTimeSeconds) to avoid overflow. Calculate DeltaTime as `Round((CurrentTime - LastTime) * 1000)`. InitRTC(1024) provides millisecond precision via RTC_Ticks
+16. **DeltaTime convention**: Use Real for DeltaTime in seconds. CurrentTime/LastTime should be Real (from GetTimeSeconds). Calculate DeltaTime as `CurrentTime - LastTime`. InitRTC(1024) provides millisecond precision via RTC_Ticks for accurate sub-second timing
 
 ## Technical Constraints
 

@@ -197,20 +197,24 @@ end;
 
 {$F+}
 
+procedure PauseDialogUpdateProcedure;
+begin
+  if IsKeyPressed(Key_Escape) then
+    UI.Stop;
+end;
+
 procedure ContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if (Event.EventType = Event_KeyPress) and (Event.KeyCode = Key_Enter) then
-  begin
-    Paused := False;
-  end;
+  if UI.IsEnter(Event) then
+    UI.Stop;
 end;
 
 procedure QuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if (Event.EventType = Event_KeyPress) and (Event.KeyCode = Key_Enter) then
+  if UI.IsEnter(Event) then
   begin
+    UI.Stop;
     Running := False;
-    Paused := False;
   end;
 end;
 
@@ -241,23 +245,7 @@ begin
   UI.SetFocus(ContinueButton);
 
   { Run UI }
-  Paused := True;
-  LastTime := GetTimeSeconds;
-  while Paused do
-  begin
-    if IsKeyPressed(Key_Escape) then
-      Paused := False;
-
-    CurrentTime := GetTimeSeconds;
-    DeltaTimeMS := Round((CurrentTime - LastTime) * 1000);
-    LastTime := CurrentTime;
-
-    UI.Update(DeltaTimeMS);
-    UI.RenderDirty;
-
-    WaitForVSync;    
-    ClearKeyPressed;
-  end;
+  UI.Run(@PauseDialogUpdateProcedure, True);
 
   { Destory UI }
   UI.RemoveWidget(ContinueButton); Dispose(ContinueButton, Done);
@@ -717,7 +705,7 @@ begin
     if DeltaTimeAccum >= 0.014 then
     begin
       DeltaTime := DeltaTimeAccum;
-      DeltaTimeAccum := DeltaTimeAccum - DeltaTime;
+      DeltaTimeAccum := 0;
     
       { Update game state }
       UpdateGame;

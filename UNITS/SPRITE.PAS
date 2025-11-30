@@ -10,7 +10,7 @@ const SpritePlayType_Once = 2;
 
 const MaxSpriteFrames = 64;
 
-type 
+type
   PSprite = ^TSprite;
   TSprite = record
   	Image: PImage;
@@ -18,7 +18,7 @@ type
   	FrameCount: Byte;
   	Width: Word;
   	Height: Word;
-  	Duration: LongInt; { Milliseconds }
+  	Duration: Real; { Seconds }
   	PlayType: Byte;
   end;
 
@@ -31,24 +31,24 @@ type
   	Y: Integer;
   	FlipX: Boolean;
   	FlipY: Boolean;
-  	CurrentTime: LongInt; { Milliseconds }
+  	CurrentTime: Real; { Seconds }
   	PlayBackward: Boolean; { Only matters when PlayMode is PingPong }
   end;
 
-procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: LongInt);
+procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: Real);
 procedure DrawSprite(var SpriteInstance: TSpriteInstance; FrameBuffer: PFrameBuffer);
 
 implementation
 
-procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: LongInt);
+procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: Real);
 begin
-  if SpriteInstance.CurrentTime < 0 then
+  if SpriteInstance.CurrentTime < 0.0 then
     Exit;
   SpriteInstance.CurrentTime := SpriteInstance.CurrentTime + DeltaTime;
   if SpriteInstance.CurrentTime > SpriteInstance.Sprite^.Duration then
   begin
   	if SpriteInstance.Sprite^.PlayType = SpritePlayType_Once then
-  	  SpriteInstance.CurrentTime := -1 { Disable update }
+  	  SpriteInstance.CurrentTime := -1.0 { Disable update }
   	else if SpriteInstance.Sprite^.PlayType = SpritePlayType_PingPong then
   	begin
   	  SpriteInstance.PlayBackward := not SpriteInstance.PlayBackward;
@@ -64,14 +64,14 @@ end;
 procedure DrawSprite(var SpriteInstance: TSpriteInstance; FrameBuffer: PFrameBuffer);
 var
   FrameNumber: Byte;
-  Progress: LongInt;
+  Progress: Real;
   FrameRect: TRectangle;
 begin
   if SpriteInstance.Hidden then
     Exit;
 
   { Handle stopped animation (PlayType_Once finished) }
-  if SpriteInstance.CurrentTime < 0 then
+  if SpriteInstance.CurrentTime < 0.0 then
   begin
     { Show last frame }
     FrameNumber := SpriteInstance.Sprite^.FrameCount - 1;
@@ -79,18 +79,18 @@ begin
   else
   begin
     { Calculate frame number based on current time }
-    if SpriteInstance.Sprite^.Duration > 0 then
+    if SpriteInstance.Sprite^.Duration > 0.0 then
     begin
       { Calculate progress as frame index (0 to FrameCount-1) }
-      Progress := (SpriteInstance.CurrentTime * SpriteInstance.Sprite^.FrameCount) div SpriteInstance.Sprite^.Duration;
+      Progress := (SpriteInstance.CurrentTime * SpriteInstance.Sprite^.FrameCount) / SpriteInstance.Sprite^.Duration;
 
       { Clamp to valid range }
       if Progress >= SpriteInstance.Sprite^.FrameCount then
         Progress := SpriteInstance.Sprite^.FrameCount - 1;
-      if Progress < 0 then
-        Progress := 0;
+      if Progress < 0.0 then
+        Progress := 0.0;
 
-      FrameNumber := Progress;
+      FrameNumber := Trunc(Progress);
 
       { Reverse frame order if playing backward (PingPong mode) }
       if SpriteInstance.PlayBackward then

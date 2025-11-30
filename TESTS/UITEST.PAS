@@ -11,22 +11,20 @@ var
   Button1, Button2, QuitButton: PButton;
   SoundCheckbox, MusicCheckbox: PCheckbox;
   NameInput: PLineEdit;
-  Running: Boolean;
-  LastTime, CurrentTime: Real;
-  DeltaTime: LongInt;
-  Event: TEvent;
-  Pal: TPalette;
 
 { Example Event Handlers }
 
 {$F+}
+procedure OnUpdate;
+begin
+  if IsKeyPressed(Key_Escape) then
+    UI.Stop;
+end;
+
 procedure OnQuitButtonClick(var Widget: TWidget; var Event: TEvent);
 begin
-  if (Event.EventType = Event_KeyPress) and
-     ((Event.KeyCode = $1C) or (Event.KeyCode = $39)) then
-  begin
-    Running := False;
-  end;
+  if UI.IsEnter(Event) then
+    UI.Stop;
 end;
 
 procedure OnSoundCheckbox(var Widget: TWidget; var Event: TEvent);
@@ -45,7 +43,7 @@ var
   Input: PLineEdit;
   PlayerName: string;
 begin
-  if (Event.EventType = Event_KeyPress) and (Event.KeyCode = $1C) then
+  if UI.IsEnter(Event) then
   begin
     Input := PLineEdit(@Widget);
     PlayerName := Input^.GetText;
@@ -135,38 +133,6 @@ begin
   UI.Done;
 end;
 
-procedure MainLoop;
-begin
-  Running := True;
-  LastTime := GetTimeSeconds;
-
-  while Running do
-  begin
-    { Calculate delta time in milliseconds }
-    CurrentTime := GetTimeSeconds;
-    DeltaTime := Round((CurrentTime - LastTime) * 1000);
-    LastTime := CurrentTime;
-
-    { Handle input }
-    if IsKeyPressed(Key_Escape) then
-      Running := False;
-
-    { Update all widgets (cursor blink, animations, etc.) }
-    UI.Update(DeltaTime);
-
-    { Render with automatic dirty rectangles - FAST! }
-    UI.RenderDirty;
-
-    { Display (RenderDirty already flushed to VGA) }
-    WaitForVSync;
-
-    { Clear key states }
-    ClearKeyPressed;
-
-    { Small delay to prevent 100% CPU usage }
-    Delay(10);  { ~100 FPS }
-  end;
-end;
 
 begin
   InitResources;
@@ -184,7 +150,8 @@ begin
   InitRTC(1024);
   CreateUI;
 
-  MainLoop;
+  { Run UI - handles timing, input, and rendering automatically }
+  UI.Run(@OnUpdate, True);
 
   { Cleanup }
   DestroyUI;

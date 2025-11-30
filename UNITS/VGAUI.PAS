@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard, DRect;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard, DRect, RTCTimer;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -76,7 +76,7 @@ type
     procedure SetVisible(Value: Boolean);  { Set visibility and mark dirty if changed }
     procedure SetEnabled(Value: Boolean);  { Set enabled state and mark dirty if changed }
     procedure HandleEvent(var Event: TEvent); virtual;
-    procedure Update(DeltaTime: LongInt); virtual;
+    procedure Update(DeltaTime: Real); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     procedure RenderFocusRectangle(FrameBuffer: PFrameBuffer; Style: PUIStyle);
     destructor Done; virtual;
@@ -86,6 +86,7 @@ type
 
 {$F+}  { Far call for procedure pointer compatibility }
   TEventHandler = procedure(var Widget: TWidget; var Event: TEvent);
+  TUpdateProcedure = procedure;  { User update callback (no parameters) }
 {$F-}
 
 { ========================================================================== }
@@ -145,7 +146,7 @@ type
     Font: PFont;
     MaxLength: Byte;
     CursorVisible: Boolean;
-    CursorTimer: LongInt;  { Milliseconds }
+    CursorTimer: Real;  { Seconds }
 
     constructor Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
     procedure SetText(const NewText: string);
@@ -153,7 +154,7 @@ type
     procedure Clear;
     procedure HandleEvent(var Event: TEvent); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
-    procedure Update(DeltaTime: LongInt); virtual;
+    procedure Update(DeltaTime: Real); virtual;
     destructor Done; virtual;
   end;
 
@@ -170,7 +171,8 @@ type
     BackBuffer: PFrameBuffer;
     BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
     FirstRender: Boolean;            { Force full redraw on first frame }
-    Style: PUIStyle;
+    Style: PUIStyle;    
+    Running: Boolean;
 
     procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);
@@ -179,10 +181,13 @@ type
     procedure FocusInDirection(DX, DY: Integer);  { Focus closest widget in direction }
     procedure DispatchKeyboardEvents;  { Check all keyboard keys and dispatch events }
     procedure HandleEvent(var Event: TEvent);
-    procedure Update(DeltaTime: LongInt);  { Update all widgets (DeltaTime in milliseconds) }
+    procedure Update(DeltaTime: Real);  { Update all widgets (DeltaTime in seconds) }
     procedure RenderAll;
     procedure RenderDirty;           { Smart dirty rectangle rendering }
     procedure SetStyle(NewStyle: PUIStyle);
+    function IsEnter(var Event: TEvent): Boolean;
+    procedure Run(UpdateProcedure: Pointer; VSync: Boolean);
+    procedure Stop;
     procedure Done;
   end;
 
@@ -282,7 +287,7 @@ begin
     TEventHandler(EventHandler)(Self, Event);
 end;
 
-procedure TWidget.Update(DeltaTime: LongInt);
+procedure TWidget.Update(DeltaTime: Real);
 begin
   { Base implementation - override in subclasses that need updating }
 end;
@@ -680,16 +685,16 @@ begin
   RenderFocusRectangle(FrameBuffer, Style);
 end;
 
-procedure TLineEdit.Update(DeltaTime: LongInt);
+procedure TLineEdit.Update(DeltaTime: Real);
 var
   OldCursorVisible: Boolean;
 begin
-  { Cursor blink animation - DeltaTime in milliseconds }
+  { Cursor blink animation - DeltaTime in seconds }
   OldCursorVisible := CursorVisible;
   CursorTimer := CursorTimer + DeltaTime;
-  if CursorTimer >= 500 then
+  if CursorTimer >= 0.5 then
   begin
-    CursorTimer := 0;
+    CursorTimer := 0.0;
     CursorVisible := not CursorVisible;
     if Focused and (CursorVisible <> OldCursorVisible) then
       MarkDirty;  { Cursor visibility changed }
@@ -881,9 +886,9 @@ begin
   end;
 end;
 
-procedure TUIManager.Update(DeltaTime: LongInt);
+procedure TUIManager.Update(DeltaTime: Real);
 { Update all widgets (for animations, timers, etc.) }
-{ DeltaTime is in milliseconds }
+{ DeltaTime is in seconds }
 var
   Node: PListEntry;
   Widget: PWidget;
@@ -1028,6 +1033,49 @@ end;
 procedure TUIManager.SetStyle(NewStyle: PUIStyle);
 begin
   Style := NewStyle;
+end;
+
+procedure TUIManager.Run(UpdateProcedure: Pointer; VSync: Boolean);
+var
+  CurrentTime, LastTime: Real;
+  DeltaTime, DeltaTimeAccum: Real;
+begin
+  Running := True;
+  LastTime := GetTimeSeconds;
+  while Running do
+  begin
+    CurrentTime := GetTimeSeconds;
+    DeltaTimeAccum := DeltaTimeAccum + (CurrentTime - LastTime);
+    LastTime := CurrentTime;
+
+    { Update UI only when we have at least 14ms accumulated delta time - max ~70 fps }
+    if DeltaTimeAccum > 0.014 then
+    begin
+      DeltaTime := DeltaTimeAccum;
+      DeltaTimeAccum := 0;
+
+      { Call user update procedure if provided }
+      if UpdateProcedure <> nil then
+        TUpdateProcedure(UpdateProcedure);
+
+      Update(DeltaTime);
+      RenderDirty;
+
+      if VSync then
+        WaitForVSync;
+      ClearKeyPressed;
+    end;
+  end;
+end;
+
+procedure TUIManager.Stop;
+begin
+  Running := False;
+end;
+
+function TUIManager.IsEnter(var Event: TEvent): Boolean;
+begin
+  IsEnter := (Event.EventType = Event_KeyPress) and (Event.KeyCode = Key_Enter);
 end;
 
 procedure TUIManager.Done;
