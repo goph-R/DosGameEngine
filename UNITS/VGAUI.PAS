@@ -1038,33 +1038,27 @@ end;
 procedure TUIManager.Run(UpdateProcedure: Pointer; VSync: Boolean);
 var
   CurrentTime, LastTime: Real;
-  DeltaTime, DeltaTimeAccum: Real;
+  DeltaTime: Real;
 begin
   Running := True;
   LastTime := GetTimeSeconds;
   while Running do
   begin
     CurrentTime := GetTimeSeconds;
-    DeltaTimeAccum := DeltaTimeAccum + (CurrentTime - LastTime);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
-    { Update UI only when we have at least 14ms accumulated delta time - max ~70 fps }
-    if DeltaTimeAccum > 0.014 then
-    begin
-      DeltaTime := DeltaTimeAccum;
-      DeltaTimeAccum := 0;
+    { Call user update procedure if provided }
+    if UpdateProcedure <> nil then
+      TUpdateProcedure(UpdateProcedure);
 
-      { Call user update procedure if provided }
-      if UpdateProcedure <> nil then
-        TUpdateProcedure(UpdateProcedure);
+    Update(DeltaTime);
+    RenderDirty;
 
-      Update(DeltaTime);
-      RenderDirty;
+    if VSync then
+      WaitForVSync;
 
-      if VSync then
-        WaitForVSync;
-      ClearKeyPressed;
-    end;
+    ClearKeyPressed;
   end;
 end;
 

@@ -163,11 +163,13 @@ FlashActive := True; FlashTimer := 0.0;
 **Delta Timing:**
 ```pascal
 InitRTC(1024);
-DeltaTimeAccum := DeltaTimeAccum + (CurrentTime - LastTime);
-if DeltaTimeAccum >= 0.014 then { ~70 FPS max }
-  UpdateGame(DeltaTime);
-  RenderFrame;
-  WaitForVSync;
+CurrentTime := GetTimeSeconds;
+DeltaTime := CurrentTime - LastTime;
+LastTime := CurrentTime;
+
+UpdateGame;
+RenderFrame;
+WaitForVSync;
 ClearKeyPressed;  { At end of loop }
 ```
 

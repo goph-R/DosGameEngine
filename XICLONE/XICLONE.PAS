@@ -52,7 +52,7 @@ var
 
   { Timing }
   CurrentTime, LastTime: Real;
-  DeltaTime, DeltaTimeAccum: Real;
+  DeltaTime: Real;
   FrameCount: LongInt;
   FPSTimer: Real;
   FPS: Integer;
@@ -192,7 +192,6 @@ begin
 
   { Reset timing to prevent delta time jump }
   LastTime := GetTimeSeconds;
-  DeltaTimeAccum := 0.0;
 end;
 
 {$F+}
@@ -656,7 +655,6 @@ begin
   FPSTimer := LastTime;
   FrameCount := 0;
   FPS := 0;
-  DeltaTimeAccum := 0.0;
 
   { Initialize game state }
   Score := 0;
@@ -698,27 +696,20 @@ begin
   begin
     { Calculate delta time and accumulate fractional milliseconds }
     CurrentTime := GetTimeSeconds;
-    DeltaTimeAccum := DeltaTimeAccum + (CurrentTime - LastTime);
+    DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
-    { Update game only when we have at least 14ms accumulated delta time - max ~70 fps }
-    if DeltaTimeAccum >= 0.014 then
-    begin
-      DeltaTime := DeltaTimeAccum;
-      DeltaTimeAccum := 0;
-    
-      { Update game state }
-      UpdateGame;
-    
-      { Update FPS counter }
-      UpdateFPS;
+    { Update game state }
+    UpdateGame;
+  
+    { Update FPS counter }
+    UpdateFPS;
 
-      { Render frame }
-      RenderFrame;
+    { Render frame }
+    RenderFrame;
 
-      { Wait for VSync to throttle frame rate }
-      WaitForVSync;
-    end;
+    { Wait for VSync to throttle frame rate }
+    WaitForVSync;
 
     { Clear key pressed flags }
     ClearKeyPressed;
