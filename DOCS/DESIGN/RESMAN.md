@@ -469,7 +469,6 @@ begin
   New(FontData);
 
   { Load font from XML file }
-  { NOTE: VGAFONT.PAS will be updated to support LoadFont(XMLPath, Font) }
   { where the XML file contains the PCX image path internally }
   if not LoadFont(Desc^.Path^, FontData^.Font) then
   begin
@@ -486,15 +485,6 @@ begin
   LoadFontResource := True;
 end;
 ```
-
-**Note:** VGAFONT.PAS has been updated with the `LoadFont(XMLPath, Font)` signature that:
-1. Parses the font XML file
-2. Reads the `image` attribute from the `<font>` element
-3. Resolves the image path relative to the XML file's directory
-4. Loads the PCX internally
-5. Returns the loaded TFont
-
-The font XML uses an `image` attribute (e.g., `<font image="FONT-SM.PCX">`) with a path relative to the XML file's location.
 
 ### LoadSpriteResource (Dependency Resolution)
 
@@ -886,9 +876,8 @@ Common errors:
 
 **Integration Test:**
 Use resource manager in existing tests:
-- SPRTEST.PAS → Load sprites from XML instead of manual setup
-- IMGTEST.PAS → Load images from XML
-- MAPTEST.PAS → Load tilemaps from XML
+- SPRTEST.PAS → Load image and sprites from XML instead of manual setup
+- IMGTEST.PAS → Load images, music and sound from XML
 
 ## Summary
 
