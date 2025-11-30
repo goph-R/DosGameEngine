@@ -4,7 +4,8 @@
   <sound name="explode" path="DATA\EXPLODE.VOC" />
   <level name="first" path="DATA\TEST.TMX" />
   
-  <image name="player" path="DATA\PLAYER.PKM" />
+  <image name="player" path="DATA\PLAYER.PCX" />
+  <font name="default" path="DATA\FONT-SM.XML" />
 
   <sprite name="player_idle" image="player" duration="0.8">
     <frame x="0" y="0" width="32" height="32" />

@@ -586,8 +586,8 @@ begin
   end;
 
   { Load fonts }
-  if (not LoadFont(DataPath + FontSmallXML, DataPath + FontSmallImage, FontSmall)) or
-     (not LoadFont(DataPath + FontLargeXML, DataPath + FontLargeImage, FontLarge)) then
+  if (not LoadFont(DataPath + FontSmallXML, FontSmall)) or
+     (not LoadFont(DataPath + FontLargeXML, FontLarge)) then
   begin
     WriteLn('Error loading font: ', GetLoadFontError);
     Halt(1);

@@ -59,7 +59,7 @@ var
   CheckRect: TRectangle;
 begin
   { Load fonts }
-  if not LoadFont('DATA\FONT-SM.XML', 'DATA\FONT-SM.PCX', FontSmall) then
+  if not LoadFont('DATA\FONT-SM.XML', FontSmall) then
   begin
     WriteLn('ERROR: Failed to load font - ', GetLoadFontError);
     Halt(1);

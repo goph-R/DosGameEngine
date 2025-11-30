@@ -180,11 +180,7 @@ Total: ~900 bytes + image data
 ### LoadFont
 
 ```pascal
-function LoadFont(
-  const XMLFile: string;
-  const ImageFile: string;
-  var Font: TFont
-): Boolean;
+function LoadFont(const XMLFile: string; var Font: TFont): Boolean;
 ```
 
 Loads a font from PCX image and XML metadata files.
@@ -204,7 +200,7 @@ var
   GameFont: TFont;
 
 begin
-  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PCX', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', GameFont) then
   begin
     WriteLn('Error loading font: ', GetLoadFontError);
     Halt(1);
@@ -248,7 +244,7 @@ Returns the last error message from `LoadFont`.
 
 **Example:**
 ```pascal
-if not LoadFont('FONT.XML', 'FONT.PCX', Font) then
+if not LoadFont('FONT.XML', Font) then
 begin
   WriteLn('Font loading failed:');
   WriteLn(GetLoadFontError);
@@ -282,7 +278,7 @@ var
   GameFont: TFont;
 
 begin
-  LoadFont('FONT.XML', 'FONT.PCX', GameFont);
+  LoadFont('FONT.XML', GameFont);
 
   { Use font... }
 
@@ -328,7 +324,7 @@ var
   ScreenBuffer: PFrameBuffer;
 
 begin
-  LoadFont('FONT.XML', 'FONT.PCX', GameFont);
+  LoadFont('FONT.XML', GameFont);
   ScreenBuffer := GetScreenBuffer;
 
   { Draw text }
@@ -563,7 +559,7 @@ begin
   ScreenBuffer := GetScreenBuffer;
 
   { Load font }
-  if not LoadFont('FONTS\MAIN.XML', 'FONTS\MAIN.PCX', GameFont) then
+  if not LoadFont('FONTS\MAIN.XML', GameFont) then
   begin
     CloseVGA;
     WriteLn('Error: ', GetLoadFontError);
@@ -597,9 +593,9 @@ var
 
 begin
   { Load different fonts for different purposes }
-  LoadFont('FONTS\TITLE.XML', 'FONTS\TITLE.PCX', TitleFont);
-  LoadFont('FONTS\NORMAL.XML', 'FONTS\NORMAL.PCX', NormalFont);
-  LoadFont('FONTS\SMALL.XML', 'FONTS\SMALL.PCX', SmallFont);
+  LoadFont('FONTS\TITLE.XML', TitleFont);
+  LoadFont('FONTS\NORMAL.XML', NormalFont);
+  LoadFont('FONTS\SMALL.XML', SmallFont);
 
   { Use appropriate font for each element }
   PrintFontTextCentered(160, 50, 'XICLONE', TitleFont, BackBuffer);
@@ -725,7 +721,7 @@ begin
   InitVGA;
   Buffer := CreateFrameBuffer;
 
-  if not LoadFont('FONTS\MYFONT.XML', 'FONTS\MYFONT.PCX', Font) then
+  if not LoadFont('FONTS\MYFONT.XML', Font) then
   begin
     CloseVGA;
     WriteLn('Error: ', GetLoadFontError);

@@ -61,7 +61,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **VGAPRINT.PAS** - Embedded 8x8 bitmap font, PrintText(x,y,text,color,fb)
 
 **VGAFONT.PAS** - Variable-width font from PCX sprite sheet + XML
-- LoadFont(xml,img,font), PrintFontText(x,y,text,font,fb), GetLoadFontError, FreeFont
+- LoadFont(xml,font), PrintFontText(x,y,text,font,fb), GetLoadFontError, FreeFont
 
 **PCXLOAD.PAS** - PCX image loader (ZSoft PCX v5, Aseprite/GIMP-compatible)
 - LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLastErrorMessage

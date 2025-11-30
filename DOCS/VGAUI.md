@@ -817,7 +817,7 @@ var Font: TFont;
     Button: PButton;
 begin
   { Load resources FIRST }
-  LoadFont('FONT.XML', 'FONT.PCX', Font);
+  LoadFont('FONT.XML', Font);
   LoadPCX('IMAGE.PCX', Image);
 
   { Create widget (does NOT copy font/image) }

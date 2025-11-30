@@ -28,11 +28,7 @@ type
   PFont = ^TFont;
 
 { Load font from PCX image and XML metadata }
-function LoadFont(
-  const XMLFile: string;
-  const ImageFile: string;
-  var Font: TFont
-): Boolean;
+function LoadFont(const XMLFile: string; var Font: TFont): Boolean;
 
 { Get last error message from LoadFont }
 function GetLoadFontError: string;
@@ -85,16 +81,13 @@ begin
 end;
 
 { Load font from PCX image and XML metadata }
-function LoadFont(
-  const XMLFile: string;
-  const ImageFile: string;
-  var Font: TFont
-): Boolean;
+function LoadFont(const XMLFile: string;var Font: TFont): Boolean;
 var
   FontNode, CharNode: PXMLNode;
   HeightStr, PaddingStr, CodeStr, XStr, YStr, WidthStr: string;
   Height, Padding, Code, X, Y, Width: Integer;
   i: Integer;
+  ImageFile: string;
 begin
   LoadFont := False;
 
@@ -202,6 +195,24 @@ begin
 
     CharNode := CharNode^.NextSibling;
   end;
+
+  { Get image path from 'image' attribute (relative to XML file) }
+  ImageFile := XMLAttr(FontNode, 'image');
+  if ImageFile = '' then
+  begin
+    SetError('Missing required image attribute in <font> element');
+    XMLFreeTree(FontNode);
+    Exit;
+  end;
+
+  { Make path relative to XML file's directory }
+  { Find last backslash in XMLFile path }
+  i := Length(XMLFile);
+  while (i > 0) and (XMLFile[i] <> '\') do
+    Dec(i);
+
+  if i > 0 then
+    ImageFile := Copy(XMLFile, 1, i) + ImageFile;
 
   { Cleanup }
   XMLFreeTree(FontNode);
