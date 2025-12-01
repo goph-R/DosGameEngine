@@ -5,6 +5,9 @@ interface
 { Helper: Convert string to integer }
 function StrToInt(const S: string): Integer;
 
+{ Helper: Convert string to real }
+function StrToReal(const S: string): Real;
+
 { Helper: Convert integer to string }
 function IntToStr(Value: Integer): string;
 
@@ -29,6 +32,19 @@ begin
     StrToInt := 0
   else
     StrToInt := i;
+end;
+
+{ Helper: Convert string to real }
+function StrToReal(const S: string): Real;
+var
+  r: Real;
+  Code: Integer;
+begin
+  Val(S, r, Code);
+  if Code <> 0 then
+    StrToReal := 0.0
+  else
+    StrToReal := r;
 end;
 
 { Helper: Convert integer to string }

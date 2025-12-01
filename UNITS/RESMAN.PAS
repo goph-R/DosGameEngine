@@ -1,78 +1,11 @@
-# RESMAN.PAS - Resource Manager Design
+unit ResMan;
 
-Centralized resource management system for loading and accessing game assets from XML definition files.
+interface
 
-## Overview
+uses
+  GenTypes, VGA, VGAFont, Sprite, PlayHSC, SndBank, TMXLOAD, MiniXML,
+  StrMap, LinkList, StrUtil, PCXLOAD;
 
-**Purpose:** Load, cache, and provide named access to all game resources (images, sprites, fonts, sounds, music, levels) from a single XML manifest file.
-
-**Benefits:**
-- Declarative resource definitions (XML instead of code)
-- Centralized asset management (one place to see all resources)
-- Name-based lookup (no hardcoded paths in game code)
-- Automatic dependency resolution (sprites → images)
-- Lazy or eager loading strategies
-- Proper cleanup on shutdown
-
-## XML Format (RES.XML Example)
-
-```xml
-<?xml version="1.0" encoding="US-ASCII"?>
-<resources>
-  <music name="main" path="DATA\TEST.HSC" />
-  <sound name="explode" path="DATA\EXPLODE.VOC" />
-  <level name="first" path="DATA\TEST.TMX" />
-  <image name="player" path="DATA\PLAYER.PCX" />
-  <image name="background" path="DATA\BG1.PCX" use-palette />
-  <font name="small" path="DATA\FONT-SM.XML" />
-
-  <sprite name="player_idle" image="player" duration="0.8">
-    <frame x="0" y="0" width="32" height="32" />
-    <frame x="32" y="0" width="32" height="32" />
-    <frame x="64" y="0" width="32" height="32" />
-    <frame x="96" y="0" width="32" height="32" />
-  </sprite>
-
-  <sprite name="player_run" image="player" duration="0.5">
-    <frame x="0" y="32" width="32" height="32" />
-    <frame x="32" y="32" width="32" height="32" />
-    <frame x="64" y="32" width="32" height="32" />
-    <frame x="96" y="32" width="32" height="32" />
-    <frame x="128" y="32" width="32" height="32" />
-    <frame x="160" y="32" width="32" height="32" />
-  </sprite>
-</resources>
-```
-
-**XML Attributes:**
-- All resources require a `name` attribute for lookup
-- `music`, `sound`, `image`, `font`, `level` require a `path` attribute
-- `image` supports optional `use-palette` attribute (boolean flag)
-- `sprite` requires `image` (image resource name) and `duration` (seconds)
-- `sprite` frames require `x`, `y`, `width`, `height` attributes
-
-**Note on Image Resources:**
-The `<image>` tag references a PCX file (e.g. `DATA\BG1.PCX`). If the `use-palette` attribute is present, `LoadPCXWithPalette` will be used and `SetPalette` will be called to apply the loaded palette globally. Use this for background images or screens that define the global palette. Omit `use-palette` for sprites, HUD elements, or images that should use the existing palette.
- 
-**Note on Font Resources:**
-The `<font>` tag references an XML file (e.g., `DATA\FONT-SM.XML`) which contains the font definition including the PCX image path. The font XML specifies the image path via an `image` attribute, which is relative to the XML file's location.
-
-Example font XML structure (DATA\FONT-SM.XML):
-```xml
-<font height="8" padding="1" image="FONT-SM.PCX">
-  <char code="32" x="0" y="0" width="4" />
-  <char code="33" x="4" y="0" width="3" />
-  <!-- ... -->
-</font>
-```
-
-The `image` attribute path is relative to the XML file's directory. For example, if the font XML is at `DATA\FONT-SM.XML` and `image="FONT-SM.PCX"`, the actual image loaded will be `DATA\FONT-SM.PCX`.
-
-## Data Structures
-
-### Resource Types
-
-```pascal
 type
   TResourceType = (
     ResType_Music,    { HSC music files }
@@ -82,93 +15,80 @@ type
     ResType_Sprite,   { Sprite definitions (TSprite) }
     ResType_Level     { TMX tilemaps }
   );
-```
 
-### Base Resource Descriptor
-
-```pascal
-type
-  PResourceDescriptor = ^TResourceDescriptor;
-  TResourceDescriptor = record
-    Name: PShortString;       { Resource name for lookup }
-    ResType: TResourceType;   { Type of resource }
-    Path: PShortString;       { File path (nil for sprites) }
-    Loaded: Boolean;          { Is resource currently loaded? }
-    Data: Pointer;            { Type-specific data pointer }
-    UsePalette: Boolean;      { For images: whether to load and set palette }
-  end;
-```
-
-### Type-Specific Data
-
-```pascal
-type
   { Music resource data }
   PMusicData = ^TMusicData;
   TMusicData = record
-    Music: HSC_Obj;           { PLAYHSC music object }
+    Music: HSC_Obj;
   end;
 
   { Sound resource data }
   PSoundData = ^TSoundData;
   TSoundData = record
-    SoundID: Integer;         { TSoundBank sound ID }
+    SoundID: Integer;
   end;
 
   { Image resource data }
   PImageData = ^TImageData;
   TImageData = record
-    Image: TImage;            { VGA.PAS image }
+    Image: TImage;
     UsePalette: Boolean;
   end;
 
   { Font resource data }
   PFontData = ^TFontData;
   TFontData = record
-    Font: TFont;              { VGAFONT.PAS variable-width font }
+    Font: TFont;
   end;
 
   { Sprite resource data }
   PSpriteData = ^TSpriteData;
   TSpriteData = record
-    Sprite: TSprite;          { SPRITE.PAS sprite definition }
-    ImageName: PShortString;  { Reference to parent image resource }
-    Duration: Real;           { Animation duration (parsed from XML) }
+    Sprite: TSprite;
+    ImageName: PShortString;
+    Duration: Real;
   end;
 
   { Level resource data }
   PLevelData = ^TLevelData;
   TLevelData = record
-    Map: PTileMap;            { TMXLOAD.PAS tilemap }
+    Map: PTileMap;
   end;
-```
 
-### Resource Manager
+  { Base resource descriptor }
+  PResourceDescriptor = ^TResourceDescriptor;
+  TResourceDescriptor = record
+    Name: PShortString;
+    ResType: TResourceType;
+    Path: PShortString;
+    Loaded: Boolean;
+    Data: Pointer;
+    UsePalette: Boolean;
+  end;
 
-```pascal
-type
+  { Resource Manager }
   TResourceManager = object
     { Resource storage - separate maps for each type }
-    MusicMap: TStringMap;     { name → PMusicData }
-    SoundMap: TStringMap;     { name → PSoundData }
-    ImageMap: TStringMap;     { name → PImageData }
-    FontMap: TStringMap;      { name → PFontData }
-    SpriteMap: TStringMap;    { name → PSpriteData }
-    LevelMap: TStringMap;     { name → PLevelData }
+    MusicMap: TStringMap;
+    SoundMap: TStringMap;
+    ImageMap: TStringMap;
+    FontMap: TStringMap;
+    SpriteMap: TStringMap;
+    LevelMap: TStringMap;
 
     { Descriptors list (for cleanup) }
-    Descriptors: PLinkedList; { TResourceDescriptor entries }
+    Descriptors: PLinkedList;
 
     { Sound bank (shared for all sounds) }
     SoundBank: TSoundBank;
     SoundBankInitialized: Boolean;
 
     { Singleton music resource (only one music in memory at a time) }
-    CurrentMusic: PMusicData; { Currently loaded music }
-    CurrentMusicName: PShortString; { Name of currently loaded music }
+    CurrentMusic: PMusicData;
+    CurrentMusicName: PShortString;
 
     { Loading strategy }
-    LazyLoad: Boolean;        { True = load on first access, False = preload all }
+    LazyLoad: Boolean;
 
     { Error tracking }
     LastError: String;
@@ -181,7 +101,7 @@ type
     function GetImage(const Name: String): PImage;
     function GetFont(const Name: String): PFont;
     function GetSprite(const Name: String): PSprite;
-    function GetSound(const Name: String): Integer;  { Returns TSoundBank ID }
+    function GetSound(const Name: String): Integer;
     function GetMusic(const Name: String): PHSC_Obj;
     function GetLevel(const Name: String): PTileMap;
 
@@ -204,33 +124,10 @@ type
       function LoadMusicResource(Desc: PResourceDescriptor): Boolean;
       function LoadLevelResource(Desc: PResourceDescriptor): Boolean;
   end;
-```
 
-## Loading Strategy
+implementation
 
-### Two Approaches
-
-**1. Eager Loading (Preload All)**
-```pascal
-ResMgr.Init(False);  { LazyLoad = False }
-ResMgr.LoadFromXML('DATA\RES.XML');
-{ All resources loaded immediately - longer startup, simpler access }
-```
-
-**2. Lazy Loading (Load on Demand)**
-```pascal
-ResMgr.Init(True);   { LazyLoad = True }
-ResMgr.LoadFromXML('DATA\RES.XML');
-{ Only XML parsed - resources loaded on first GetXXX call }
-```
-
-**Recommendation:** Use lazy loading by default, with explicit `PreloadAll` for loading screens.
-
-## Implementation Details
-
-### Init Procedure
-
-```pascal
+{ TResourceManager.Init }
 procedure TResourceManager.Init(UseLazyLoading: Boolean);
 begin
   { Initialize string maps }
@@ -257,11 +154,8 @@ begin
 
   LastError := '';
 end;
-```
 
-### LoadFromXML
-
-```pascal
+{ TResourceManager.LoadFromXML }
 function TResourceManager.LoadFromXML(const Filename: String): Boolean;
 var
   RootNode: PXMLNode;
@@ -288,11 +182,8 @@ begin
 
   LoadFromXML := True;
 end;
-```
 
-### ParseSpriteData (Helper for Sprite Parsing)
-
-```pascal
+{ TResourceManager.ParseSpriteData }
 function TResourceManager.ParseSpriteData(XMLNode: PXMLNode; Desc: PResourceDescriptor): Boolean;
 var
   SprData: PSpriteData;
@@ -344,7 +235,7 @@ begin
         Exit;
       end;
 
-      { Store frame rectangle (TSprite.Frames is already allocated in TSpriteData) }
+      { Store frame rectangle }
       SprData^.Sprite.Frames[FrameIdx].X := StrToInt(XMLAttr(FrameNode, 'x')^);
       SprData^.Sprite.Frames[FrameIdx].Y := StrToInt(XMLAttr(FrameNode, 'y')^);
       SprData^.Sprite.Frames[FrameIdx].Width := StrToInt(XMLAttr(FrameNode, 'width')^);
@@ -370,11 +261,8 @@ begin
   Desc^.Data := SprData;
   ParseSpriteData := True;
 end;
-```
 
-### ParseXML (Resource Discovery)
-
-```pascal
+{ TResourceManager.ParseXML }
 function TResourceManager.ParseXML(RootNode: PXMLNode): Boolean;
 var
   Child: PXMLNode;
@@ -455,14 +343,14 @@ begin
         Exit;
       end;
       New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;  { Path to font XML file }
+      Desc^.Path^ := XMLAttr(Child, 'path')^;
       ListAdd(Descriptors^, Desc);
     end
     else if TagName = 'sprite' then
     begin
       { Parse sprite data immediately (don't keep XML pointer) }
       Desc^.ResType := ResType_Sprite;
-      Desc^.Path := nil;  { No file path }
+      Desc^.Path := nil;
 
       { Allocate sprite data and extract all info from XML }
       if not ParseSpriteData(Child, Desc) then
@@ -487,19 +375,18 @@ begin
       ListAdd(Descriptors^, Desc);
     end
     else
+    begin
       Dispose(Desc^.Name);
-      Dispose(Desc);  { Unknown tag }
+      Dispose(Desc);
+    end;
 
     Child := XMLNextSibling(Child);
   end;
 
   ParseXML := True;
 end;
-```
 
-### GetImage (Lazy Loading Example)
-
-```pascal
+{ TResourceManager.GetImage }
 function TResourceManager.GetImage(const Name: String): PImage;
 var
   ImgData: PImageData;
@@ -539,11 +426,8 @@ begin
 
   LastError := 'Image not found: ' + Name;
 end;
-```
 
-### LoadImageResource
-
-```pascal
+{ TResourceManager.LoadImageResource }
 function TResourceManager.LoadImageResource(Desc: PResourceDescriptor): Boolean;
 var
   ImgData: PImageData;
@@ -588,11 +472,49 @@ begin
 
   LoadImageResource := True;
 end;
-```
 
-### LoadFontResource
+{ TResourceManager.GetFont }
+function TResourceManager.GetFont(const Name: String): PFont;
+var
+  FontData: PFontData;
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  GetFont := nil;
 
-```pascal
+  { Check if already loaded }
+  if MapContains(FontMap, Name) then
+  begin
+    FontData := PFontData(MapGet(FontMap, Name));
+    GetFont := @FontData^.Font;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors^.Head;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Data);
+      if (Desc^.ResType = ResType_Font) and (Desc^.Name^ = Name) then
+      begin
+        if LoadFontResource(Desc) then
+        begin
+          FontData := PFontData(Desc^.Data);
+          GetFont := @FontData^.Font;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Font not found: ' + Name;
+end;
+
+{ TResourceManager.LoadFontResource }
 function TResourceManager.LoadFontResource(Desc: PResourceDescriptor): Boolean;
 var
   FontData: PFontData;
@@ -609,7 +531,6 @@ begin
   New(FontData);
 
   { Load font from XML file }
-  { where the XML file contains the PCX image path internally }
   if not LoadFont(Desc^.Path^, FontData^.Font) then
   begin
     LastError := 'Failed to load font "' + Desc^.Name^ + '" from: ' + Desc^.Path^ + ' - ' + GetLoadFontError;
@@ -624,11 +545,49 @@ begin
 
   LoadFontResource := True;
 end;
-```
 
-### LoadSpriteResource (Dependency Resolution)
+{ TResourceManager.GetSprite }
+function TResourceManager.GetSprite(const Name: String): PSprite;
+var
+  SprData: PSpriteData;
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  GetSprite := nil;
 
-```pascal
+  { Check if already loaded }
+  if MapContains(SpriteMap, Name) then
+  begin
+    SprData := PSpriteData(MapGet(SpriteMap, Name));
+    GetSprite := @SprData^.Sprite;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors^.Head;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Data);
+      if (Desc^.ResType = ResType_Sprite) and (Desc^.Name^ = Name) then
+      begin
+        if LoadSpriteResource(Desc) then
+        begin
+          SprData := PSpriteData(Desc^.Data);
+          GetSprite := @SprData^.Sprite;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Sprite not found: ' + Name;
+end;
+
+{ TResourceManager.LoadSpriteResource }
 function TResourceManager.LoadSpriteResource(Desc: PResourceDescriptor): Boolean;
 var
   SprData: PSpriteData;
@@ -656,7 +615,7 @@ begin
   { Setup sprite with loaded image }
   SprData^.Sprite.Image := ParentImage;
   SprData^.Sprite.Duration := SprData^.Duration;
-  SprData^.Sprite.PlayType := SpritePlayType_Forward;  { Default }
+  SprData^.Sprite.PlayType := SpritePlayType_Forward;
 
   { Set sprite dimensions from first frame (already parsed) }
   if SprData^.Sprite.FrameCount > 0 then
@@ -671,11 +630,49 @@ begin
 
   LoadSpriteResource := True;
 end;
-```
 
-### Sound Resource Loading
+{ TResourceManager.GetSound }
+function TResourceManager.GetSound(const Name: String): Integer;
+var
+  SndData: PSoundData;
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  GetSound := -1;
 
-```pascal
+  { Check if already loaded }
+  if MapContains(SoundMap, Name) then
+  begin
+    SndData := PSoundData(MapGet(SoundMap, Name));
+    GetSound := SndData^.SoundID;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors^.Head;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Data);
+      if (Desc^.ResType = ResType_Sound) and (Desc^.Name^ = Name) then
+      begin
+        if LoadSoundResource(Desc) then
+        begin
+          SndData := PSoundData(Desc^.Data);
+          GetSound := SndData^.SoundID;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Sound not found: ' + Name;
+end;
+
+{ TResourceManager.LoadSoundResource }
 function TResourceManager.LoadSoundResource(Desc: PResourceDescriptor): Boolean;
 var
   SndData: PSoundData;
@@ -718,11 +715,49 @@ begin
 
   LoadSoundResource := True;
 end;
-```
 
-### Music Resource Loading (Singleton Pattern)
+{ TResourceManager.GetMusic }
+function TResourceManager.GetMusic(const Name: String): PHSC_Obj;
+var
+  MusicData: PMusicData;
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  GetMusic := nil;
 
-```pascal
+  { Check if already loaded }
+  if MapContains(MusicMap, Name) then
+  begin
+    MusicData := PMusicData(MapGet(MusicMap, Name));
+    GetMusic := @MusicData^.Music;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors^.Head;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Data);
+      if (Desc^.ResType = ResType_Music) and (Desc^.Name^ = Name) then
+      begin
+        if LoadMusicResource(Desc) then
+        begin
+          MusicData := PMusicData(Desc^.Data);
+          GetMusic := @MusicData^.Music;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Music not found: ' + Name;
+end;
+
+{ TResourceManager.LoadMusicResource }
 function TResourceManager.LoadMusicResource(Desc: PResourceDescriptor): Boolean;
 var
   MusicData: PMusicData;
@@ -798,11 +833,49 @@ begin
 
   LoadMusicResource := True;
 end;
-```
 
-### Level Resource Loading
+{ TResourceManager.GetLevel }
+function TResourceManager.GetLevel(const Name: String): PTileMap;
+var
+  LevelData: PLevelData;
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  GetLevel := nil;
 
-```pascal
+  { Check if already loaded }
+  if MapContains(LevelMap, Name) then
+  begin
+    LevelData := PLevelData(MapGet(LevelMap, Name));
+    GetLevel := LevelData^.Map;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors^.Head;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Data);
+      if (Desc^.ResType = ResType_Level) and (Desc^.Name^ = Name) then
+      begin
+        if LoadLevelResource(Desc) then
+        begin
+          LevelData := PLevelData(Desc^.Data);
+          GetLevel := LevelData^.Map;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Level not found: ' + Name;
+end;
+
+{ TResourceManager.LoadLevelResource }
 function TResourceManager.LoadLevelResource(Desc: PResourceDescriptor): Boolean;
 var
   LevelData: PLevelData;
@@ -835,11 +908,72 @@ begin
 
   LoadLevelResource := True;
 end;
-```
 
-### Cleanup
+{ TResourceManager.LoadResource }
+function TResourceManager.LoadResource(const Name: String): Boolean;
+var
+  Desc: PResourceDescriptor;
+  Node: PLinkedListNode;
+begin
+  LoadResource := False;
 
-```pascal
+  { Find descriptor }
+  Node := Descriptors^.Head;
+  while Node <> nil do
+  begin
+    Desc := PResourceDescriptor(Node^.Data);
+    if Desc^.Name^ = Name then
+    begin
+      { Load based on type }
+      case Desc^.ResType of
+        ResType_Image: LoadResource := LoadImageResource(Desc);
+        ResType_Font: LoadResource := LoadFontResource(Desc);
+        ResType_Sprite: LoadResource := LoadSpriteResource(Desc);
+        ResType_Sound: LoadResource := LoadSoundResource(Desc);
+        ResType_Music: LoadResource := LoadMusicResource(Desc);
+        ResType_Level: LoadResource := LoadLevelResource(Desc);
+      end;
+      Exit;
+    end;
+    Node := Node^.Next;
+  end;
+
+  LastError := 'Resource not found: ' + Name;
+end;
+
+{ TResourceManager.UnloadResource }
+procedure TResourceManager.UnloadResource(const Name: String);
+begin
+  { Not implemented - resources are unloaded only on Done }
+  LastError := 'UnloadResource not implemented';
+end;
+
+{ TResourceManager.PreloadAll }
+procedure TResourceManager.PreloadAll;
+var
+  Node: PLinkedListNode;
+  Desc: PResourceDescriptor;
+begin
+  Node := Descriptors^.Head;
+  while Node <> nil do
+  begin
+    Desc := PResourceDescriptor(Node^.Data);
+    if not Desc^.Loaded then
+    begin
+      case Desc^.ResType of
+        ResType_Image: LoadImageResource(Desc);
+        ResType_Font: LoadFontResource(Desc);
+        ResType_Sprite: LoadSpriteResource(Desc);
+        ResType_Sound: LoadSoundResource(Desc);
+        ResType_Music: LoadMusicResource(Desc);
+        ResType_Level: LoadLevelResource(Desc);
+      end;
+    end;
+    Node := Node^.Next;
+  end;
+end;
+
+{ TResourceManager.Done }
 procedure TResourceManager.Done;
 var
   Node: PLinkedListNode;
@@ -848,7 +982,6 @@ var
   FontData: PFontData;
   SprData: PSpriteData;
   SndData: PSoundData;
-  MusicData: PMusicData;
   LevelData: PLevelData;
 begin
   { Free all loaded resources }
@@ -948,300 +1081,5 @@ begin
   MapFree(SpriteMap);
   MapFree(LevelMap);
 end;
-```
 
-## Usage Example
-
-### Simple Game
-
-```pascal
-program MyGame;
-
-uses VGA, ResMan, Sprite, Keyboard, RTCTimer;
-
-var
-  ResMgr: TResourceManager;
-  PlayerSprite: PSprite;
-  Player: TSpriteInstance;
-  Running: Boolean;
-  CurrentTime, LastTime, DeltaTime: Real;
-  BackBuffer: PFrameBuffer;
-
-begin
-  { Initialize resource manager with lazy loading }
-  ResMgr.Init(True);
-  if not ResMgr.LoadFromXML('DATA\RES.XML') then
-  begin
-    WriteLn('Error: ', ResMgr.LastError);
-    Halt(1);
-  end;
-
-  { Get sprite (loads image + sprite automatically) }
-  PlayerSprite := ResMgr.GetSprite('player_idle');
-  if PlayerSprite = nil then
-  begin
-    WriteLn('Error: ', ResMgr.LastError);
-    Halt(1);
-  end;
-
-  { Setup sprite instance }
-  Player.Sprite := PlayerSprite;
-  Player.X := 144;
-  Player.Y := 84;
-  Player.Hidden := False;
-  Player.FlipX := False;
-  Player.FlipY := False;
-  Player.CurrentTime := 0.0;
-
-  { Initialize systems }
-  InitVGA;
-  BackBuffer := CreateFrameBuffer;
-  InitKeyboard;
-  InitRTC(1024);
-
-  Running := True;
-  LastTime := GetTimeSeconds;
-
-  { Game loop }
-  while Running do
-  begin
-    CurrentTime := GetTimeSeconds;
-    DeltaTime := CurrentTime - LastTime;
-    LastTime := CurrentTime;
-
-    if IsKeyPressed(Key_Escape) then
-      Running := False;
-
-    if IsKeyPressed(Key_Space) then
-      Player.Sprite := ResMgr.GetSprite('player_run');
-
-    UpdateSprite(Player, DeltaTime);
-
-    ClearFrameBuffer(BackBuffer);
-    DrawSprite(Player, BackBuffer);
-    RenderFrameBuffer(BackBuffer);
-
-    WaitForVSync;
-    ClearKeyPressed;
-  end;
-
-  { Cleanup }
-  DoneRTC;
-  DoneKeyboard;
-  FreeFrameBuffer(BackBuffer);
-  CloseVGA;
-
-  ResMgr.Done;
 end.
-```
-
-## Performance Considerations
-
-### Memory Usage
-
-**Eager Loading:**
-- Higher startup memory usage
-- All resources loaded upfront
-- Simpler, no runtime loading delays
-
-**Lazy Loading:**
-- Lower initial memory footprint
-- First access has loading penalty
-- Better for large asset libraries
-
-**Recommendation:** Use lazy loading with preload zones:
-```pascal
-{ Before level 1 }
-ResMgr.LoadResource('player_idle');
-ResMgr.LoadResource('player_run');
-ResMgr.LoadResource('level1');
-{ Note: Don't preload multiple music tracks - only one loads at a time (singleton) }
-```
-
-**Music Singleton Impact:**
-- `PreloadAll` will only load the **last** music track in the XML (others get replaced)
-- Use lazy loading for music - load explicitly when needed via `GetMusic`
-- Example: `ResMgr.GetMusic('title')` loads title screen music on demand
-
-### String Map Performance
-
-- STRMAP.PAS uses 256-bucket hash
-- Average O(1) lookup for GetXXX methods
-- 1000 resources = ~4 resources per bucket
-
-### Dependency Resolution
-
-- Sprites reference images by name
-- GetSprite automatically calls GetImage
-- No circular dependencies possible (sprites can't reference sprites)
-
-### Music Singleton Pattern
-
-**Design Decision:**
-Music is implemented as a singleton resource - only one music track can be loaded in memory at a time.
-
-**Rationale:**
-- HSC music files can be large (several KB)
-- Only one music track plays at a time
-- Automatic memory management prevents accumulation of unused music data
-- Simplifies music switching (no manual cleanup needed)
-
-**Behavior:**
-- When loading a new music track, the previously loaded music is automatically unloaded
-- The old music is stopped (`Music.Stop`), cleaned up (`Music.Done`), and freed
-- The descriptor for the old music is marked as unloaded
-- Calling `GetMusic` with the same name twice returns the cached instance (no reload)
-
-**Example:**
-```pascal
-{ Load and play title music }
-TitleMusic := ResMgr.GetMusic('title');
-TitleMusic^.Start;
-
-{ Later, switch to gameplay music - title music auto-unloaded }
-GameMusic := ResMgr.GetMusic('level1');
-GameMusic^.Start;
-
-{ TitleMusic pointer is now invalid! }
-{ To switch back, call GetMusic again }
-TitleMusic := ResMgr.GetMusic('title');  { Reloads from disk }
-TitleMusic^.Start;
-```
-
-**Important Notes:**
-- After loading a different music track, previous `PHSC_Obj` pointers become invalid
-- Always call `GetMusic` again when switching between tracks
-- Music is not affected by `PreloadAll` - still follows singleton pattern
-- Lazy loading still applies - music loads on first `GetMusic` call
-
-### Palette Handling Strategy
-
-**Current Implementation:**
-- Images with `use-palette` attribute call `SetPalette` when loaded, changing the global VGA palette
-- This is intended for full-screen background images that define the game's color scheme
-
-**Best Practices:**
-- Use `use-palette` for title screens, backgrounds, or loading screens
-- Don't use `use-palette` for sprite sheets, HUD elements, or UI graphics
-- Load palette-defining images first (or explicitly) to establish the color scheme
-- Ensure all non-palette images are designed to work with the established palette
-
-**Example Loading Order:**
-```pascal
-{ Establish palette from background }
-Background := ResMgr.GetImage('level1_bg');  { has use-palette }
-
-{ Then load sprites/UI (no palette change) }
-PlayerSheet := ResMgr.GetImage('player');    { no use-palette }
-UIElements := ResMgr.GetImage('hud');         { no use-palette }
-```
-
-### Descriptor Lookup Performance
-
-**Current Implementation:**
-- When lazy loading, `GetXXX` methods search the descriptor list O(N) to find unloaded resources
-- Once loaded, lookups use STRMAP hash table O(1)
-
-**Optimization Opportunity:**
-For large resource counts (>100 resources), consider adding a global `DescriptorMap: TStringMap` that maps name → descriptor. This eliminates the O(N) list traversal for lazy loading:
-
-```pascal
-{ In Init }
-MapInit(DescriptorMap);
-
-{ In ParseXML }
-MapPut(DescriptorMap, Desc^.Name^, Desc);
-
-{ In GetImage }
-if MapContains(DescriptorMap, Name) then
-  Desc := PResourceDescriptor(MapGet(DescriptorMap, Name));
-```
-
-Current implementation prioritizes simplicity; optimization only needed if lazy load performance becomes an issue.
-
-## Future Enhancements
-
-1. **Reference Counting:** Track active sprite instances to enable resource unloading
-2. **Resource Groups:** Load/unload sets of resources (e.g., "level1_assets")
-3. **Streaming:** Background loading with progress callbacks
-4. **Hot Reload:** Reload resources without restarting (development mode)
-5. **Compression:** Support for packed/compressed resource files
-6. **Palette Management:** Store and apply palettes per-resource
-7. **Animation Modes:** Support PlayType attribute (Forward/PingPong/Once)
-
-## Error Handling
-
-All Get methods return `nil` on failure and set `LastError`:
-
-```pascal
-Spr := ResMgr.GetSprite('invalid');
-if Spr = nil then
-  WriteLn('Error: ', ResMgr.LastError);
-```
-
-Common errors:
-- `"Resource not found: name"` - Name not in XML
-- `"Resource \"name\" missing path attribute"` - Malformed XML (missing required path)
-- `"Resource \"name\" missing name attribute"` - Malformed XML (missing name)
-- `"Failed to load image \"name\" from: path"` - File missing or corrupt
-- `"Sprite \"name\" missing image attribute"` - Malformed sprite (no image reference)
-- `"Sprite \"name\" missing duration attribute"` - Malformed sprite (no duration)
-- `"Sprite \"name\" frame missing x/y/width/height attributes"` - Malformed frame data
-- `"Sprite \"name\" has no frames"` - Sprite defined with no frame elements
-- `"Sprite \"name\" references unknown image: imagename"` - Sprite references non-existent image
-- `"Failed to initialize sound bank"` - No HIMEM.SYS or Sound Blaster
-- `"Failed to load font: path - error"` - Font XML or PCX loading failed
-
-All error messages now include the resource name for better debugging context.
-
-## Dependencies
-
-**Required Units:**
-- MINIXML (XML parsing)
-- STRMAP (name → resource lookups)
-- LINKLIST (descriptor storage)
-- PCXLOAD (image loading)
-- VGAFONT (variable-width fonts)
-- SPRITE (sprite definitions)
-- SNDBANK (sound management)
-- PLAYHSC (music playback)
-- TMXLOAD (level loading)
-- STRUTIL (StrToInt, StrToReal)
-
-**Memory:**
-- ~2KB per resource descriptor
-- Maps: 256 pointers × 6 types = ~3KB overhead
-- Actual resource data: images, fonts, sprites, etc.
-
-## Testing Strategy
-
-**Unit Test (TESTS\RESMTEST.PAS):**
-1. Load RES.XML with lazy loading
-2. Access each resource type (image, font, sprite, sound, music, level)
-3. Verify lazy loading (descriptors loaded, data not loaded until accessed)
-4. Test error cases (missing file, invalid XML, missing dependency)
-5. Verify cleanup (all resources freed)
-
-**Integration Test:**
-Use resource manager in existing tests:
-- SPRTEST.PAS → Load image and sprites from XML instead of manual setup
-- IMGTEST.PAS → Load images, music and sound from XML
-
-## Summary
-
-TResourceManager provides:
-- ✅ Declarative resource definitions (XML)
-- ✅ Name-based access (no hardcoded paths)
-- ✅ Automatic dependency resolution (sprites → images)
-- ✅ Lazy or eager loading strategies
-- ✅ Singleton music management (auto-unload on switch)
-- ✅ Centralized cleanup
-- ✅ Type-safe accessors (GetImage, GetSprite, etc.)
-- ✅ Error tracking with LastError
-
-**Next Steps:**
-1. ✅ Update VGAFONT.PAS to support LoadFont(XMLPath, Font) with relative image paths
-2. Implement UNITS\RESMAN.PAS
-3. Create TESTS\RESMTEST.PAS
-4. Update existing tests to use resource manager
-5. Add helper for StrToReal to STRUTIL.PAS (currently only has StrToInt)
