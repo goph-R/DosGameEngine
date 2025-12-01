@@ -180,7 +180,6 @@ var
   SprData: PSpriteData;
   FrameNode: PXMLNode;
   FrameIdx: Byte;
-  DurationStr: PShortString;
 begin
   ParseSpriteData := False;
 
@@ -203,11 +202,10 @@ begin
 
   { Store image name }
   New(SprData^.ImageName);
-  SprData^.ImageName^ := XMLAttr(XMLNode, 'image')^;
+  SprData^.ImageName^ := XMLAttr(XMLNode, 'image');
 
   { Store duration for later use }
-  DurationStr := XMLAttr(XMLNode, 'duration');
-  SprData^.Duration := StrToReal(DurationStr^);
+  SprData^.Duration := StrToReal(XMLAttr(XMLNode, 'duration'));
 
   { Parse frame rectangles }
   FrameIdx := 0;
@@ -227,10 +225,10 @@ begin
       end;
 
       { Store frame rectangle }
-      SprData^.Sprite.Frames[FrameIdx].X := StrToInt(XMLAttr(FrameNode, 'x')^);
-      SprData^.Sprite.Frames[FrameIdx].Y := StrToInt(XMLAttr(FrameNode, 'y')^);
-      SprData^.Sprite.Frames[FrameIdx].Width := StrToInt(XMLAttr(FrameNode, 'width')^);
-      SprData^.Sprite.Frames[FrameIdx].Height := StrToInt(XMLAttr(FrameNode, 'height')^);
+      SprData^.Sprite.Frames[FrameIdx].X := StrToInt(XMLAttr(FrameNode, 'x'));
+      SprData^.Sprite.Frames[FrameIdx].Y := StrToInt(XMLAttr(FrameNode, 'y'));
+      SprData^.Sprite.Frames[FrameIdx].Width := StrToInt(XMLAttr(FrameNode, 'width'));
+      SprData^.Sprite.Frames[FrameIdx].Height := StrToInt(XMLAttr(FrameNode, 'height'));
 
       Inc(FrameIdx);
     end;
@@ -280,7 +278,7 @@ begin
     end;
 
     New(Desc^.Name);
-    Desc^.Name^ := XMLAttr(Child, 'name')^;
+    Desc^.Name^ := XMLAttr(Child, 'name');
     Desc^.Loaded := False;
 
     { Parse by type }
@@ -294,7 +292,7 @@ begin
         Exit;
       end;
       New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;
+      Desc^.Path^ := XMLAttr(Child, 'path');
       ListAdd(Descriptors, Desc);
     end
     else if TagName = 'sound' then
@@ -307,7 +305,7 @@ begin
         Exit;
       end;
       New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;
+      Desc^.Path^ := XMLAttr(Child, 'path');
       ListAdd(Descriptors, Desc);
     end
     else if TagName = 'image' then
@@ -320,7 +318,7 @@ begin
         Exit;
       end;
       New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;
+      Desc^.Path^ := XMLAttr(Child, 'path');
       Desc^.UsePalette := XMLHasAttr(Child, 'use-palette');
       ListAdd(Descriptors, Desc);
     end
@@ -334,7 +332,7 @@ begin
         Exit;
       end;
       New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;
+      Desc^.Path^ := XMLAttr(Child, 'path');
       ListAdd(Descriptors, Desc);
     end
     else if TagName = 'sprite' then
