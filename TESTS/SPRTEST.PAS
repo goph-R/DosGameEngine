@@ -1,17 +1,17 @@
 program SpriteTest;
 
 uses
-  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCXLoad;
+  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCXLoad, ResMan;
 
 var
-  PlayerImage: TImage;
-  Palette: TPalette;
+  ResMgr: TResourceManager;
+  PlayerPalette: PPalette;
   FrameBuffer: PFrameBuffer;
   ScreenBuffer: PFrameBuffer;
 
   { Sprite definitions }
-  SpriteIdle: TSprite;
-  SpriteRun: TSprite;
+  SpriteIdle: PSprite;
+  SpriteRun: PSprite;
 
   { Sprite instances }
   Player: TSpriteInstance;
@@ -35,45 +35,6 @@ var
 
   { Sprite draw rectangle }
   SpriteRect: TRectangle;
-
-procedure InitSprites;
-var
-  Frame: Integer;
-begin
-  { Initialize SpriteIdle: 4 frames, first row, 0.8 seconds }
-  SpriteIdle.Image := @PlayerImage;
-  SpriteIdle.FrameCount := 4;
-  SpriteIdle.Width := 32;
-  SpriteIdle.Height := 32;
-  SpriteIdle.Duration := 0.8; { 0.8 seconds }
-  SpriteIdle.PlayType := SpritePlayType_Forward;
-
-  { Setup idle animation frames (first row: 0,0 to 128,0) }
-  for Frame := 0 to 3 do
-  begin
-    SpriteIdle.Frames[Frame].X := Frame * 32;
-    SpriteIdle.Frames[Frame].Y := 0;
-    SpriteIdle.Frames[Frame].Width := 32;
-    SpriteIdle.Frames[Frame].Height := 32;
-  end;
-
-  { Initialize SpriteRun: 6 frames, second row, 0.5 seconds }
-  SpriteRun.Image := @PlayerImage;
-  SpriteRun.FrameCount := 6;
-  SpriteRun.Width := 32;
-  SpriteRun.Height := 32;
-  SpriteRun.Duration := 0.5; { 0.5 seconds }
-  SpriteRun.PlayType := SpritePlayType_Forward;
-
-  { Setup run animation frames (second row: 0,32 to 192,32) }
-  for Frame := 0 to 5 do
-  begin
-    SpriteRun.Frames[Frame].X := Frame * 32;
-    SpriteRun.Frames[Frame].Y := 32;
-    SpriteRun.Frames[Frame].Width := 32;
-    SpriteRun.Frames[Frame].Height := 32;
-  end;
-end;
 
 procedure ClearRect(Buffer: PFrameBuffer; var Rect: TRectangle);
 { Clear a rectangular region in the framebuffer }
@@ -176,25 +137,36 @@ begin
 end;
 
 begin
-  { Load player sprite sheet }
-  WriteLn('Loading player sprite sheet from DATA\PLAYER.PCX...');
-  if not LoadPCXWithPalette('DATA\PLAYER.PCX', PlayerImage, Palette) then
+  { Initialize resource manager }
+  WriteLn('Initializing resource manager...');
+  ResMgr.Init(True);  { Lazy loading }
+  if not ResMgr.LoadFromXML('DATA\RES.XML') then
   begin
-    WriteLn('ERROR: Could not load PLAYER.PCX');
+    WriteLn('ERROR: Failed to load resources: ', ResMgr.LastError);
     Halt(1);
   end;
 
-  WriteLn('Player image loaded: ', PlayerImage.Width, 'x', PlayerImage.Height);
-  WriteLn('Initializing sprites...');
+  { Load sprites }
+  WriteLn('Loading sprites...');
+  SpriteIdle := ResMgr.GetSprite('player_idle');
+  if SpriteIdle = nil then
+  begin
+    WriteLn('ERROR: Could not load player_idle sprite: ', ResMgr.LastError);
+    Halt(1);
+  end;
 
-  { Initialize sprite definitions }
-  InitSprites;
+  SpriteRun := ResMgr.GetSprite('player_run');
+  if SpriteRun = nil then
+  begin
+    WriteLn('ERROR: Could not load player_run sprite: ', ResMgr.LastError);
+    Halt(1);
+  end;
 
-  WriteLn('  SpriteIdle: ', SpriteIdle.FrameCount, ' frames, ', Trunc(SpriteIdle.Duration * 1000.0), 'ms duration');
-  WriteLn('  SpriteRun: ', SpriteRun.FrameCount, ' frames, ', Trunc(SpriteRun.Duration * 1000.0), 'ms duration');
+  WriteLn('  SpriteIdle: ', SpriteIdle^.FrameCount, ' frames, ', Trunc(SpriteIdle^.Duration * 1000.0), 'ms duration');
+  WriteLn('  SpriteRun: ', SpriteRun^.FrameCount, ' frames, ', Trunc(SpriteRun^.Duration * 1000.0), 'ms duration');
 
   { Initialize player sprite instance }
-  Player.Sprite := @SpriteIdle;
+  Player.Sprite := SpriteIdle;
   Player.Hidden := False;
   Player.X := 144;  { Center of screen (320/2 - 32/2) }
   Player.Y := 84;   { Center of screen (200/2 - 32/2) }
@@ -226,7 +198,12 @@ begin
 
   { Enter VGA mode }
   InitVGA;
-  SetPalette(Palette);
+
+  { Set palette (extracted from image during loading) }
+  PlayerPalette := ResMgr.GetPalette('player');
+  if PlayerPalette <> nil then
+    SetPalette(PlayerPalette^);
+
   FrameBuffer := CreateFrameBuffer;
   ScreenBuffer := GetScreenBuffer;
 
@@ -247,7 +224,7 @@ begin
     if IsKeyPressed(Key_1) then
     begin
       CurrentAnimation := 0;
-      Player.Sprite := @SpriteIdle;
+      Player.Sprite := SpriteIdle;
       Player.CurrentTime := 0.0;
       Player.PlayBackward := False;
       DrawAnimationText;
@@ -256,7 +233,7 @@ begin
     if IsKeyPressed(Key_2) then
     begin
       CurrentAnimation := 1;
-      Player.Sprite := @SpriteRun;
+      Player.Sprite := SpriteRun;
       Player.CurrentTime := 0.0;
       Player.PlayBackward := False;
       DrawAnimationText;
@@ -298,10 +275,10 @@ begin
   FreeFrameBuffer(FrameBuffer);
   CloseVGA;
 
-  FreeImage(PlayerImage);
-
   DoneRTC;
   DoneKeyboard;
+
+  ResMgr.Done;
 
   WriteLn('Sprite test completed.');
 end.
