@@ -1,576 +1,616 @@
-# Tilemap Layer Merger and Optimizer
+Here’s a design doc-style description of how to build this **Tiled TMX → optimized 2-layer + composite tilesets** tool using only Lazarus / FPC built-ins.
 
-## Overview
+---
 
-A Lazarus (Free Pascal) tool that analyzes multi-layer TMX tilemaps, merges overlapping tiles pixel-by-pixel, and generates optimized tilesets containing only the unique tile combinations actually used in the map. This reduces runtime rendering overhead and memory usage in the DOS engine.
+## 1. Goal and context
 
-## Problem Statement
+You already have a DOS tile engine that:
 
-**Current system** (TMXLOAD.PAS):
-- Tiled map has many layers for level design convenience
-- Layers are merged into 2 render layers (front/back) based on `<objectgroup>` position
-- Merging uses simple tile ID override: higher layers overwrite lower layers
-- **Issue**: Overlapping tiles waste memory - only top tile is visible, but both consume tileset space
+* Loads TMX (Tiled) maps via `TMXLOAD.PAS` using your MiniXML.
+* Merges *any number* of TMX layers into exactly **2 layers** in `TTileMap`:
 
-**Example scenario:**
-```
-Cell (10, 5) in final front layer:
-  Layer 0 (lowest):  Tile #42 (grass)
-  Layer 1:           Tile #0  (empty)
-  Layer 2:           Tile #83 (rock)
-  Layer 3 (highest): Tile #0  (empty)
-
-Current result: Tile #83 (rock overwrites grass)
-Problem: Grass tile #42 is never visible but still in tileset
-```
-
-## Solution
-
-**Tile Combination Merger**:
-1. Parse TMX and merge layers into front/back (existing logic)
-2. For each map cell, collect the **stack of visible tiles** (skip tile #0)
-3. For each unique tile stack, **merge pixel data** from source tilesets
-4. Generate new optimized tileset containing only merged combinations
-5. Remap tile IDs in front/back layers to reference new tileset
-6. Output optimized PCX tileset + updated map data
-
-**Benefits**:
-- Smaller tilesets (only combinations actually used)
-- Single tile draw per cell instead of multiple overlays
-- Reduced memory usage in DOS (fewer tiles loaded)
-- Faster rendering (no transparency checks for merged areas)
-
-## Architecture
-
-### Tool: TILEMRG (Lazarus/FPC console application)
-
-**Inputs**:
-- TMX file path (e.g., `LEVEL1.TMX`)
-- Output base name (e.g., `LEVEL1`)
-
-**Outputs**:
-- Optimized tileset: `{basename}_OPT.PCX`
-- Optimized map data: `{basename}_OPT.MAP` (binary format for DOS loader)
-- Mapping report: `{basename}_OPT.TXT` (human-readable tile mapping)
-
-**Dependencies**:
-- Free Pascal XML units (DOM, XMLRead)
-- PCX loader/writer (ported from PCXLoad.pas)
-- Image manipulation (pixel-level compositing)
-
-### Data Structures
+  * Front (index 0) – layers before first `<objectgroup>`
+  * Back (index 1) – layers after first `<objectgroup>` ([GitHub][1])
+* Supports **multiple tilesets**, described by:
 
 ```pascal
 type
-  { RGB color for pixel operations }
-  TRGBColor = record
-    R, G, B: Byte;
-  end;
-
-  { Palette data (256 colors) }
-  TPalette = array[0..255] of TRGBColor;
-
-  { Raw image data }
-  TImageData = record
-    Width, Height: Word;
-    Palette: TPalette;
-    Pixels: PByte;  { Width * Height bytes }
-  end;
-
-  { Tileset metadata }
-  TTileSetInfo = record
+  TTileSet = record
     FirstGID: Word;
-    TileWidth, TileHeight: Word;
-    TileCount: Word;
-    ImagePath: string;
-    ImageData: TImageData;
+    TileWidth: Byte;
+    TileHeight: Byte;
+    Columns: Byte;
+    Image: TImage;      { holds the tileset graphics }
   end;
 
-  { Tile stack (multiple tiles in one cell) }
-  TTileStack = array of Word;  { Bottom-to-top tile IDs }
-
-  { Unique tile combination }
-  TTileCombination = record
-    Stack: TTileStack;         { Source tile IDs (bottom to top) }
-    NewTileID: Word;           { Assigned ID in optimized tileset }
-    MergedPixels: PByte;       { Merged pixel data (TileWidth * TileHeight) }
-  end;
-
-  { Optimized map layer }
-  TOptimizedLayer = record
-    Width, Height: Word;
-    Tiles: array of Word;      { Width * Height tile IDs }
-  end;
-
-  { Blocks layer (collision/game logic) }
-  TBlocksLayer = record
-    Width, Height: Word;
-    Blocks: array of Byte;     { Width * Height block flags (0 or 1) }
-  end;
-```
-
-### Processing Pipeline
-
-#### Phase 1: Load and Parse TMX
-1. Parse TMX file using DOM XML parser
-2. Extract map dimensions (width, height, tile size)
-3. Load tileset metadata (FirstGID, image paths, tile dimensions)
-4. Parse all `<layer>` nodes:
-   - Check for custom `blocks` layer property:
-     ```xml
-     <layer>
-       <properties>
-         <property name="blocks" value="" />
-       </properties>
-     </layer>
-     ```
-   - If found, preserve this layer separately (do NOT merge)
-   - Find first `<objectgroup>` position for front/back separation
-5. Separate remaining layers into front group and back group
-
-**Output**: Layer data arrays, tileset metadata, blocks layer (if present)
-
-#### Phase 2: Load Tileset Images
-1. For each tileset, convert PNG path to PCX path (`.png` → `.pcx`)
-2. Load PCX files using ported PCXLoad logic
-3. Store pixel data and for each tileset.
-4. **Palette handling**: Use palette from first tileset as master palette
-
-**Output**: `TTileSetInfo` array with loaded image data
-
-#### Phase 3: Merge Layers and Collect Tile Stacks
-1. Create front/back layer buffers (Width × Height arrays)
-2. For each layer in front group (highest index = highest priority):
-   - **Skip layer with `blocks` layer property** (already preserved from Phase 1)
-   - Overlay tiles onto front buffer
-   - Track tile stack at each cell (preserve order for merging)
-3. Repeat for back group
-4. For each cell, build `TTileStack` of visible tiles (skip tile #0)
-
-**Example**:
-```
-Cell (5, 10) front layer stack:
-  [42, 83]  (grass #42 below, rock #83 on top)
-
-Cell (5, 11) front layer stack:
-  [42]      (only grass, no overlay)
-
-Cell (5, 12) front layer stack:
-  []        (empty, was tile #0)
-```
-
-**Output**: Front/back layer arrays with tile stacks per cell, blocks layer preserved as-is
-
-#### Phase 4: Find Unique Tile Combinations
-1. Scan all cells in front layer, collect unique `TTileStack` values
-2. Scan all cells in back layer, collect unique `TTileStack` values
-3. Remove duplicates (use hash map or sorted comparison)
-4. Assign new tile IDs sequentially (starting at 1, 0 = empty)
-
-**Example results**:
-```
-Combination #1: [42]     → New Tile ID: 1
-Combination #2: [42, 83] → New Tile ID: 2
-Combination #3: [15]     → New Tile ID: 3
-Combination #4: [15, 22] → New Tile ID: 4
-... (total unique combinations found)
-```
-
-**Output**: `TTileCombination` array
-
-#### Phase 5: Merge Tile Pixels
-For each `TTileCombination`:
-1. Allocate buffer for merged tile (TileWidth × TileHeight bytes)
-2. Initialize with transparent color (palette index 0)
-3. For each tile ID in stack (bottom to top):
-   - Find source tileset using FirstGID ranges
-   - Calculate tile position in tileset image (column/row)
-   - Extract tile pixels from tileset ImageData
-   - Composite onto merged buffer (skip palette index 0 = transparent)
-4. Store merged pixels in `MergedPixels` field
-
-**Pixel compositing logic**:
-```pascal
-procedure MergeTilePixels(dest: PByte; src: PByte; size: Word);
-var
-  i: Word;
-begin
-  for i := 0 to size - 1 do
-  begin
-    if src[i] <> 0 then  { 0 = transparent }
-      dest[i] := src[i];
-  end;
-end;
-```
-
-**Output**: `TTileCombination.MergedPixels` populated for all combinations
-
-#### Phase 6: Generate Optimized Tileset
-1. Calculate tileset image dimensions:
-   - Tiles per row: 16 (arbitrary choice for square-ish layout)
-   - Rows needed: `Ceiling(TileCount / 16)`
-   - Image width: `16 * TileWidth`
-   - Image height: `Rows * TileHeight`
-2. Allocate tileset image buffer
-3. Fill with transparent color (palette index 0)
-4. For each `TTileCombination`:
-   - Calculate tile position (row/column based on NewTileID)
-   - Copy `MergedPixels` to tileset image at correct offset
-5. Write PCX file with master palette
-
-**Output**: `{basename}_OPT.PCX` file
-
-#### Phase 7: Remap Tile IDs
-1. Create optimized front/back layer buffers (Width × Height)
-2. For each cell in original front layer:
-   - Look up tile stack in `TTileCombination` array
-   - Find matching combination by stack comparison
-   - Write `NewTileID` to optimized front layer
-3. Repeat for back layer
-4. Handle empty cells: Write tile ID 0
-
-**Output**: `TOptimizedLayer` for front and back
-
-#### Phase 8: Write Output Files
-**Optimized map binary** (`{basename}_OPT.MAP`):
-```
-Header:
-  Signature: "TMAP" (4 bytes)
-  Version: 1 (Word)
-  MapWidth, MapHeight: Word
-  TileWidth, TileHeight: Word
-  LayerCount: Word (always 2: front + back)
-  HasBlocks: Byte (0 = no blocks layer, 1 = blocks layer present)
-
-Front Layer:
-  Tiles: array[0..Width*Height-1] of Word
-
-Back Layer:
-  Tiles: array[0..Width*Height-1] of Word
-
-Blocks Layer (optional, only if HasBlocks = 1):
-  Blocks: array[0..Width*Height-1] of Byte (0 = passable, non-zero = blocked)
-```
-
-**Mapping report** (`{basename}_OPT.TXT`):
-```
-Tilemap Optimization Report
-Input: LEVEL1.TMX
-Output: LEVEL1_OPT.PCX, LEVEL1_OPT.MAP
-
-Original tilesets: 4
-Original total tiles: 512
-
-Optimized tileset tiles: 87
-Reduction: 83.0%
-
-Tile combinations:
-  #1: [42] (grass)
-  #2: [42, 83] (grass + rock)
-  #3: [15] (dirt)
-  ...
-
-Front layer: 1024 cells, 45 unique combinations
-Back layer: 1024 cells, 32 unique combinations
-Blocks layer: Present (352 blocked cells, 672 passable)
-```
-
-## Usage
-
-### Command-Line Interface
-```bash
-# Basic usage
-TILEMRG.EXE input.tmx output_base
-
-# Example
-TILEMRG.EXE DATA\LEVEL1.TMX DATA\LEVEL1
-
-# Output:
-#   DATA\LEVEL1_OPT.PCX  (optimized tileset)
-#   DATA\LEVEL1_OPT.MAP  (binary map data)
-#   DATA\LEVEL1_OPT.TXT  (report)
-```
-
-### Integration with DOS Engine
-Create new loader unit `OPTMAP.PAS`:
-
-```pascal
-unit OptMap;
-
-interface
-
-uses VGA;
+const
+  TileMap_MaxTileSets = 4;
 
 type
-  TOptimizedMap = record
-    Width, Height: Word;
-    TileWidth, TileHeight: Word;
-    FrontLayer: PWord;  { Width * Height }
-    BackLayer: PWord;
-    BlocksLayer: PByte; { Width * Height, nil if no blocks }
-    Tileset: TImage;
+  TTileMap = record
+    Width, Height : Word;
+    TileSetCount  : Byte;
+    TileSets      : array[0..TileMap_MaxTileSets] of TTileSet;
+    Layers        : array[0..1] of PWord;     { final Back/Front }
+    BlocksLayer   : PByteArray;               { collision data }
+    BlocksTilesetFirstGID: Word;
+  end;
+```
+
+([GitHub][1])
+
+Your constraints:
+
+* **Tileset images should be small** for DOS:
+
+  * Preferred max size per tileset image: **256×240** (fits under 64K in Mode 13h).
+  * Hard maximum you mentioned: **320×200** if needed.
+* Engine expects **PCX** on disk; `LoadTileSet` replaces TMX `<image source="something.png">` with `something.pcx` when loading. ([GitHub][1])
+* TMX constraints: CSV only, internal tilesets, orthogonal, etc. ([GitHub][1])
+
+Your new idea:
+
+> Load a multi-layer TMX in a Lazarus tool, collapse all visual layers into 2 (Front/Back), **detect unique tile stacks**, render each stack into a composite tile, and create one (or more) compact tileset(s) containing only those composite tiles.
+
+So the engine still sees a normal TMX+PCX setup – just much more optimized.
+
+---
+
+## 2. Tool overview (what it does)
+
+This Lazarus tool is a **pre-processor / optimizer** that runs on your dev machine (not in DOS):
+
+**Input:**
+
+* A TMX map created in Tiled using PNG tilesets (normal workflow).
+* Matching PCX versions for each tileset (for DOS; can be generated separately).
+
+**Output:**
+
+* New **optimized TMX**:
+
+  * Only 2 visual layers: `Front`, `Back`.
+  * Visual layers reference one or more new “composite” tilesets.
+  * Blocks layer + Blocks tileset left intact.
+* New **PCX tileset image(s)**:
+
+  * Each at most 256×240 (or 320×200) in size.
+  * Contains all the composite tiles (unique tile stacks).
+* Optional: PNG variants for Tiled preview (same layout as PCX).
+
+Everything is implemented with Lazarus / FPC built-ins:
+
+* XML: `DOM`, `XMLRead`, `XMLWrite`
+* Graphics: `Graphics` (TBitmap/TCanvas), `IntfGraphics` + `LCLType`
+* PCX: `FPImage`, `FPReadPCX`, `FPWritePCX`
+* Maps/dicts: FPC generics (`FGL`) or `TFPHashList`
+
+---
+
+## 3. High-level pipeline
+
+1. **Load TMX** into a DOM (`TXMLDocument`).
+2. **Extract tileset metadata** (FirstGID, tile size, columns, image source).
+3. **Load tileset images** into `TBitmap` (from PNG or PCX).
+4. **Classify layers**:
+
+   * Visual Front layers (before first `<objectgroup>`).
+   * Visual Back layers (after first `<objectgroup>`).
+   * Collision blocks layers (layers with `blocks` property). ([GitHub][1])
+5. For each tile coordinate `(x, y)`:
+
+   * Build **Back stack** = list of GIDs from all Back layers at `(x, y)` (bottom → top).
+   * Build **Front stack** similarly.
+6. For each stack:
+
+   * If stack is empty → tile ID 0 in that layer.
+   * Otherwise:
+
+     * Check if this exact stack was already seen (using a map/dict).
+     * If new: **render composite tile** into an atlas tileset.
+     * Assign a new global TileID (GID) pointing into that atlas tileset.
+7. When tileset atlas reaches capacity (e.g. 256×240 → max tiles), start a **new** tileset (up to 4).
+8. Build the new TMX DOM:
+
+   * Replace visual `<layer>` tags with exactly **two** layers (`Front`, `Back`) using our new IDs.
+   * Insert new `<tileset>` tags describing the optimized tilesets.
+   * Keep `<objectgroup>` and Blocks tileset / Blocks layer as-is.
+9. Save:
+
+   * `*.tmx` via `WriteXMLFile`.
+   * `*.pcx` via `TFPWriterPCX`.
+
+The result is 100% compatible with your `LoadTileMap` logic: it will still merge “all front layers” and “all back layers”, but now each of those is just a single pre-merged layer.
+
+---
+
+## 4. Important limits: tileset capacity
+
+Given:
+
+* `TileWidth`, `TileHeight` (from TMX `<map>` and `<tileset>`; you’re using 16×16).
+* Tileset image maximum size: e.g. `TilesetMaxWidth = 256`, `TilesetMaxHeight = 240`.
+
+Capacity of one tileset:
+
+```text
+Columns = TilesetMaxWidth  div TileWidth   (e.g. 256/16 = 16)
+Rows    = TilesetMaxHeight div TileHeight  (e.g. 240/16 = 15)
+MaxTiles = Columns * Rows                 (e.g. 16 * 15 = 240 tiles)
+```
+
+You must ensure:
+
+* `MaxTiles` ≥ number of unique stacks per tileset.
+* Total tilesets ≤ `TileMap_MaxTileSets` (4).
+
+A simple strategy:
+
+* Use **one composite tileset** for both front and back stacks (shared).
+* If unique stack count > 240, create tileset #2, etc., but never exceed 4.
+
+---
+
+## 5. Data structures (Lazarus side)
+
+Use plain records and dynamic arrays.
+
+### 5.1. Tileset info
+
+```pascal
+type
+  TTileSetInfo = record
+    Name        : string;
+    FirstGID    : Integer;
+    TileWidth   : Integer;
+    TileHeight  : Integer;
+    Columns     : Integer;
+    ImageSource : string;   // image source from TMX
+    Bitmap      : TBitmap;  // loaded tileset graphics
   end;
 
-function LoadOptimizedMap(const filename: string; var map: TOptimizedMap): Boolean;
-procedure FreeOptimizedMap(var map: TOptimizedMap);
-procedure DrawOptimizedLayer(const map: TOptimizedMap; layer: PWord;
-                             x, y, width, height: Integer; fb: PFrameBuffer);
+  TTileSetInfoArray = array of TTileSetInfo;
+```
 
-implementation
+### 5.2. Stack representation
 
-{ Load .MAP file and associated .PCX tileset }
-function LoadOptimizedMap(const filename: string; var map: TOptimizedMap): Boolean;
+At Lazarus tool level you can use generics:
+
+```pascal
+type
+  TTileID = Integer;
+  TTileStack = array of TTileID;  // [0..N-1], bottom -> top
+```
+
+For uniqueness, encode the stack as a string key:
+
+```pascal
+function StackKey(const S: TTileStack): string;
+```
+
+Mapping stack → global ID (GID):
+
+```pascal
+uses FGL;
+
+type
+  TStringToIntMap = specialize TFPGMap<string, Integer>;
+```
+
+You’ll have:
+
+```pascal
 var
-  F: File;
-  Sig: array[1..4] of Char;
-  Ver, LayerCount: Word;
-  HasBlocks: Byte;
-  TilesetPath: string;
-  TileCount, i: Word;
+  StackToGID: TStringToIntMap;  // all stacks (front+back) -> new GID
+```
+
+And layers as 2D arrays of final GIDs:
+
+```pascal
+type
+  TTileIDGrid = array of array of TTileID;  // [Y][X]
+
+var
+  FrontLayer, BackLayer: TTileIDGrid;
+```
+
+### 5.3. Composite tileset atlas management
+
+```pascal
+type
+  TAtlasTileSet = record
+    FirstGID    : Integer;
+    Columns     : Integer;
+    Rows        : Integer;
+    TileWidth   : Integer;
+    TileHeight  : Integer;
+    MaxTiles    : Integer;
+    UsedTiles   : Integer;
+    Bitmap      : TBitmap;      // the atlas
+    Name        : string;
+    ImageSource : string;       // something like "tiles_opt_0.png"
+  end;
+
+  TAtlasArray = array of TAtlasTileSet;
+```
+
+Each new unique stack gets mapped to:
+
+* `AtlasIndex` (which atlas).
+* `LocalTileIndex` within that atlas.
+* Global GID = `Atlas.FirstGID + LocalTileIndex`.
+
+---
+
+## 6. Step-by-step algorithm
+
+### 6.1. Load TMX with DOM
+
+```pascal
+uses DOM, XMLRead;
+
+var
+  Doc: TXMLDocument;
 begin
-  { Open MAP file }
-  Assign(F, filename);
-  Reset(F, 1);
-
-  { Read header }
-  BlockRead(F, Sig, 4);
-  if Sig <> 'TMAP' then begin
-    Close(F);
-    LoadOptimizedMap := False;
-    Exit;
-  end;
-
-  BlockRead(F, Ver, 2);
-  BlockRead(F, map.Width, 2);
-  BlockRead(F, map.Height, 2);
-  BlockRead(F, map.TileWidth, 2);
-  BlockRead(F, map.TileHeight, 2);
-  BlockRead(F, LayerCount, 2);
-  BlockRead(F, HasBlocks, 1);
-
-  { Allocate layers }
-  TileCount := map.Width * map.Height;
-  GetMem(map.FrontLayer, TileCount * 2);
-  GetMem(map.BackLayer, TileCount * 2);
-
-  { Read layer data }
-  BlockRead(F, map.FrontLayer^, TileCount * 2);
-  BlockRead(F, map.BackLayer^, TileCount * 2);
-
-  { Read blocks layer if present }
-  if HasBlocks = 1 then
-  begin
-    GetMem(map.BlocksLayer, TileCount);
-    BlockRead(F, map.BlocksLayer^, TileCount);
-  end
-  else
-    map.BlocksLayer := nil;
-
-  Close(F);
-
-  { Load tileset PCX }
-  TilesetPath := Copy(filename, 1, Pos('.', filename) - 1) + '.PCX';
-  if not LoadPCX(TilesetPath, map.Tileset) then begin
-    FreeMem(map.FrontLayer);
-    FreeMem(map.BackLayer);
-    LoadOptimizedMap := False;
-    Exit;
-  end;
-
-  LoadOptimizedMap := True;
+  ReadXMLFile(Doc, 'MAP.TMX');
 end;
+```
 
-{ Render layer with camera offset }
-procedure DrawOptimizedLayer(const map: TOptimizedMap; layer: PWord;
-                              x, y, width, height: Integer; fb: PFrameBuffer);
-var
-  col, row, tileID, tileCol, tileRow: Integer;
-  srcRect: TRectangle;
-  tilesPerRow: Integer;
+From the `<map>` node:
+
+* `width`, `height` → `MapWidth`, `MapHeight` (in tiles).
+* `tilewidth`, `tileheight` → `TileW`, `TileH`.
+
+### 6.2. Read tilesets and load images
+
+Loop `<tileset>` children of `<map>`:
+
+* Read `firstgid`, `name`, `tilewidth`, `tileheight`, `columns`.
+* Find `<image>` child, get `source` attribute.
+
+For each:
+
+```pascal
+SetLength(TileSets, Count+1);
+with TileSets[Count] do
 begin
-  tilesPerRow := map.Tileset.Width div map.TileWidth;
+  Name        := ...;
+  FirstGID    := ...;
+  TileWidth   := ...;
+  TileHeight  := ...;
+  Columns     := ...;
+  ImageSource := ImageSourceFromTMX;
 
-  for row := 0 to height - 1 do
+  Bitmap := TBitmap.Create;
+  Bitmap.LoadFromFile(ResolvePath(ImageSource)); // PNG or PCX
+end;
+```
+
+You’ll probably have:
+
+* Visual tilesets (normal graphics).
+* A special **Blocks** tileset used only for collision (by name “Blocks”). ([GitHub][1])
+
+For the optimizer:
+
+* Only **visual** tilesets participate in stack rendering.
+* Blocks tileset is passed through unchanged; its tiles are never stacked visually.
+
+### 6.3. Classify layers
+
+Iterate `<layer>` and `<objectgroup>` children of `<map>` in order.
+
+* Find index of first `<objectgroup>`; that’s the split point: layers before → **Front**, after → **Back**. ([GitHub][1])
+* Detect **blocks** layers: `<layer>` with custom property `blocks=1` etc. (per your spec). ([GitHub][1])
+
+  * Their data is used only for collision, not for visual stacks.
+
+For each visual `<layer>`:
+
+* Read `<data encoding="csv">` content.
+* Parse into a 2D array `LayerGIDs[Y][X]`.
+
+You may keep:
+
+```pascal
+type
+  TLayerInfo = record
+    Name     : string;
+    Kind     : (lkFront, lkBack, lkBlocks, lkIgnored);
+    GIDs     : TTileIDGrid; // empty for blocks or ignored
+  end;
+
+  TLayerArray = array of TLayerInfo;
+```
+
+### 6.4. Build Back/Front stacks per tile
+
+Initialize for each `(x, y)`:
+
+```pascal
+SetLength(BackStackGrid, MapHeight, MapWidth);
+SetLength(FrontStackGrid, MapHeight, MapWidth);
+```
+
+For each visual layer:
+
+```pascal
+for y := 0 to MapHeight-1 do
+  for x := 0 to MapWidth-1 do
   begin
-    for col := 0 to width - 1 do
+    gid := Layer.GIDs[y][x];
+    if gid <> 0 then
+      if Layer.Kind = lkBack then
+        AppendToStack(BackStackGrid[y][x], gid)
+      else if Layer.Kind = lkFront then
+        AppendToStack(FrontStackGrid[y][x], gid);
+  end;
+```
+
+Order is automatically correct: later layers overwrite earlier ones, and we add them in layer order, so bottom → top is the order of push.
+
+### 6.5. Deduplicate stacks and assign GIDs
+
+Initialize:
+
+```pascal
+StackToGID := TStringToIntMap.Create;
+NextGID := 1;          // you will later partition this into tilesets
+SetLength(FrontLayer, MapHeight, MapWidth);
+SetLength(BackLayer, MapHeight, MapWidth);
+```
+
+Then:
+
+```pascal
+procedure AssignLayerFromStacks(const StackGrid: array of array of TTileStack;
+                                var OutLayer: TTileIDGrid);
+var
+  x, y: Integer;
+  key : string;
+  gid : Integer;
+  s   : TTileStack;
+begin
+  for y := 0 to MapHeight-1 do
+    for x := 0 to MapWidth-1 do
     begin
-      { Get tile ID }
-      tileID := layer[(y + row) * map.Width + (x + col)];
-
-      if tileID > 0 then
+      s := StackGrid[y][x];
+      if Length(s) = 0 then
       begin
-        { Calculate tile position in tileset (16 tiles per row) }
-        tileCol := (tileID - 1) mod tilesPerRow;
-        tileRow := (tileID - 1) div tilesPerRow;
+        OutLayer[y][x] := 0;  // empty tile
+        Continue;
+      end;
 
-        { Setup source rectangle }
-        srcRect.X := tileCol * map.TileWidth;
-        srcRect.Y := tileRow * map.TileHeight;
-        srcRect.Width := map.TileWidth;
-        srcRect.Height := map.TileHeight;
-
-        { Draw tile }
-        PutImageRect(map.Tileset, srcRect, col * map.TileWidth,
-                     row * map.TileHeight, True, fb);
+      key := StackKey(s);
+      if StackToGID.Find(key, gid) then
+        OutLayer[y][x] := gid
+      else
+      begin
+        gid := NextGID;
+        Inc(NextGID);
+        StackToGID.Add(key, gid);
+        OutLayer[y][x] := gid;
       end;
     end;
-  end;
 end;
-
-procedure FreeOptimizedMap(var map: TOptimizedMap);
-begin
-  FreeMem(map.FrontLayer);
-  FreeMem(map.BackLayer);
-  if map.BlocksLayer <> nil then
-    FreeMem(map.BlocksLayer);
-  FreeImage(map.Tileset);
-end;
-
-end.
 ```
 
-**Usage in game**:
+Call for `BackStackGrid` → `BackLayer`, and `FrontStackGrid` → `FrontLayer`.
+
+Now:
+
+* All non-empty stacks have a unique global ID.
+* The total used GIDs = `NextGID - 1`.
+
+### 6.6. Pack GIDs into one or more atlas tilesets
+
+You now know how many unique composite tiles you have: `TileCount := NextGID - 1`.
+
+Goal: distribute these GIDs into up to 4 tileset atlases, each with capacity `MaxTiles`.
+
+Simple sequential packing:
+
 ```pascal
 var
-  Map: TOptimizedMap;
-  CameraX, CameraY: Integer;
+  Atlases: TAtlasArray;
+  gid, atlasIndex, localIndex: Integer;
+```
 
-{ Helper function to check collision at world position }
-function IsBlocked(const map: TOptimizedMap; x, y: Integer): Boolean;
+Algorithm:
+
+1. Create first atlas:
+
+   * `Columns := TilesetMaxWidth div TileW;`
+   * `Rows    := TilesetMaxHeight div TileH;`
+   * `MaxTiles := Columns * Rows;`
+   * `FirstGID := 1;`
+2. For each `gid` in `1..TileCount`:
+
+   * `if Atlases[Current].UsedTiles = Atlases[Current].MaxTiles`:
+
+     * Start a **new** atlas: `FirstGID := Prev.FirstGID + Prev.MaxTiles;`
+   * `localIndex := Atlases[Current].UsedTiles;`
+   * Increment `UsedTiles`.
+   * Record: `GIDToAtlasIndex[gid] := Current;`
+   * Record: `GIDToLocalIndex[gid] := localIndex;`
+
+Later, when rendering composite tiles, you’ll draw each stack into the corresponding atlas at:
+
+```pascal
+Col := localIndex mod Columns;
+Row := localIndex div Columns;
+DestX := Col * TileWidth;
+DestY := Row * TileHeight;
+```
+
+### 6.7. Render composite tiles into atlas bitmaps
+
+For each unique stack key (you can iterate `StackToGID` map):
+
+1. Get `gid`.
+2. Determine `atlasIndex`, `localIndex`, and `DestRect` in bitmap.
+3. Reconstruct the stack `TTileStack` from the key (or store the stacks in a parallel array when assigning GIDs).
+4. Render:
+
+   * Create a temporary `TBitmap` of size `TileW×TileH`.
+   * Clear it with transparent color (e.g. index 0 or RGB magenta).
+   * For each tileID in the stack from bottom to top:
+
+     * Find its original tileset (`FindTileSetForGID` using `FirstGID/Columns` like in your TMXDRAW). ([GitHub][1])
+     * Compute source rect in the original tileset bitmap.
+     * Draw that rect onto the temp bitmap with transparency.
+   * Copy the temp bitmap into the atlas bitmap at `(DestX, DestY)`.
+
+All of this uses pure `TBitmap` and `TCanvas`:
+
+```pascal
+DestAtlas.Canvas.CopyRect(DestRect, Temp.Canvas, SrcRectAll);
+```
+
+You can use:
+
+* Either **24-bit** bitmaps on the Lazarus side and quantize later.
+* Or **8-bit paletted** bitmaps with a fixed VGA-like palette if you want to stay close to DOS.
+
+Later, before saving PCX, convert or ensure palette matches what `PCXLoad`/VGA expect.
+
+### 6.8. Save atlases as PCX
+
+For each `TAtlasTileSet.Bitmap`:
+
+* Convert `TBitmap` → `TFPMemoryImage` (using `TLazIntfImage`).
+* Save with `TFPWriterPCX`.
+
+Potential helper flow:
+
+```pascal
+uses FPImage, FPWritePCX, IntfGraphics;
+
+procedure SaveBitmapAsPCX(const FileName: string; Bmp: TBitmap);
 var
-  tileX, tileY: Integer;
-  index: Word;
+  IntfImg: TLazIntfImage;
+  Raw    : TRawImage;
+  Img    : TFPMemoryImage;
+  Writer : TFPWriterPCX;
 begin
-  IsBlocked := False;
+  IntfImg := TLazIntfImage.Create(0,0);
+  IntfImg.LoadFromBitmap(Bmp.Handle, Bmp.MaskHandle);
+  Raw := IntfImg.GetRawImage;
 
-  { No blocks layer = everything passable }
-  if map.BlocksLayer = nil then Exit;
+  Img := TFPMemoryImage.Create(Raw.Description.Width, Raw.Description.Height);
+  Img.LoadFromRawImage(Raw, False);
 
-  { Convert world position to tile coordinates }
-  tileX := x div map.TileWidth;
-  tileY := y div map.TileHeight;
+  Writer := TFPWriterPCX.Create;
+  Img.SaveToFile(FileName, Writer);
 
-  { Bounds check }
-  if (tileX < 0) or (tileX >= map.Width) or
-     (tileY < 0) or (tileY >= map.Height) then
-  begin
-    IsBlocked := True;  { Out of bounds = blocked }
-    Exit;
-  end;
-
-  { Check blocks layer }
-  index := tileY * map.Width + tileX;
-  IsBlocked := map.BlocksLayer[index] <> 0;
-end;
-
-begin
-  LoadOptimizedMap('DATA\LEVEL1_OPT.MAP', Map);
-
-  { Game loop }
-  while Running do
-  begin
-    { Check collision before moving player }
-    if not IsBlocked(Map, PlayerX + VelX, PlayerY) then
-      PlayerX := PlayerX + VelX;
-    if not IsBlocked(Map, PlayerX, PlayerY + VelY) then
-      PlayerY := PlayerY + VelY;
-
-    { Render visible portion }
-    DrawOptimizedLayer(Map, Map.BackLayer, CameraX div 16, CameraY div 16,
-                       20, 12, FrameBuffer);  { 20x12 tiles visible }
-
-    { ... render sprites/objects ... }
-
-    DrawOptimizedLayer(Map, Map.FrontLayer, CameraX div 16, CameraY div 16,
-                       20, 12, FrameBuffer);
-  end;
-
-  FreeOptimizedMap(Map);
+  Writer.Free;
+  Img.Free;
+  IntfImg.Free;
 end;
 ```
 
-## Performance Considerations
+Name the files something like:
 
-**Memory savings example** (32x32 tile map with 4 original tilesets):
-- Original: 4 tilesets × 128 tiles × 256 bytes = 131,072 bytes
-- Optimized: 87 unique combinations × 256 bytes = 22,272 bytes
-- **Savings**: 108,800 bytes (83%)
+* `tiles_opt_0.pcx`
+* `tiles_opt_1.pcx`
+* …
 
-**Runtime performance**:
-- Single tile draw per cell instead of 2-4 overlapping draws
-- No transparency checking for merged regions
-- Better cache locality (smaller tileset)
+And in TMX `<image source="tiles_opt_0.png">` you can:
 
-**Tool performance**:
-- Lazarus/FPC compiled binary is fast (native code)
-- XML parsing is negligible for typical map sizes
-- Pixel merging is linear in tile count (< 1 second for typical maps)
+* Also save PNG for Tiled, **or**
+* Just keep `.png` but only produce PCX with same basename; the DOS engine will change extension to `.pcx` anyway. ([GitHub][1])
 
-## Edge Cases and Considerations
+---
 
-1. **Empty cells**: Tile ID 0 always represents empty (not in optimized tileset)
-2. **Single-tile cells**: No merging needed, just remap to new tileset
-3. **Palette conflicts**: First tileset palette is used as master (all tilesets should share palette)
-4. **Maximum tiles**: DOS loader supports up to 65,535 tiles (Word limit)
-5. **Tileset dimensions**: Must fit in 64KB segment (typical: 256×256 pixels max)
-6. **PNG to PCX conversion**: Must be done beforehand (TILEMRG expects PCX files exist)
-7. **Blocks layer**: Layer with `blocks="1"` attribute is preserved as-is, not merged or optimized. Tile IDs in blocks layer are converted to simple 0/non-zero flags (0=passable, non-zero=blocked). Only one blocks layer per TMX file is supported.
+## 7. Build the optimized TMX DOM
 
-## Future Enhancements
+### 7.1. Tilesets
 
-1. **Palette optimization**: Merge palettes from multiple tilesets intelligently
-2. **Tile deduplication**: Detect identical tiles across different tilesets
-3. **Compression**: Apply RLE or custom compression to .MAP output
-4. **Batch processing**: Process multiple TMX files in one run
-5. **Reverse mapping**: Generate lookup table for "original tile → merged combinations"
-6. **Visualization**: Output preview PNG showing optimized tileset layout
+Remove original visual tileset `<tileset>` elements (but keep Blocks tileset).
 
-## Testing Strategy
+For each atlas:
 
-1. **Unit tests**:
-   - Tile stack comparison/hashing
-   - Pixel merging with transparency
-   - PCX read/write round-trip
-
-2. **Integration tests**:
-   - Simple 2×2 map with known combinations
-   - Large map stress test (1024×1024 tiles)
-   - Edge case maps (all empty, single tile, max combinations)
-
-3. **Visual verification**:
-   - Compare DOS rendering of original TMX vs optimized MAP
-   - Should be pixel-perfect identical
-
-## Example Workflow
-
-```bash
-# 1. Design level in Tiled with many layers
-#    - Create visual layers: Background, Ground, Walls, Decorations, Foreground, etc.
-#    - Add <objectgroup> layer to separate front/back rendering
-#    - Create collision layer: Add a tile layer named "Collision"
-#    - In Tiled, select Collision layer → Layer Properties → Add custom property:
-#      Name: blocks, Type: bool, Value: true
-#    - This adds blocks="1" attribute to the TMX XML
-#    - Paint collision tiles where player should not walk (any non-zero tile ID = blocked)
-#    Save as DATA\DUNGEON.TMX
-
-# 2. Export tilesets from Tiled as PNG
-#    Convert to PCX using existing tools
-
-# 3. Run optimizer
-TILEMRG.EXE DATA\DUNGEON.TMX DATA\DUNGEON
-#    Outputs: DUNGEON_OPT.PCX, DUNGEON_OPT.MAP, DUNGEON_OPT.TXT
-
-# 4. Copy to DOS environment
-COPY DATA\DUNGEON_OPT.* D:\ENGINE\DATA\
-
-# 5. Load in game and use collision detection
-#    LoadOptimizedMap('DATA\DUNGEON_OPT.MAP', Map);
-#    if IsBlocked(Map, PlayerX, PlayerY) then { handle collision }
+```xml
+<tileset firstgid="X" name="Atlas0" tilewidth="16" tileheight="16" columns="16">
+  <image source="tiles_opt_0.png" width="256" height="240"/>
+</tileset>
 ```
 
-## Conclusion
+* `firstgid`: from `Atlas.FirstGID`.
+* `columns`: from `Atlas.Columns`.
+* `image source`: path of the atlas image (PNG counterpart). DOS loader will use `.pcx`.
 
-This optimizer bridges the gap between rich multi-layer level design in Tiled and efficient single-layer rendering in the DOS engine. By pre-merging tiles at build time, we eliminate runtime overhead while preserving the designer's workflow.
+Blocks tileset is copied over unchanged so your collision logic still works. ([GitHub][1])
 
-The tool runs on modern systems (Lazarus/Windows), making it easy to iterate on level design without DOS environment constraints.
+### 7.2. Layers
+
+* Delete all visual layers from the original TMX.
+* Create two new `<layer>` elements:
+
+  * `<layer name="Front" width="W" height="H">`
+  * `<layer name="Back"  width="W" height="H">`
+
+Each has:
+
+```xml
+<data encoding="csv">
+  0,0,15,0,23,...
+  ...
+</data>
+```
+
+Generated from `FrontLayer` and `BackLayer` `TTileIDGrid`.
+
+Blocks layer:
+
+* Copy the original Blocks `<layer>` element and its data unchanged. Tiles there still refer to the original Blocks tileset and your DOS loader converts them to block types using `BlocksTilesetFirstGID`. ([GitHub][1])
+
+Objectgroups:
+
+* Keep `<objectgroup>` nodes as they are (engine already calls a callback per objectgroup). ([GitHub][1])
+
+Finally:
+
+```pascal
+WriteXMLFile(Doc, 'MAP_OPT.TMX');
+```
+
+---
+
+## 8. Resulting DOS-side behavior
+
+From the engine’s point of view:
+
+* `LoadTileMap` sees:
+
+  * 1..N visual tilesets (our atlases).
+  * 1 Blocks tileset named "Blocks".
+  * A few `<layer>` tags – but due to the merging logic:
+
+    * All layers before the first `<objectgroup>` are merged into **Front**.
+    * All after into **Back**. ([GitHub][1])
+
+* Because we created exactly one visual “Front” and one visual “Back” layer, the merge is trivial:
+
+  * `TileMap.Layers[TileMapLayer_Front]` = our optimized front data.
+  * `TileMap.Layers[TileMapLayer_Back]`  = our optimized back data.
+
+* Tileset logic is unchanged – `DrawTileMapLayer` uses `FirstGID`, `Columns`, etc., to compute which part of the atlas to blit. ([GitHub][1])
+
+You’ve just pre-baked all the overlapping layers into unique composite tiles, saving:
+
+* DOS RAM (fewer/lower tileset images).
+* CPU at runtime (no need to draw multiple stacked tiles per cell).
+
+---
+
+If you’d like, next step I can:
+
+* Turn this into a **concrete Lazarus unit layout** (`uMapOptimizer`, `uTmxIO`, `uAtlasBuilder`).
+* Or write a small **skeleton program** in Lazarus that:
+
+  * Reads a TMX,
+  * Builds stacks,
+  * Prints how many unique stacks you have and how many tilesets you’d need with 256×240.
+
+[1]: https://raw.githubusercontent.com/goph-R/DOS-Game-Engine/refs/heads/main/DOCS/TILEMAP.md "raw.githubusercontent.com"

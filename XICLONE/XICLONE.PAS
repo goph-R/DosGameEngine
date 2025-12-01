@@ -22,9 +22,11 @@ program XICLONE;
 
 uses
   Crt, VGA, PCXLoad, Keyboard, RTCTimer, VGAPrint, StrUtil, DRect, XITypes,
-  XILogic, XIRender, VGAFont, Config, SndBank, SBDSP, VGAUI, XIStyle;
+  XILogic, XIRender, VGAFont, Config, SndBank, SBDSP, VGAUI, XIStyle, ResMan;
 
 var
+  ResMgr: TResourceManager;
+
   { Frame buffers }
   BackBuffer: PFrameBuffer;
   ScreenBuffer: PFrameBuffer;
