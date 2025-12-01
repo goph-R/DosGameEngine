@@ -9,6 +9,7 @@ var
   AttrValue: string;
   Values: PWord;
   Count: Word;
+  i: Integer;
 
 begin
   WriteLn('MiniXML Test - Loading DATA\RES.XML');
@@ -118,6 +119,53 @@ begin
   end
   else
     WriteLn('ERROR: <testdata> node not found!');
+
+
+ { ------------------------------------------------- }
+  { MODIFY THE TREE HERE                              }
+  { ------------------------------------------------- }
+
+  { 1) Change root attribute: version="2.0" }
+  if XMLHasAttr(Root, 'version') then
+    XMLSetAttr(Root, 'version', '2.0')
+  else
+    XMLSetAttr(Root, 'version', '2.0');  { add if missing }
+
+  { 2) Add a new <resource> child under root }
+  Node := XMLAddChildElement(Root, 'resource');
+  if Node <> nil then
+  begin
+    XMLSetAttr(Node, 'name', 'test-image');
+    XMLSetAttr(Node, 'path', 'DATA\TEST-OUT.PCX');
+    { Optional text inside <resource> }
+    XMLSetText(Node, 'This is a generated resource.');
+  end;
+
+  { 3) Modify <testdata> text }
+  Node := XMLFirstChild(Root, 'testdata');
+  if Node <> nil then
+  begin
+    { Replace its text completely }
+    XMLSetText(Node, '10, 20, 30, 40, 1234, ');
+
+    { Or, if you want to append at the end instead: }
+    for i := 0 to 40 do
+    begin
+      XMLAppendText(Node, '10, 20, 30, 40, 1234, ');
+    end
+  end;
+
+  { ------------------------------------------------- }
+  { Now save the modified tree                       }
+  { ------------------------------------------------- }
+
+  if not XMLSaveFile('DATA\RES-OUT.XML', Root) then
+  begin
+    WriteLn('Save error: ', GetSaveXMLError);
+    Halt(1);
+  end;
+
+  WriteLn('XML file saved successfully!');
 
   WriteLn;
   WriteLn('Test complete. Press ENTER to exit.');

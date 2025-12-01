@@ -39,6 +39,10 @@ function XMLLoadFile(const FileName: string; var Root: PXMLNode): Boolean;
 function GetLoadXMLError: string;
 procedure XMLFreeTree(Node: PXMLNode);
 
+{ Saving }
+function XMLSaveFile(const FileName: string; Root: PXMLNode): Boolean;
+function GetSaveXMLError: string;
+  
 { Query helpers }
 function XMLAttr(const Node: PXMLNode; const Name: string): string;
 function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
@@ -53,19 +57,28 @@ procedure XMLInitNode(var N: TXMLNode);
 procedure XMLAddChild(Parent, Child: PXMLNode);
 procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
 
+procedure XMLSetText(Node: PXMLNode; const S: string);
+procedure XMLAppendText(Node: PXMLNode; const S: string);
+function  XMLAddChildElement(Parent: PXMLNode; const Name: string): PXMLNode;
+
 implementation
 
 uses
   Dos;
 
 { ===== Error reporting ===== }
-
 var
   XMLLoadError: string;
+  XMLSaveError: string;
 
 function GetLoadXMLError: string;
 begin
   GetLoadXMLError := XMLLoadError;
+end;
+
+function GetSaveXMLError: string;
+begin
+  GetSaveXMLError := XMLSaveError;
 end;
 
 { ===== Utility: whitespace & small helpers ===== }
@@ -396,6 +409,241 @@ procedure XMLFreeTree(Node: PXMLNode);
 begin
   FreeNodeRecursive(Node);
 end;
+
+{ ===== XML writer ===== }
+
+procedure WriteStrToFile(var F: Text; const S: string);
+begin
+  if Length(S) > 0 then
+    Write(F, S);
+end;
+
+procedure WriteCharToFile(var F: Text; C: Char);
+begin
+  Write(F, C);
+end;
+
+procedure WriteEscapedString(var F: Text; const S: string; ForAttr: Boolean);
+var
+  i, start: Integer;
+  c: Char;
+  tmp: string;
+begin
+  start := 1;
+  i := 1;
+  while i <= Length(S) do
+  begin
+    c := S[i];
+
+    if (c = '&') or (c = '<') or (c = '>') or
+       (ForAttr and ((c = '"') or (c = ''''))) then
+    begin
+      { flush pending normal chars }
+      if i > start then
+      begin
+        tmp := Copy(S, start, i - start);
+        WriteStrToFile(F, tmp);
+      end;
+
+      case c of
+        '&': WriteStrToFile(F, '&amp;');
+        '<': WriteStrToFile(F, '&lt;');
+        '>': WriteStrToFile(F, '&gt;');
+        '"': WriteStrToFile(F, '&quot;');
+        '''': WriteStrToFile(F, '&apos;');
+      end;
+
+      Inc(i);
+      start := i;
+    end
+    else
+      Inc(i);
+  end;
+
+  { flush any remaining chars }
+  if start <= Length(S) then
+  begin
+    tmp := Copy(S, start, Length(S) - start + 1);
+    WriteStrToFile(F, tmp);
+  end;
+end;
+
+procedure WriteEscapedTextBuf(var F: Text; Node: PXMLNode);
+var
+  i: Word;
+  p: ^Byte;
+  c: Char;
+begin
+  if (Node = nil) or (Node^.TextBuf = nil) or (Node^.TextLen = 0) then
+    Exit;
+
+  p := Node^.TextBuf;
+
+  { Walk every byte in the TextBuf and stream it out char-by-char,
+    escaping special XML characters. No temporary strings, no 255 limit. }
+  for i := 1 to Node^.TextLen do
+  begin
+    c := Char(p^);
+
+    case c of
+      '&': WriteStrToFile(F, '&amp;');
+      '<': WriteStrToFile(F, '&lt;');
+      '>': WriteStrToFile(F, '&gt;');
+      '"': WriteStrToFile(F, '&quot;');
+      '''': WriteStrToFile(F, '&apos;');
+    else
+      WriteCharToFile(F, c);
+    end;
+
+    Inc(p);
+  end;
+end;
+
+
+procedure WriteIndent(var F: Text; Level: Integer);
+var
+  i: Integer;
+begin
+  for i := 1 to Level do
+    WriteStrToFile(F, '  ');  { 2 spaces per level }
+end;
+
+procedure WriteNodeRecursive(var F: Text; Node: PXMLNode; Indent: Integer);
+var
+  i: Integer;
+  child: PXMLNode;
+  hasChildren, hasText: Boolean;
+begin
+  if Node = nil then
+    Exit;
+
+  { skip synthetic document root in recursion (handled in XMLSaveFile) }
+  if Node^.Name = '#document' then
+  begin
+    child := Node^.FirstChild;
+    while child <> nil do
+    begin
+      WriteNodeRecursive(F, child, Indent);
+      child := child^.NextSibling;
+    end;
+    Exit;
+  end;
+
+  hasChildren := Node^.FirstChild <> nil;
+  hasText := (Node^.TextBuf <> nil) and (Node^.TextLen > 0);
+
+  { Opening tag }
+  WriteIndent(F, Indent);
+  WriteCharToFile(F, '<');
+  WriteStrToFile(F, Node^.Name);
+
+  { Attributes }
+  for i := 0 to Node^.AttrCount - 1 do
+  begin
+    if Node^.AttrKeys[i] <> nil then
+    begin
+      WriteCharToFile(F, ' ');
+      WriteStrToFile(F, Node^.AttrKeys[i]^);
+      WriteCharToFile(F, '=');
+      WriteCharToFile(F, '"');
+      if Node^.AttrValues[i] <> nil then
+        WriteEscapedString(F, Node^.AttrValues[i]^, True)
+      else
+        WriteEscapedString(F, '', True);
+      WriteCharToFile(F, '"');
+    end;
+  end;
+
+  if (not hasChildren) and (not hasText) then
+  begin
+    { Self-closing empty element }
+    WriteStrToFile(F, '/>');
+    WriteStrToFile(F, #13#10);
+    Exit;
+  end;
+
+  WriteCharToFile(F, '>');
+  { Text content (if any) }
+  if hasText then
+    WriteEscapedTextBuf(F, Node);
+
+  { Child elements }
+  if hasChildren then
+  begin
+    WriteStrToFile(F, #13#10);
+    child := Node^.FirstChild;
+    while child <> nil do
+    begin
+      WriteNodeRecursive(F, child, Indent + 1);
+      child := child^.NextSibling;
+    end;
+    WriteIndent(F, Indent);
+  end;
+
+  { Closing tag }
+  WriteStrToFile(F, '</');
+  WriteStrToFile(F, Node^.Name);
+  WriteCharToFile(F, '>');
+  WriteStrToFile(F, #13#10);
+end;
+
+function XMLSaveFile(const FileName: string; Root: PXMLNode): Boolean;
+var
+  F: Text;
+  Top: PXMLNode;
+begin
+  XMLSaveError := '';
+  XMLSaveFile := False;
+
+  if Root = nil then
+  begin
+    XMLSaveError := 'Root node is nil.';
+    Exit;
+  end;
+
+  Assign(F, FileName);
+  {$I-}
+  Rewrite(F);
+  {$I+}
+  if IOResult <> 0 then
+  begin
+    XMLSaveError := 'Cannot create XML file: ' + FileName;
+    Exit;
+  end;
+
+  { XML declaration – you can change encoding if you like }
+  WriteStrToFile(F, '<?xml version="1.0" encoding="US-ASCII"?>');
+  WriteStrToFile(F, #13#10);
+
+  { If Root is a synthetic #document, write its children as top-level elements }
+  if Root^.Name = '#document' then
+    Top := Root^.FirstChild
+  else
+    Top := Root;
+
+  if Top = nil then
+  begin
+    { empty document – technically allowed, but odd }
+    Close(F);
+    XMLSaveFile := True;
+    Exit;
+  end;
+
+  if Root^.Name = '#document' then
+  begin
+    while Top <> nil do
+    begin
+      WriteNodeRecursive(F, Top, 0);
+      Top := Top^.NextSibling;
+    end;
+  end
+  else
+    WriteNodeRecursive(F, Top, 0);
+
+  Close(F);
+  XMLSaveFile := True;
+end;
+
 
 { ====== Tiny tokenizer over a memory buffer ====== }
 
@@ -919,6 +1167,60 @@ begin
   end
   else
     XMLReadWordArray := True;
+end;
+
+procedure XMLSetText(Node: PXMLNode; const S: string);
+var
+  L: Word;
+begin
+  if Node = nil then Exit;
+
+  { We reuse existing buffer if it's big enough, so just reset length }
+  Node^.TextLen := 0;
+
+  L := Length(S);
+  if L = 0 then Exit;   { empty text => no buffer needed }
+
+  EnsureBuf(Node, L);   { alloc/grow buffer if needed }
+
+  { copy string (1-based) into TextBuf }
+  Move(S[1], Node^.TextBuf^, L);
+  Node^.TextLen := L;
+end;
+
+procedure XMLAppendText(Node: PXMLNode; const S: string);
+var
+  L: Word;
+  Dest: Pointer;
+begin
+  if (Node = nil) or (S = '') then Exit;
+
+  L := Length(S);
+  EnsureBuf(Node, L);   { make sure we have room for appending L bytes }
+
+  { write after existing text }
+  Dest := Ptr(Seg(Node^.TextBuf^), Ofs(Node^.TextBuf^) + Node^.TextLen);
+  Move(S[1], Dest^, L);
+  Inc(Node^.TextLen, L);
+end;
+
+function XMLAddChildElement(Parent: PXMLNode; const Name: string): PXMLNode;
+var
+  P: PXMLNode;
+  N: string[XML_MaxNameLength];
+begin
+  XMLAddChildElement := nil;
+  if Parent = nil then Exit;
+
+  New(P);
+  XMLInitNode(P^);
+
+  { clamp name to XML_MaxNameLength }
+  N := Copy(Name, 1, XML_MaxNameLength);
+  P^.Name := N;
+
+  XMLAddChild(Parent, P);
+  XMLAddChildElement := P;
 end;
 
 end.
