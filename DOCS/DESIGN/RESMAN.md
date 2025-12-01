@@ -503,7 +503,7 @@ function TResourceManager.GetImage(const Name: String): PImage;
 var
   ImgData: PImageData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetImage := nil;
 
@@ -726,7 +726,7 @@ function TResourceManager.LoadMusicResource(Desc: PResourceDescriptor): Boolean;
 var
   MusicData: PMusicData;
   OldDesc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   LoadMusicResource := False;
 
@@ -804,7 +804,7 @@ end;
 ```pascal
 procedure TResourceManager.Done;
 var
-  Node: PLinkedListNode;
+  Node: PListEntry;
   Desc: PResourceDescriptor;
   ImgData: PImageData;
   FontData: PFontData;

@@ -367,7 +367,7 @@ function TResourceManager.GetImage(const Name: String): PImage;
 var
   ImgData: PImageData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetImage := nil;
 
@@ -454,7 +454,7 @@ function TResourceManager.GetFont(const Name: String): PFont;
 var
   FontData: PFontData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetFont := nil;
 
@@ -527,7 +527,7 @@ function TResourceManager.GetSprite(const Name: String): PSprite;
 var
   SprData: PSpriteData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetSprite := nil;
 
@@ -612,7 +612,7 @@ function TResourceManager.GetSound(const Name: String): Integer;
 var
   SndData: PSoundData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetSound := -1;
 
@@ -697,7 +697,7 @@ function TResourceManager.GetMusic(const Name: String): PHSC_Obj;
 var
   MusicData: PMusicData;
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   GetMusic := nil;
 
@@ -738,7 +738,7 @@ function TResourceManager.LoadMusicResource(Desc: PResourceDescriptor): Boolean;
 var
   MusicData: PMusicData;
   OldDesc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   LoadMusicResource := False;
 
@@ -814,7 +814,7 @@ end;
 function TResourceManager.LoadResource(const Name: String): Boolean;
 var
   Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
+  Node: PListEntry;
 begin
   LoadResource := False;
 
@@ -851,7 +851,7 @@ end;
 { TResourceManager.PreloadAll }
 procedure TResourceManager.PreloadAll;
 var
-  Node: PLinkedListNode;
+  Node: PListEntry;
   Desc: PResourceDescriptor;
 begin
   Node := Descriptors.First;
@@ -875,7 +875,7 @@ end;
 { TResourceManager.Done }
 procedure TResourceManager.Done;
 var
-  Node: PLinkedListNode;
+  Node: PListEntry;
   Desc: PResourceDescriptor;
   ImgData: PImageData;
   FontData: PFontData;
