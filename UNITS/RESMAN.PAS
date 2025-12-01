@@ -209,7 +209,7 @@ begin
 
   { Parse frame rectangles }
   FrameIdx := 0;
-  FrameNode := XMLFirstChild(XMLNode);
+  FrameNode := XMLFirstChild(XMLNode, '');
   while (FrameNode <> nil) and (FrameIdx < MaxSpriteFrames) do
   begin
     if FrameNode^.Tag^ = 'frame' then
@@ -232,7 +232,7 @@ begin
 
       Inc(FrameIdx);
     end;
-    FrameNode := XMLNextSibling(FrameNode);
+    FrameNode := XMLNextSibling(FrameNode, '');
   end;
 
   { Store frame count }
@@ -259,7 +259,7 @@ var
   TagName: String;
 begin
   ParseXML := False;
-  Child := XMLFirstChild(RootNode);
+  Child := XMLFirstChild(RootNode, '');
 
   while Child <> nil do
   begin
@@ -356,7 +356,7 @@ begin
       Dispose(Desc);
     end;
 
-    Child := XMLNextSibling(Child);
+    Child := XMLNextSibling(Child, '');
   end;
 
   ParseXML := True;
