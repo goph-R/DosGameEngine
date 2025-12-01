@@ -99,7 +99,7 @@ IMGTEST.EXE
 - **[SNDBANK.md](DOCS/SNDBANK.md)** - XMS sound bank
 - **[SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system
 - **[VGAFONT.md](DOCS/VGAFONT.md)** - Variable-width fonts
-- **[MINIXML.md](DOCS/MINIXML.md)** - XML parser
+- **[MINIXML.md](DOCS/MINIXML.md)** - XML parser and writer
 
 ## ✨ Features
 
@@ -136,7 +136,7 @@ IMGTEST.EXE
 
 ### Data & Resources
 - **RESMAN.PAS**: Resource Manager (XML-based asset loading, lazy/eager loading, palette extraction)
-- **MINIXML.PAS**: XML parser (DOM-style, 64KB file support)
+- **MINIXML.PAS**: XML parser and writer (DOM-style, 64KB file support)
 - **CONFIG.PAS**: simple INI parser and writer
 - **STRMAP.PAS**: Hash map (O(1) lookup)
 - **LINKLIST.PAS**: Linked list
