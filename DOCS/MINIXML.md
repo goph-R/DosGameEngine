@@ -2,13 +2,13 @@
 
 ## Overview
 
-MINIXML is a compact XML parser designed for Turbo Pascal 7.0, providing DOM-style access to XML configuration files and data. It handles XML files up to ~64KB (Turbo Pascal real-mode heap block limit) and supports the core XML features needed for game configuration and data storage.
+MINIXML is a compact XML parser and writer designed for Turbo Pascal 7.0, providing DOM-style access to XML configuration files and data. It handles XML files up to ~64KB (Turbo Pascal real-mode heap block limit) and supports the core XML features needed for game configuration and data storage.
 
 ## Features
 
-- **Large file support**: Handles XML files up to ~64KB
+- **64K file support**: Handles XML files up to ~64KB
 - **DOM-style tree structure**: Navigate XML as parent/child/sibling nodes
-- **Attribute support**: Read element attributes with fast hash-map lookup
+- **Attribute support**: Read element attributes, maximum 8, linear lookup
 - **Text content**: Handles both small (<255 bytes) and large text content
 - **Comments and processing instructions**: Skips XML comments and `<?xml?>` declarations
 - **UTF-8 BOM detection**: Automatically skips UTF-8 byte order mark
@@ -17,7 +17,7 @@ MINIXML is a compact XML parser designed for Turbo Pascal 7.0, providing DOM-sty
 
 ## Dependencies
 
-- **StrMap.PAS**: String-to-pointer hash map for fast attribute lookup
+- **GENTYPES.PAS**: Generic types
 
 ## Type Definitions
 
@@ -27,26 +27,25 @@ const
   XML_MaxAttrsCount = 8;   { Maximum attributes per node }
 
 type
+  PAttrString = PChar;
+  TPAttrStringArray = array[0..XML_MaxAttrsCount - 1] of PAttrString;
+
   PXMLNode = ^TXMLNode;
   TXMLNode = record
-    Name    : string[XML_MaxNameLength]; { Element tag name (max 20 chars) }
+    Name    : string[XML_MaxNameLength];
 
     { Text content buffer (all text stored here) }
-    TextBuf : Pointer;       { Dynamically allocated buffer }
-    TextLen : Word;          { Bytes in TextBuf }
-    TextCap : Word;          { Allocated capacity }
+    TextBuf : Pointer;   { points to a byte buffer }
+    TextLen : Word;      { number of bytes in TextBuf }
+    TextCap : Word;      { allocated capacity in bytes }
 
-    { Attributes (max 8 per node, dynamically allocated) }
-    AttrMap : TStringMap;      { Fast attribute lookup }
-    AttrKeys  : PPShortString; { Dynamic array of string pointers }
-    AttrValues: PPShortString; { Dynamic array of string pointers }
+    AttrKeys  : TPAttrStringArray;
+    AttrValues: TPAttrStringArray;
     AttrCount : Integer;
-    AttrCap   : Integer;       { Allocated capacity }
 
-    { Tree structure }
-    FirstChild : PXMLNode;   { First child element }
-    NextSibling: PXMLNode;   { Next sibling element }
-    Parent     : PXMLNode;   { Parent element }
+    FirstChild : PXMLNode;
+    NextSibling: PXMLNode;
+    Parent     : PXMLNode;
   end;
 ```
 
@@ -223,40 +222,6 @@ end;
 
 ## Usage Examples
 
-### Basic Configuration Loading
-
-```pascal
-program ConfigTest;
-uses MiniXML;
-
-var
-  Root, Config, Video: PXMLNode;
-  Width, Height: Integer;
-
-begin
-  if not XMLLoadFile('GAME.XML', Root) then
-  begin
-    WriteLn('Failed to load config!');
-    Halt(1);
-  end;
-
-  { Navigate: <game> -> <config> -> <video> }
-  Config := XMLFirstChild(Root, 'config');
-  if Config <> nil then
-  begin
-    Video := XMLFirstChild(Config, 'video');
-    if Video <> nil then
-    begin
-      Val(XMLAttr(Video, 'width'), Width);
-      Val(XMLAttr(Video, 'height'), Height);
-      WriteLn('Video: ', Width, 'x', Height);
-    end;
-  end;
-
-  XMLFreeTree(Root);
-end.
-```
-
 ### Iterating Through Lists
 
 ```pascal
@@ -325,38 +290,36 @@ end;
 ## Sample XML File
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<game version="1.0">
-  <metadata>
-    <title>DOS Adventure</title>
-    <author>Your Name</author>
-  </metadata>
+<?xml version="1.0" encoding="US-ASCII"?>
+<resources>
+  <!-- Audio -->
+  <music name="fantasy" path="FANTASY.HSC" />
+  <sound name="explode" path="EXPLODE.VOC" />
 
-  <levels>
-    <level id="1" name="Forest" difficulty="easy">
-      <music>FOREST.HSC</music>
-      <background>FOREST.PCX</background>
-      <enemies count="5" />
-    </level>
+  <!-- Images -->
+  <image name="test" path="TEST.PCX" palette="test" />
+  <image name="player" path="PLAYER.PCX" palette="player" />
 
-    <level id="2" name="Castle" difficulty="hard" boss="true">
-      <music>BOSS.HSC</music>
-      <background>CASTLE.PCX</background>
-      <enemies count="1" />
-    </level>
-  </levels>
+  <!-- Fonts -->
+  <font name="small" path="FONT-SM.XML" />
+  <font name="large" path="FONT-LG.XML" />
 
-  <sprites>
-    <sprite id="player" file="PLAYER.PCX" width="32" height="32" />
-    <sprite id="enemy" file="ENEMY.PCX" width="24" height="24" />
-  </sprites>
-
-  <!-- Comments are supported and ignored -->
-  <config>
-    <video mode="13h" width="320" height="200" />
-    <audio music="true" sfx="true" />
-  </config>
-</game>
+  <!-- Animations -->
+  <sprite name="player_idle" image="player" duration="0.8">
+    <frame x="0" y="0" width="32" height="32" />
+    <frame x="32" y="0" width="32" height="32" />
+    <frame x="64" y="0" width="32" height="32" />
+    <frame x="96" y="0" width="32" height="32" />
+  </sprite>
+  <sprite name="player_run" image="player" duration="0.5">
+    <frame x="0" y="32" width="32" height="32" />
+    <frame x="32" y="32" width="32" height="32" />
+    <frame x="64" y="32" width="32" height="32" />
+    <frame x="96" y="32" width="32" height="32" />
+    <frame x="128" y="32" width="32" height="32" />
+    <frame x="160" y="32" width="32" height="32" />
+  </sprite>
+</resources>
 ```
 
 ## Limitations
@@ -368,7 +331,6 @@ end;
 5. **No validation**: Does not validate against DTD/XSD schemas
 6. **No entities**: HTML entities (`&lt;`, `&amp;`, etc.) not decoded
 7. **No namespaces**: XML namespaces not supported
-8. **Error handling**: Limited error reporting (returns `False` on failure)
 
 ## Memory Management
 
@@ -379,32 +341,10 @@ end;
 
 ## Performance Characteristics
 
-- **Attribute lookup**: O(1) average (hash map)
+- **Attribute lookup**: O(n) linear scan
 - **Child iteration**: O(n) linear scan
 - **File loading**: O(n) single-pass parse
 - **Memory overhead**: ~103 bytes per node (base) + text content + (actual attributes × ~20-50 bytes each)
-Here is a **clean, accurate, drop-in replacement** section for your documentation.
-It reflects the *exact* behavior of the current `MINIXML.PAS` implementation.
-
-You can paste this directly into your README.
-
----
-
-# 📦 Memory Usage (MiniXML)
-
-MiniXML is designed for **minimal RAM footprint** under real DOS / TP7 limits.
-Below is the real memory behavior of the current implementation in `MINIXML.PAS`.
-
----
-
-Below is an updated **drop-in replacement** for the memory usage documentation, reflecting:
-
-* No per-node hash map
-* Dynamic-sized attribute strings
-* Variable-sized text buffer
-* Actual `TXMLNode` record size (~100–120 bytes)
-
-This is the **final, correct** description of your optimized MiniXML.
 
 ---
 
@@ -544,6 +484,157 @@ begin
 end;
 ```
 
+---
+
+## XML Writing & Tree Modification
+
+### Saving XML Files
+
+```pascal
+function XMLSaveFile(const FileName: string; Root: PXMLNode): Boolean;
+```
+
+Writes an XML file from a MiniXML tree.
+
+* Produces well-formed XML.
+* Correct indentation and nesting.
+* Self-closing empty tags.
+* Escapes all required characters (`& < > " '`).
+* Handles large text blocks (CSV, maps) without modification.
+* If the root node is `#document`, only its children are written.
+
+**Returns:**
+`True` on success, `False` on error.
+
+```pascal
+function GetSaveXMLError: string;
+```
+
+Returns last XML save error message.
+
+### Creating Child Nodes
+
+```pascal
+function XMLAddChildElement(Parent: PXMLNode; const Name: string): PXMLNode;
+```
+
+Creates a new element and attaches it as the last child of `Parent`.
+
+#### Example:
+
+```pascal
+var N: PXMLNode;
+N := XMLAddChildElement(Root, 'tileset');
+XMLSetAttr(N, 'firstgid', '1');
+```
+
+### Setting Element Text
+
+```pascal
+procedure XMLSetText(Node: PXMLNode; const S: string);`
+```
+
+Replaces the entire text content of a node.
+
+Useful for:
+
+* `<data encoding="csv">`
+* numeric lists
+* small strings
+
+#### Example:
+
+```pascal
+XMLSetText(DataNode, '1,2,3,4,5');
+```
+
+### Appending Text to a Node
+
+```pascal
+procedure XMLAppendText(Node: PXMLNode; const S: string);
+```
+
+Appends text to existing node text, expanding the internal buffer if needed.
+
+Useful when writing large CSV maps:
+
+```pascal
+XMLSetText(DataNode, '1,2,3');
+XMLAppendText(DataNode, ',4,5,6');
+```
+
+### Setting Attributes (Existing)
+
+```pascal
+procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
+```
+
+Creates or updates an attribute:
+
+```pascal
+XMLSetAttr(Node, 'width', '320');
+XMLSetAttr(Node, 'height', '200');
+```
+
+### Building an XML File
+
+Below is a simple example that demonstrates reading, modifying, and saving an XML file:
+
+```pascal
+var
+  Root, Node: PXMLNode;
+begin
+  if not XMLLoadFile('DATA\RES.XML', Root) then
+    Halt;
+
+  { Modify root attribute }
+  XMLSetAttr(Root, 'version', '2.0');
+
+  { Add a <resource> entry }
+  Node := XMLAddChildElement(Root, 'resource');
+  XMLSetAttr(Node, 'name', 'sprite');
+  XMLSetAttr(Node, 'path', 'DATA\SPRITE.PCX');
+  XMLSetText(Node, 'Auto-generated entry.');
+
+  { Replace text of <testdata> }
+  Node := XMLFirstChild(Root, 'testdata');
+  if Node <> nil then
+    XMLSetText(Node, '10,20,30,40,50');
+
+  { Save the result }
+  if not XMLSaveFile('DATA\RES-OUT.XML', Root) then
+    WriteLn('Save error: ', GetSaveXMLError);
+
+  XMLFreeTree(Root);
+end.
+```
+
+### Notes & Limitations
+
+* MiniXML does **not** preserve whitespace formatting of the input file.
+* The writer may reorder attributes (still valid XML).
+* Text nodes store bytes as-is; no UTF-8 conversion.
+* Large `<data>` blocks are handled efficiently using raw buffers.
+
+---
+
+## Summary
+
+MiniXML now provides:
+
+✔ XML loading
+✔ XML tree navigation
+✔ XML modification (attributes, text, structure)
+✔ XML writer (pretty-printed, escaped, valid XML)
+✔ Fully compatible with TMX (Tiled) files used in the DOS Game Engine
+
+This turns MiniXML into a capable **bidirectional** XML system suitable for:
+
+* TMX map optimization
+* Tileset generation tools
+* Resource compilers
+* Any DOS-friendly asset pipeline
+
 ## Troubleshooting
 
 **Problem:** `XMLLoadFile` returns `False`
@@ -596,11 +687,8 @@ MINIXML was created in 2025 specifically for this DOS game engine with the follo
 **Simplicity:**
 - Single-pass parser, no preprocessing
 - DOM-style tree for easy navigation
-- Hash map for fast O(1) attribute lookup
-- Minimal dependencies (only STRMAP.PAS)
 
 ## See Also
 
-- **STRMAP.PAS**: String hash map used for attribute storage
 - **TESTS\XMLTEST.PAS**: Complete usage example
-- **DATA\TEST.XML**: Sample XML file for testing
+- **DATA\RES.XML**: Resource XML file for testing
