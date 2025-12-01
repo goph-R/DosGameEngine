@@ -331,7 +331,7 @@ begin
   FrameNode := XMLFirstChild(XMLNode, '');
   while (FrameNode <> nil) and (FrameIdx < MaxSpriteFrames) do
   begin
-    if FrameNode^.Tag^ = 'frame' then
+    if FrameNode^.Name = 'frame' then
     begin
       { Validate frame attributes }
       if not XMLHasAttr(FrameNode, 'x') or not XMLHasAttr(FrameNode, 'y') or
@@ -385,7 +385,7 @@ begin
 
   while Child <> nil do
   begin
-    TagName := Child^.Tag^;
+    TagName := Child^.Name;
 
     { Create descriptor based on tag type }
     New(Desc);
