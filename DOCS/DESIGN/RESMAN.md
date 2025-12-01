@@ -71,6 +71,14 @@ The `image` attribute path is relative to the XML file's directory. For example,
 
 ## Data Structures
 
+### Helper Types
+
+```pascal
+type
+  { Pointer type for HSC_Obj (not defined in PLAYHSC unit) }
+  PHSC_Obj = ^HSC_Obj;
+```
+
 ### Resource Types
 
 ```pascal
@@ -1041,18 +1049,22 @@ Music is implemented as a singleton resource - only one music track can be loade
 
 **Example:**
 ```pascal
-{ Load and play title music }
-TitleMusic := ResMgr.GetMusic('title');
-TitleMusic^.Start;
+var
+  TitleMusic, GameMusic: PHSC_Obj;
+begin
+  { Load and play title music }
+  TitleMusic := ResMgr.GetMusic('title');
+  TitleMusic^.Start;
 
-{ Later, switch to gameplay music - title music auto-unloaded }
-GameMusic := ResMgr.GetMusic('level1');
-GameMusic^.Start;
+  { Later, switch to gameplay music - title music auto-unloaded }
+  GameMusic := ResMgr.GetMusic('level1');
+  GameMusic^.Start;
 
-{ TitleMusic pointer is now invalid! }
-{ To switch back, call GetMusic again }
-TitleMusic := ResMgr.GetMusic('title');  { Reloads from disk }
-TitleMusic^.Start;
+  { TitleMusic pointer is now invalid! }
+  { To switch back, call GetMusic again }
+  TitleMusic := ResMgr.GetMusic('title');  { Reloads from disk }
+  TitleMusic^.Start;
+end;
 ```
 
 **Important Notes:**
