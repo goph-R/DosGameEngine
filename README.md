@@ -90,6 +90,7 @@ IMGTEST.EXE
 - **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
 
 **APIs:**
+- **[RESMAN.md](DOCS/RESMAN.md)** - Resource Manager (XML-based asset loading)
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
 - **[VGAUI.md](DOCS/VGAUI.md)** - UI widgets (Label, Button, Checkbox, LineEdit)
 - **[KEYBOARD.md](DOCS/KEYBOARD.md)** - Keyboard handler & scan codes
@@ -133,7 +134,8 @@ IMGTEST.EXE
 ### Memory
 - **XMS.PAS**: XMS extended memory (>1MB via HIMEM.SYS), smart buffering, heap management
 
-### Data
+### Data & Resources
+- **RESMAN.PAS**: Resource Manager (XML-based asset loading, lazy/eager loading, palette extraction)
 - **MINIXML.PAS**: XML parser (DOM-style, 64KB file support)
 - **CONFIG.PAS**: simple INI parser and writer
 - **STRMAP.PAS**: Hash map (O(1) lookup)

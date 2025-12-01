@@ -10,12 +10,16 @@ type
   { Pointer type for HSC_Obj (not defined in PLAYHSC) }
   PHSC_Obj = ^HSC_Obj;
 
+  { Pointer type for TPalette (not defined in VGA) }
+  PPalette = ^TPalette;
+
   TResourceType = (
     ResType_Music,    { HSC music files }
     ResType_Sound,    { VOC sound files (via TSoundBank) }
     ResType_Image,    { PCX images }
     ResType_Font,     { Variable-width fonts (TFont from VGAFONT) }
-    ResType_Sprite    { Sprite definitions (TSprite) }
+    ResType_Sprite,   { Sprite definitions (TSprite) }
+    ResType_Palette   { VGA palette (256-color) }
   );
 
   { Music resource data }
@@ -34,7 +38,7 @@ type
   PImageData = ^TImageData;
   TImageData = record
     Image: TImage;
-    UsePalette: Boolean;
+    PaletteName: PShortString;  { Name of palette resource, nil if none }
   end;
 
   { Font resource data }
@@ -51,6 +55,12 @@ type
     Duration: Real;
   end;
 
+  { Palette resource data }
+  PPaletteData = ^TPaletteData;
+  TPaletteData = record
+    Palette: TPalette;
+  end;
+
   { Base resource descriptor }
   PResourceDescriptor = ^TResourceDescriptor;
   TResourceDescriptor = record
@@ -59,7 +69,7 @@ type
     Path: PShortString;
     Loaded: Boolean;
     Data: Pointer;
-    UsePalette: Boolean;
+    PaletteName: PShortString;  { For images: name of palette resource }
   end;
 
   { Resource Manager }
@@ -70,6 +80,7 @@ type
     ImageMap: TStringMap;
     FontMap: TStringMap;
     SpriteMap: TStringMap;
+    PaletteMap: TStringMap;
 
     { Descriptors list (for cleanup) }
     Descriptors: TLinkedList;
@@ -85,6 +96,9 @@ type
     { Loading strategy }
     LazyLoad: Boolean;
 
+    { Base path for resource files (directory of XML file) }
+    BasePath: String;
+
     { Error tracking }
     LastError: String;
 
@@ -98,6 +112,7 @@ type
     function GetSprite(const Name: String): PSprite;
     function GetSound(const Name: String): Integer;
     function GetMusic(const Name: String): PHSC_Obj;
+    function GetPalette(const Name: String): PPalette;
 
     { Manual loading/unloading }
     function LoadResource(const Name: String): Boolean;
@@ -116,6 +131,7 @@ type
       function LoadSpriteResource(Desc: PResourceDescriptor): Boolean;
       function LoadSoundResource(Desc: PResourceDescriptor): Boolean;
       function LoadMusicResource(Desc: PResourceDescriptor): Boolean;
+      function LoadPaletteResource(Desc: PResourceDescriptor): Boolean;
   end;
 
 implementation
@@ -129,6 +145,7 @@ begin
   MapInit(ImageMap);
   MapInit(FontMap);
   MapInit(SpriteMap);
+  MapInit(PaletteMap);
 
   { Initialize descriptor list }
   ListInit(Descriptors);
@@ -150,8 +167,20 @@ end;
 function TResourceManager.LoadFromXML(const Filename: String): Boolean;
 var
   RootNode: PXMLNode;
+  I: Integer;
 begin
   LoadFromXML := False;
+
+  { Extract base path from XML filename }
+  BasePath := '';
+  for I := Length(Filename) downto 1 do
+  begin
+    if Filename[I] = '\' then
+    begin
+      BasePath := Copy(Filename, 1, I);
+      Break;
+    end;
+  end;
 
   if not XMLLoadFile(Filename, RootNode) then
   begin
@@ -319,7 +348,16 @@ begin
       end;
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path');
-      Desc^.UsePalette := XMLHasAttr(Child, 'use-palette');
+
+      { Check for palette attribute }
+      if XMLHasAttr(Child, 'palette') then
+      begin
+        New(Desc^.PaletteName);
+        Desc^.PaletteName^ := XMLAttr(Child, 'palette');
+      end
+      else
+        Desc^.PaletteName := nil;
+
       ListAdd(Descriptors, Desc);
     end
     else if TagName = 'font' then
@@ -348,6 +386,20 @@ begin
         Exit;
       end;
 
+      ListAdd(Descriptors, Desc);
+    end
+    else if TagName = 'palette' then
+    begin
+      Desc^.ResType := ResType_Palette;
+      if not XMLHasAttr(Child, 'path') then
+      begin
+        LastError := 'Resource "' + Desc^.Name^ + '" missing path attribute';
+        Dispose(Desc^.Name); Dispose(Desc);
+        Exit;
+      end;
+      New(Desc^.Path);
+      Desc^.Path^ := XMLAttr(Child, 'path');
+      Desc^.PaletteName := nil;
       ListAdd(Descriptors, Desc);
     end
     else
@@ -408,7 +460,8 @@ function TResourceManager.LoadImageResource(Desc: PResourceDescriptor): Boolean;
 var
   ImgData: PImageData;
   LoadResult: Boolean;
-  Palette: TPalette;
+  ExtractedPalette: TPalette;
+  PalData: PPaletteData;
 begin
   LoadImageResource := False;
 
@@ -420,23 +473,41 @@ begin
 
   { Allocate image data }
   New(ImgData);
-  ImgData^.UsePalette := Desc^.UsePalette;
 
-  { Load PCX file }
-  if ImgData^.UsePalette then
+  { Store palette name if present }
+  if Desc^.PaletteName <> nil then
   begin
-    { With palette }
-    LoadResult := LoadPCXWithPalette(Desc^.Path^, ImgData^.Image, Palette);
-    if LoadResult then
-      SetPalette(Palette);
+    New(ImgData^.PaletteName);
+    ImgData^.PaletteName^ := Desc^.PaletteName^;
   end
   else
-    { Without palette }
-    LoadResult := LoadPCX(Desc^.Path^, ImgData^.Image);
+    ImgData^.PaletteName := nil;
+
+  { Load image with or without palette extraction }
+  if Desc^.PaletteName <> nil then
+  begin
+    { Load image WITH palette extraction }
+    LoadResult := LoadPCXWithPalette(BasePath + Desc^.Path^, ImgData^.Image, ExtractedPalette);
+    if LoadResult then
+    begin
+      { Store extracted palette as a named palette resource }
+      New(PalData);
+      PalData^.Palette := ExtractedPalette;
+      MapPut(PaletteMap, Desc^.PaletteName^, PalData);
+
+      { Apply the palette }
+      SetPalette(ExtractedPalette);
+    end;
+  end
+  else
+    { Load without palette }
+    LoadResult := LoadPCX(BasePath + Desc^.Path^, ImgData^.Image);
 
   if not LoadResult then
   begin
     LastError := 'Failed to load image "' + Desc^.Name^ + '" from: ' + Desc^.Path^;
+    if ImgData^.PaletteName <> nil then
+      Dispose(ImgData^.PaletteName);
     Dispose(ImgData);
     Exit;
   end;
@@ -507,7 +578,7 @@ begin
   New(FontData);
 
   { Load font from XML file }
-  if not LoadFont(Desc^.Path^, FontData^.Font) then
+  if not LoadFont(BasePath + Desc^.Path^, FontData^.Font) then
   begin
     LastError := 'Failed to load font "' + Desc^.Name^ + '" from: ' + Desc^.Path^ + ' - ' + GetLoadFontError;
     Dispose(FontData);
@@ -676,7 +747,7 @@ begin
   New(SndData);
 
   { Load into sound bank }
-  SndData^.SoundID := SoundBank.LoadSound(Desc^.Path^);
+  SndData^.SoundID := SoundBank.LoadSound(BasePath + Desc^.Path^);
   if SndData^.SoundID < 0 then
   begin
     LastError := 'Failed to load sound "' + Desc^.Name^ + '" from: ' + Desc^.Path^;
@@ -731,6 +802,47 @@ begin
   end;
 
   LastError := 'Music not found: ' + Name;
+end;
+
+{ TResourceManager.GetPalette }
+function TResourceManager.GetPalette(const Name: String): PPalette;
+var
+  PalData: PPaletteData;
+  Desc: PResourceDescriptor;
+  Node: PListEntry;
+begin
+  GetPalette := nil;
+
+  { Check if already loaded }
+  if MapContains(PaletteMap, Name) then
+  begin
+    PalData := PPaletteData(MapGet(PaletteMap, Name));
+    GetPalette := @PalData^.Palette;
+    Exit;
+  end;
+
+  { Lazy load if enabled }
+  if LazyLoad then
+  begin
+    { Find descriptor }
+    Node := Descriptors.First;
+    while Node <> nil do
+    begin
+      Desc := PResourceDescriptor(Node^.Value);
+      if (Desc^.ResType = ResType_Palette) and (Desc^.Name^ = Name) then
+      begin
+        if LoadPaletteResource(Desc) then
+        begin
+          PalData := PPaletteData(Desc^.Data);
+          GetPalette := @PalData^.Palette;
+        end;
+        Exit;
+      end;
+      Node := Node^.Next;
+    end;
+  end;
+
+  LastError := 'Palette not found: ' + Name;
 end;
 
 { TResourceManager.LoadMusicResource }
@@ -789,7 +901,7 @@ begin
 
   { Initialize and load HSC music }
   MusicData^.Music.Init(0);
-  if not MusicData^.Music.LoadFile(Desc^.Path^) then
+  if not MusicData^.Music.LoadFile(BasePath + Desc^.Path^) then
   begin
     LastError := 'Failed to load music "' + Desc^.Name^ + '" from: ' + Desc^.Path^;
     MusicData^.Music.Done;
@@ -808,6 +920,38 @@ begin
   Desc^.Loaded := True;
 
   LoadMusicResource := True;
+end;
+
+{ TResourceManager.LoadPaletteResource }
+function TResourceManager.LoadPaletteResource(Desc: PResourceDescriptor): Boolean;
+var
+  PalData: PPaletteData;
+begin
+  LoadPaletteResource := False;
+
+  if Desc^.Loaded then
+  begin
+    LoadPaletteResource := True;
+    Exit;
+  end;
+
+  { Allocate palette data }
+  New(PalData);
+
+  { Load palette using VGA.LoadPalette }
+  if not LoadPalette(BasePath + Desc^.Path^, PalData^.Palette) then
+  begin
+    LastError := 'Failed to load palette "' + Desc^.Name^ + '" from: ' + Desc^.Path^;
+    Dispose(PalData);
+    Exit;
+  end;
+
+  { Store in map }
+  MapPut(PaletteMap, Desc^.Name^, PalData);
+  Desc^.Data := PalData;
+  Desc^.Loaded := True;
+
+  LoadPaletteResource := True;
 end;
 
 { TResourceManager.LoadResource }
@@ -832,6 +976,7 @@ begin
         ResType_Sprite: LoadResource := LoadSpriteResource(Desc);
         ResType_Sound: LoadResource := LoadSoundResource(Desc);
         ResType_Music: LoadResource := LoadMusicResource(Desc);
+        ResType_Palette: LoadResource := LoadPaletteResource(Desc);
       end;
       Exit;
     end;
@@ -866,6 +1011,7 @@ begin
         ResType_Sprite: LoadSpriteResource(Desc);
         ResType_Sound: LoadSoundResource(Desc);
         ResType_Music: LoadMusicResource(Desc);
+        ResType_Palette: LoadPaletteResource(Desc);
       end;
     end;
     Node := Node^.Next;
@@ -881,6 +1027,8 @@ var
   FontData: PFontData;
   SprData: PSpriteData;
   SndData: PSoundData;
+  PalData: PPaletteData;
+  i: Integer;
 begin
   { Free all loaded resources }
   Node := Descriptors.First;
@@ -895,6 +1043,8 @@ begin
           begin
             ImgData := PImageData(Desc^.Data);
             FreeImage(ImgData^.Image);
+            if ImgData^.PaletteName <> nil then
+              Dispose(ImgData^.PaletteName);
             Dispose(ImgData);
           end;
         ResType_Font:
@@ -919,6 +1069,11 @@ begin
           begin
             { Music cleanup handled by singleton cleanup below }
           end;
+        ResType_Palette:
+          begin
+            PalData := PPaletteData(Desc^.Data);
+            Dispose(PalData);
+          end;
       end;
     end
     else
@@ -939,6 +1094,7 @@ begin
     { Free descriptor }
     if Desc^.Name <> nil then Dispose(Desc^.Name);
     if Desc^.Path <> nil then Dispose(Desc^.Path);
+    if Desc^.PaletteName <> nil then Dispose(Desc^.PaletteName);
     Dispose(Desc);
 
     Node := Node^.Next;
@@ -970,6 +1126,7 @@ begin
   MapFree(ImageMap);
   MapFree(FontMap);
   MapFree(SpriteMap);
+  MapFree(PaletteMap);
 end;
 
 end.

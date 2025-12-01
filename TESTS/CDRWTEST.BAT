@@ -3,21 +3,7 @@ echo Compiling DRWTEST and dependencies...
 echo.
 
 cd ..\UNITS
-
-echo Compiling GENTYPES.PAS...
-tpc GENTYPES.PAS
-if errorlevel 1 goto error
-
-echo Compiling VGA.PAS...
-tpc VGA.PAS
-if errorlevel 1 goto error
-
-echo Compiling KEYBOARD.PAS...
-tpc KEYBOARD.PAS
-if errorlevel 1 goto error
-
-echo Compiling VGAPRINT.PAS...
-tpc VGAPRINT.PAS
+call CUNITS.BAT
 if errorlevel 1 goto error
 
 echo Compiling DRWTEST.PAS...

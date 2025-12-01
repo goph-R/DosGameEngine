@@ -6,7 +6,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  VGA, VGAPrint, PCXLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer;
+  VGA, VGAPrint, PCXLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer, ResMan;
 
 type
   TTestSprite = record
@@ -16,9 +16,10 @@ type
   end;
 
 var
+  ResMgr: TResourceManager;
   FrontBuffer, BackBuffer, ScreenBuffer: PFrameBuffer;
-  Palette: TPalette;
-  BackgroundImage: TImage;
+  TestPalette: PPalette;
+  BackgroundImage: PImage;
   Sprite1, Sprite2: TImage;
   Frame: Integer;
   LastTime, CurrentTime: Real;
@@ -30,7 +31,7 @@ var
   UseMusic: Boolean;
   Key: Char;
   Running: Boolean;
-  Music: HSC_Obj;
+  Music: PHSC_Obj;
   GameConfig: TConfig;
 
   { Test sprites for clipping demonstration }
@@ -59,15 +60,12 @@ begin
   { This prevents interrupt vectors from pointing to deallocated memory }
 
   { 1. Stop music (IRQ0 - timer interrupt) }
-  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
-    Music.Done;
+  if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) and (Music <> nil) then
+    Music^.Stop;
 
   { 2. Stop sound (IRQ5/7 - Sound Blaster interrupt) }
   if GameConfig.SoundCard = SoundCard_SoundBlaster then
-  begin
-    Bank.Done;
     UninstallHandler;
-  end;
 
   { 3. Stop RTC timer (IRQ8 - RTC periodic interrupt) }
   DoneRTC;
@@ -91,10 +89,10 @@ begin
   LoadConfig(GameConfig);
 
   { Parse command line arguments }
-  
+
   UseVSync := True;  { VSync enabled by default }
   UseMusic := True;
-  
+
   for i := 1 to ParamCount do
   begin
     if (ParamStr(i) = 'novsync') or (ParamStr(i) = 'NOVSYNC') then
@@ -103,11 +101,20 @@ begin
       UseMusic := False;
   end;
 
+  { Initialize resource manager }
+  ResMgr.Init(True);  { Lazy loading }
+  if not ResMgr.LoadFromXML('DATA\RES.XML') then
+  begin
+    WriteLn('ERROR: Failed to load resources: ', ResMgr.LastError);
+    Halt(1);
+  end;
+
+  { Load music }
   if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) then
   begin
-    Music.Init(0);
-    Music.LoadFile('DATA\FANTASY.HSC');
-    Music.Start;
+    Music := ResMgr.GetMusic('fantasy');
+    if Music <> nil then
+      Music^.Start;
   end;
   
   WriteLn('XMS Sound Bank Test with SBDSP');
@@ -137,46 +144,40 @@ begin
     WriteLn('Sound Blaster initialized - OK');
     WriteLn;
 
-    { Initialize sound bank }
-    if not Bank.Init then
-    begin
-      WriteLn('ERROR: Failed to initialize sound bank');
-      UninstallHandler;
-      Halt(1);
-    end;
-
-    WriteLn('Sound bank initialized - OK');
-    WriteLn;
-
-    { Load sounds into XMS }
-    WriteLn('Loading sounds into XMS memory...');
-
-    ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
+    { Load sound }
+    WriteLn('Loading sounds...');
+    ExplosionID := ResMgr.GetSound('explode');
     if ExplosionID < 0 then
     begin
-      WriteLn('ERROR: Failed to load EXPLODE.VOC');
-      Bank.Done;
+      WriteLn('ERROR: Failed to load explosion sound');
       UninstallHandler;
       Halt(1);
     end;
+    WriteLn('Sounds loaded - OK');
+    WriteLn;
   end;
 
 
-  { Load test image and palette }
-  if not LoadPCXWithPalette('DATA\TEST.PCX', BackgroundImage, Palette) then
+  { Load test image }
+  BackgroundImage := ResMgr.GetImage('test');
+  if BackgroundImage = nil then
   begin
-    WriteLn('Error: Could not load TEST.PCX');
+    WriteLn('Error: Could not load test image: ', ResMgr.LastError);
     Halt(1);
   end;
 
   { Initialize VGA Mode 13h }
   InitVGA;
-  SetPalette(Palette);
+
+  { Set palette (extracted from image during loading) }
+  TestPalette := ResMgr.GetPalette('test');
+  if TestPalette <> nil then
+    SetPalette(TestPalette^);
 
   { Create buffers and render background }
   BackBuffer := CreateFrameBuffer;
   FrontBuffer := CreateFrameBuffer;
-  PutImage(BackgroundImage, 0, 0, False, BackBuffer);
+  PutImage(BackgroundImage^, 0, 0, False, BackBuffer);
 
   { Extract sprite from background }
   GetImage(Sprite1, 10, 10, 64, 64, BackBuffer);
@@ -227,7 +228,7 @@ begin
   begin
     { Poll HSC music if active (polling mode doesn't use interrupts) }
     if UseMusic then
-      Music.Poll;
+      Music^.Poll;
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
 
@@ -292,7 +293,7 @@ begin
       if Key = Chr(27) then
         Running := False
       else if (Key = 'e') and (GameConfig.SoundCard = SoundCard_SoundBlaster) then
-        Bank.PlaySound(ExplosionID);
+        ResMgr.SoundBank.PlaySound(ExplosionID);
     end; 
 
   end;
@@ -303,12 +304,14 @@ begin
 
   { Now it's safe to free resources and do I/O }
   FreeImage(Sprite1);
-  FreeImage(BackgroundImage);
 
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(FrontBuffer);
 
   CloseVGA;
+
+  { Cleanup resource manager }
+  ResMgr.Done;
 
   WriteLn('Image test completed!');
   WriteLn('');

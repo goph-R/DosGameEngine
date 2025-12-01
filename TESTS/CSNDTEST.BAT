@@ -3,21 +3,7 @@ echo Compiling SNDTEST and dependencies...
 echo.
 
 cd ..\UNITS
-
-echo Compiling GENTYPES.PAS...
-tpc GENTYPES.PAS
-if errorlevel 1 goto error
-
-echo Compiling XMS.PAS...
-tpc XMS.PAS
-if errorlevel 1 goto error
-
-echo Compiling SBDSP.PAS...
-tpc SBDSP.PAS
-if errorlevel 1 goto error
-
-echo Compiling SNDBANK.PAS...
-tpc SNDBANK.PAS
+call CUNITS.BAT
 if errorlevel 1 goto error
 
 echo Compiling SNDTEST.PAS...

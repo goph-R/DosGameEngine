@@ -3,11 +3,12 @@
 
 program FontTest;
 
-uses VGA, VGAFont;
+uses VGA, VGAFont, ResMan;
 
 var
-  LargeFont: TFont;
-  SmallFont: TFont;
+  ResMgr: TResourceManager;
+  LargeFont: PFont;
+  SmallFont: PFont;
   ScreenBuffer: PFrameBuffer;
   Running: Boolean;
 
@@ -16,29 +17,38 @@ begin
   WriteLn('====================');
   WriteLn;
 
-  { Load font }
+  { Initialize resource manager }
+  ResMgr.Init(True);  { Lazy loading }
+  if not ResMgr.LoadFromXML('DATA\RES.XML') then
+  begin
+    WriteLn('ERROR: Failed to load resources: ', ResMgr.LastError);
+    Halt(1);
+  end;
+
+  { Load fonts }
   WriteLn('Loading large font...');
-  if not LoadFont('DATA\FONT-LG.XML',LargeFont) then
+  LargeFont := ResMgr.GetFont('large');
+  if LargeFont = nil then
   begin
     WriteLn;
-    WriteLn('ERROR: Failed to large load font!');
-    WriteLn('Reason: ', GetLoadFontError);
+    WriteLn('ERROR: Failed to load large font!');
+    WriteLn('Reason: ', ResMgr.LastError);
     Halt(1);
   end;
 
   WriteLn('Loading small font...');
-  if not LoadFont('DATA\FONT-SM.XML', SmallFont) then
+  SmallFont := ResMgr.GetFont('small');
+  if SmallFont = nil then
   begin
-    FreeFont(LargeFont);
     WriteLn;
-    WriteLn('ERROR: Failed to small load font!');
-    WriteLn('Reason: ', GetLoadFontError);
+    WriteLn('ERROR: Failed to load small font!');
+    WriteLn('Reason: ', ResMgr.LastError);
     Halt(1);
   end;
 
   WriteLn('Fonts loaded successfully!');
-  WriteLn('Large font height: ', LargeFont.Height, ' pixels');
-  WriteLn('Small font height: ', SmallFont.Height, ' pixels');
+  WriteLn('Large font height: ', LargeFont^.Height, ' pixels');
+  WriteLn('Small font height: ', SmallFont^.Height, ' pixels');
   WriteLn;
   WriteLn('Press enter to continue...');
   ReadLn;
@@ -51,31 +61,30 @@ begin
   ClearFrameBuffer(ScreenBuffer);
 
   { Test text rendering at different positions }
-  PrintFontText(10, 10, 'Hello World!', LargeFont, ScreenBuffer);
-  PrintFontText(10, 10 + LargeFont.Height, 'Variable Width Font Test', SmallFont, ScreenBuffer);
+  PrintFontText(10, 10, 'Hello World!', LargeFont^, ScreenBuffer);
+  PrintFontText(10, 10 + LargeFont^.Height, 'Variable Width Font Test', SmallFont^, ScreenBuffer);
 
   { Test centered text }
-  PrintFontTextCentered(160, 50, 'Centered Text', SmallFont, ScreenBuffer);
+  PrintFontTextCentered(160, 50, 'Centered Text', SmallFont^, ScreenBuffer);
 
   { Test all letters }
-  PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', LargeFont, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont.Height - 5, 'abcdefghijklmnopqrstuvwxyz', LargeFont, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SmallFont, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont.Height * 2 + SmallFont.Height, 'abcdefghijklmnopqrstuvwxyz', SmallFont, ScreenBuffer);
+  PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', LargeFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height - 5, 'abcdefghijklmnopqrstuvwxyz', LargeFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SmallFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height * 2 + SmallFont^.Height, 'abcdefghijklmnopqrstuvwxyz', SmallFont^, ScreenBuffer);
 
   { Test numbers and symbols }
-  PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', LargeFont, ScreenBuffer);
-  PrintFontText(10, 130 + LargeFont.Height, '0123456789 `~!@#$%^&*()_+-{}[]', SmallFont, ScreenBuffer);
+  PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', LargeFont^, ScreenBuffer);
+  PrintFontText(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', SmallFont^, ScreenBuffer);
 
   { Test right-aligned text }
-  PrintFontTextRight(310, 170, 'Right Align', LargeFont, ScreenBuffer);
+  PrintFontTextRight(310, 170, 'Right Align', LargeFont^, ScreenBuffer);
 
   ReadLn;
 
   { Cleanup }
-  FreeFont(LargeFont);
-  FreeFont(SmallFont);
   CloseVGA;
+  ResMgr.Done;
 
   WriteLn;
   WriteLn('Test completed successfully!');
