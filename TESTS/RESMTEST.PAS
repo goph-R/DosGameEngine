@@ -22,6 +22,10 @@ begin
 
   { Load resource definitions from XML }
   WriteLn('Loading RES.XML...');
+
+  { Initialize graphics }
+  InitVGA; { Needed before loading: palette will be set }
+
   if not ResMgr.LoadFromXML('RES.XML') then
   begin
     WriteLn('ERROR: ', ResMgr.LastError);
@@ -53,9 +57,6 @@ begin
   Player.FlipY := False;
   Player.CurrentTime := 0.0;
 
-  { Initialize graphics }
-  WriteLn('Initializing VGA Mode 13h...');
-  InitVGA;
   BackBuffer := CreateFrameBuffer;
   InitKeyboard;
   InitRTC(1024);

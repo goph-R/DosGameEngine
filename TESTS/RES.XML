@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="US-ASCII"?>
 <resources>
-  <image name="player" path="DATA\PLAYER.PCX" />
-  <image name="background" path="DATA\BG.PCX" use-palette />
+  <image name="player" path="DATA\PLAYER.PCX" use-palette />
+  <image name="background" path="DATA\BG.PCX" />
   <font name="small" path="DATA\FONT-SM.XML" />
 
   <sprite name="player_idle" image="player" duration="0.8">
