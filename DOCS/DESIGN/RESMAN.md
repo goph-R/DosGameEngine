@@ -1158,7 +1158,7 @@ All error messages now include the resource name for better debugging context.
 - MINIXML (XML parsing)
 - STRMAP (name → resource lookups)
 - LINKLIST (descriptor storage)
-- PCXLOAD (image loading)
+- PCX (image loading and saving)
 - VGAFONT (variable-width fonts)
 - SPRITE (sprite definitions)
 - SNDBANK (sound management)

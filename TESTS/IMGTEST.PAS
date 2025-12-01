@@ -6,7 +6,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  VGA, VGAPrint, PCXLoad, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer, ResMan;
+  VGA, VGAPrint, PCX, Crt, Dos, SndBank, SBDSP, XMS, PlayHSC, Config, RTCTimer, ResMan;
 
 type
   TTestSprite = record

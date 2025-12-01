@@ -472,7 +472,7 @@ You can use:
 * Either **24-bit** bitmaps on the Lazarus side and quantize later.
 * Or **8-bit paletted** bitmaps with a fixed VGA-like palette if you want to stay close to DOS.
 
-Later, before saving PCX, convert or ensure palette matches what `PCXLoad`/VGA expect.
+Later, before saving PCX, convert or ensure palette matches what `PCX`/`VGA` units expect.
 
 ### 6.8. Save atlases as PCX
 

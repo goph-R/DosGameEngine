@@ -21,7 +21,7 @@
 program XICLONE;
 
 uses
-  Crt, VGA, PCXLoad, Keyboard, RTCTimer, VGAPrint, StrUtil, DRect, XITypes,
+  Crt, VGA, PCX, Keyboard, RTCTimer, VGAPrint, StrUtil, DRect, XITypes,
   XILogic, XIRender, VGAFont, Config, SndBank, SBDSP, VGAUI, XIStyle, ResMan;
 
 var
@@ -607,7 +607,7 @@ begin
   if (not LoadPCXWithPalette(DataPath + GemsFile, GemsImage, Palette)) or
      (not LoadPCX(DataPath + DialogFile, DialogImage)) then
   begin
-    WriteLn(PCXLoad.GetLoadPCXError);
+    WriteLn(GetLoadPCXError);
     Halt(1);
   end;
 
@@ -616,7 +616,7 @@ begin
   { Load background }
   if not LoadPCX(DataPath + BackgroundFile, BackgroundImage) then
   begin
-    WriteLn(PCXLoad.GetLoadPCXError);
+    WriteLn(GetLoadPCXError);
     Halt(1);
   end;
 

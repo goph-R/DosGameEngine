@@ -4,7 +4,7 @@ interface
 
 uses
   GenTypes, VGA, VGAFont, Sprite, PlayHSC, SndBank, MiniXML,
-  StrMap, LinkList, StrUtil, PCXLOAD;
+  StrMap, LinkList, StrUtil, PCX;
 
 type
   { Pointer type for HSC_Obj (not defined in PLAYHSC) }

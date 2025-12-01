@@ -3,7 +3,7 @@
 
 ## VGA Graphics
 ```pascal
-uses VGA, PCXLoad;
+uses VGA, PCX;
 
 var
   FrameBuffer: PFrameBuffer;

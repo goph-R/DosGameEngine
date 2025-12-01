@@ -340,7 +340,7 @@ ResMgr.LoadResource('level1_bg');
 - MINIXML (XML parsing)
 - STRMAP (string → pointer hash map)
 - LINKLIST (descriptor storage)
-- PCXLOAD (image loading)
+- PCX (image loading and saving)
 - VGAFONT (variable-width fonts)
 - SPRITE (sprite system)
 - SNDBANK (XMS sound bank)

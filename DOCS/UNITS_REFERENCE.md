@@ -31,9 +31,9 @@ Low-level VGA Mode 13h graphics driver (320×200, 256 colors).
 
 ---
 
-### PCXLOAD.PAS
+### PCX.PAS
 
-PCX image file loader (ZSoft PCX v5 format, Aseprite-compatible).
+PCX image file loading and saving (ZSoft PCX v5 format, Aseprite-compatible).
 
 **Functions:**
 ```pascal
@@ -41,6 +41,8 @@ function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
 function GetLoadPCXError: string;
+function SavePCX(const FileName: string; const Image: TImage; const Palette: TPalette): Boolean;
+function GetSavePCXError: string;
 ```
 
 **Example:**
@@ -882,7 +884,7 @@ end.
 
 ```
 VGA.PAS
-├── PCXLOAD.PAS (requires VGA, GenTypes)
+├── PCX.PAS (requires VGA, GenTypes)
 ├── VGAPRINT.PAS (requires VGA)
 ├── SPRITE.PAS (requires VGA)
 └── TMXDRAW.PAS (requires VGA, TMXLOAD, GenTypes)

@@ -547,7 +547,7 @@ end;
 ```pascal
 program FontTest;
 
-uses VGA, VGAFont, PCXLoad;
+uses VGA, VGAFont, PCX;
 
 var
   GameFont: TFont;

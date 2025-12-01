@@ -48,7 +48,7 @@ function IsBlockType(const TileMap: TTileMap; X, Y: Word; BlockType: Byte): Bool
 implementation
 
 uses
-  PCXLoad, StrUtil;
+  PCX, StrUtil;
 
 var
   LoadTileMapError: String;

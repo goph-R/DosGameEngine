@@ -277,7 +277,7 @@ Renders current animation frame to framebuffer.
 ### Basic Sprite Animation
 
 ```pascal
-uses VGA, Sprite, PCXLoad, RTCTimer;
+uses VGA, Sprite, PCX, RTCTimer;
 
 var
   SpriteSheet: TImage;
@@ -892,7 +892,7 @@ end;
 ## Example: Complete Player System
 
 ```pascal
-uses VGA, Sprite, Keyboard, RTCTimer, PCXLoad;
+uses VGA, Sprite, Keyboard, RTCTimer, PCX;
 
 type
   TPlayerState = (PS_Idle, PS_Walking, PS_Jumping);
@@ -1043,7 +1043,7 @@ end.
 ## See Also
 
 - **VGA.PAS** - Image rendering (PutFlippedImageRect)
-- **PCXLOAD.PAS** - Loading sprite sheets
+- **PCX.PAS** - Loading sprite sheets
 - **RTCTIMER.PAS** - High-resolution timing for delta time
 - **KEYBOARD.PAS** - Player input for sprite control
 - **TMXLOAD.PAS** / **TMXDRAW.PAS** - Tilemap integration

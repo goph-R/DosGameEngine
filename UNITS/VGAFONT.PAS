@@ -5,7 +5,7 @@ unit VGAFont;
 
 interface
 
-uses VGA, GenTypes, PCXLoad, MiniXML, StrUtil;
+uses VGA, GenTypes, PCX, MiniXML, StrUtil;
 
 const
   MaxChars = 128;  { ASCII 0-127 }
@@ -220,7 +220,7 @@ begin
   { Load image }
   if not LoadPCX(ImageFile, Font.Image) then
   begin
-    SetError(PCXLoad.GetLoadPCXError);
+    SetError(GetLoadPCXError);
     Exit;
   end;
 

@@ -109,7 +109,7 @@ The same priority logic applies to back layers. **Higher index = higher priority
 function LoadTileSet(const FolderPath: String; const XMLNode: PXMLNode; var TileSet: TTileSet): Boolean
 ```
 
-Loads a `<tileset>` XML node and populates the `TileSet` record. Extracts `firstgid`, `tilewidth`, `tileheight`, and `columns` attributes from the tileset tag. If any of these attributes missing sets the error message and returns `False`. Loads the tileset image from `FolderPath` using the `<image source="...">` child node, replaces the file extension with `pcx`, for example if the `source` is `tileset.png`, the FolderPath is `../DATA` the the full path of the image will be `..\DATA\tileset.pcx`. Loaded by the `PCXLoad` unit's `LoadPCX` function. Returns `False` and sets `LoadTileMapError` if any required attribute or the image is missing.
+Loads a `<tileset>` XML node and populates the `TileSet` record. Extracts `firstgid`, `tilewidth`, `tileheight`, and `columns` attributes from the tileset tag. If any of these attributes missing sets the error message and returns `False`. Loads the tileset image from `FolderPath` using the `<image source="...">` child node, replaces the file extension with `pcx`, for example if the `source` is `tileset.png`, the FolderPath is `../DATA` the the full path of the image will be `..\DATA\tileset.pcx`. Loaded by the `PCX` unit's `LoadPCX` function. Returns `False` and sets `LoadTileMapError` if any required attribute or the image is missing.
 
 ```pascal
 procedure LoadTileMapLayer(const XMLNode: PXMLNode; var TileMap: TTileMap; const Layer: Byte)
@@ -344,7 +344,7 @@ Bytes = Width × Height × 2 layers × 2 bytes per tile
 
 **DOS constraints:**
 - The TMX file maximum size is 64KB (see MINIXML.PAS)
-- Tileset images also consume memory (see PCXLOAD.PAS, VGA.PAS)
+- Tileset images also consume memory (see PCX.PAS, VGA.PAS)
 
 **Best practices:**
 - Always call `FreeTileMap` before exit

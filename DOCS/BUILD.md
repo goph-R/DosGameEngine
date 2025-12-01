@@ -15,7 +15,7 @@ CXMLTEST.BAT    # XML parser test
 ```bash
 cd UNITS
 tpc VGA.PAS
-tpc PCXLOAD.PAS
+tpc PCX.PAS
 tpc SBDSP.PAS
 # ... compile other units
 

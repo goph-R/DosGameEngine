@@ -119,12 +119,12 @@ for i := 0 to 255 do
 2. File → Save As → PCX
 3. Format: "8 bits/pixel"
 
-## Using PCXLOAD.PAS
+## Using PCX.PAS
 
 ### Interface
 
 ```pascal
-uses PCXLoad, VGA;
+uses PCX, VGA;
 
 function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
@@ -135,7 +135,7 @@ function GetLoadPCXError: string;
 ### Basic Example
 
 ```pascal
-uses VGA, PCXLoad;
+uses VGA, PCX;
 
 var
   Img: TImage;
@@ -215,11 +215,11 @@ Test program loads `DATA\TEST.PCX` and displays it with palette.
 PCX may pad scanlines to even byte boundaries:
 - **BytesPerLine** ≥ Width
 - Extra bytes at end of each scanline are discarded
-- PCXLOAD.PAS handles this automatically
+- PCX.PAS handles this automatically
 
 ### Palette Marker
 
-Some PCX files omit the 256-color palette (rare). PCXLOAD.PAS:
+Some PCX files omit the 256-color palette (rare). PCX.PAS:
 - Checks for marker byte **0x0C** at EOF-769
 - If missing: uses grayscale fallback palette
 - Continues loading (non-fatal warning)

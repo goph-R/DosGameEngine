@@ -1,6 +1,6 @@
 program UITest;
 
-uses VGA, VGAFont, VGAUI, Keyboard, PCXLoad, RTCTimer, GenTypes, Crt;
+uses VGA, VGAFont, VGAUI, Keyboard, PCX, RTCTimer, GenTypes, Crt;
 
 var
   BackBuffer, BackgroundBuffer: PFrameBuffer;
@@ -68,7 +68,7 @@ begin
   { Create checkbox image (10x20: unchecked on top, checked on bottom) }
   if not LoadPCX('DATA\CHECKBOX.PCX', CheckboxImage) then
   begin
-    WriteLn('ERROR: Failed to checkbox iamge - ', PCXLoad.GetLoadPCXError);
+    WriteLn('ERROR: Failed to checkbox iamge - ', GetLoadPCXError);
     Halt(1);
   end;
 end;

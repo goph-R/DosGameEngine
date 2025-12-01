@@ -524,7 +524,7 @@ end;
 ### Custom Cursor Rendering
 
 ```pascal
-uses VGA, PCXLoad, Mouse;
+uses VGA, PCX, Mouse;
 
 var
   CursorImage: TImage;

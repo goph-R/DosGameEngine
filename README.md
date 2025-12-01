@@ -114,7 +114,7 @@ IMGTEST.EXE
   - event-driven architecture with procedure pointers
   - focus management and rendering
   - requires constructor/destructor pattern for VMT initialization
-- **PCXLOAD.PAS**: PCX image loader (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
+- **PCX.PAS**: PCX image loading and saving (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
 - **TMXLOAD.PAS**: Tiled TMX tilemap loader
   - back and front tile layers (merges all before and after the objects layer)
   - `Blocks` collision layer (loads a block map)

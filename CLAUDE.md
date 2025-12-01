@@ -42,7 +42,7 @@ CSETUP.BAT
 
 ### Manual compile
 ```bash
-cd UNITS && tpc VGA.PAS && tpc PCXLOAD.PAS  # etc
+cd UNITS && tpc VGA.PAS && tpc PCX.PAS  # etc
 cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 ```
 
@@ -63,8 +63,9 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **VGAFONT.PAS** - Variable-width font from PCX sprite sheet + XML
 - LoadFont(xml,font), PrintFontText(x,y,text,font,fb), GetLoadFontError, FreeFont
 
-**PCXLOAD.PAS** - PCX image loader (ZSoft PCX v5, Aseprite/GIMP-compatible)
+**PCX.PAS** - PCX image loading and saving (ZSoft PCX v5, Aseprite/GIMP-compatible)
 - LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLastErrorMessage
+- SavePCX(file,img,pal)
 - Simple RLE decoding, 256-color indexed, palette at EOF-768 bytes
 - Handles scanline padding (BytesPerLine), auto-converts palette 0-255 → 0-63 for VGA
 - Max 65520 bytes (320×204 for 320-width)

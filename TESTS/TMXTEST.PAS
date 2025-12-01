@@ -1,7 +1,7 @@
 program TMapTest;
 
 uses
-  VGA, VGAPrint, TMXLoad, TMXDraw, Keyboard, RTCTimer, PCXLoad;
+  VGA, VGAPrint, TMXLoad, TMXDraw, Keyboard, RTCTimer, PCX;
 
 var
   TileMap: TTileMap;

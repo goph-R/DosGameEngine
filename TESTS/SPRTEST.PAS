@@ -1,7 +1,7 @@
 program SpriteTest;
 
 uses
-  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCXLoad, ResMan;
+  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCX, ResMan;
 
 var
   ResMgr: TResourceManager;

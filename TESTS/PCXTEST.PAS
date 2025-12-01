@@ -3,7 +3,7 @@
 
 program PCXTest;
 
-uses VGA, PCXLoad, Crt;
+uses VGA, PCX, Crt;
 
 var
   FrameBuffer: PFrameBuffer;
@@ -28,8 +28,18 @@ begin
   WriteLn('Loaded successfully!');
   WriteLn('Dimensions: ', TestImage.Width, 'x', TestImage.Height);
   WriteLn;
-  WriteLn('Press any key to display image...');
+  WriteLn('Press any key to save image...');
   ReadKey;
+
+  { Save PCX image with palette }
+  WriteLn('Saving TEST-OUT.PCX...');
+  if not SavePCX('DATA\TEST-OUT.PCX', TestImage, Palette) then
+  begin
+    WriteLn('Error: Could not save TEST-OUT.PCX');
+    WriteLn(GetSavePCXError);
+    FreeImage(TestImage);
+    Halt(1);
+  end;  
 
   { Initialize VGA and set palette }
   InitVGA;
