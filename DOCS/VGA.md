@@ -984,8 +984,7 @@ begin
     { Rotate water colors every 3 frames }
     if FrameCount mod 3 = 0 then
     begin
-      RotatePalette(MyPalette, 16, 16, 1);  { Colors 16-31 }
-      SetPalette(MyPalette);
+      RotatePalette(16, 16, 1);  { Colors 16-31 }
     end;
 
     Inc(FrameCount);
@@ -1039,7 +1038,7 @@ Use GetImage to capture and compare pixel data.
 
 ```pascal
 function CheckCollision(X1, Y1: Integer; Sprite1: TImage;
-                       X2, Y2: Integer; Sprite2: TImage): Boolean;
+                        X2, Y2: Integer; Sprite2: TImage): Boolean;
 var
   dx, dy, sx, sy, i, j: Integer;
   Offset1, Offset2: Word;

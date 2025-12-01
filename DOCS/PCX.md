@@ -129,7 +129,7 @@ uses PCXLoad, VGA;
 function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
-function GetLastErrorMessage: string;
+function GetLoadPCXError: string;
 ```
 
 ### Basic Example
@@ -146,7 +146,7 @@ begin
   { Load PCX with palette }
   if not LoadPCXWithPalette('IMAGE.PCX', Img, Pal) then
   begin
-    WriteLn('Error: ', GetLastErrorMessage);
+    WriteLn('Error: ', GetLoadPCXError);
     Halt(1);
   end;
 
@@ -172,24 +172,6 @@ end.
 { Use when palette already set (e.g., from another image) }
 if LoadPCX('SPRITE.PCX', Img) then
   PutImage(Img, 100, 50, True, FrameBuffer);
-```
-
-### Error Handling
-
-```pascal
-if not LoadPCXWithPalette('TEST.PCX', Img, Pal) then
-begin
-  case GetLastErrorMessage of
-    'File not found...':
-      WriteLn('Check file path');
-    'Invalid PCX signature...':
-      WriteLn('Not a valid PCX file');
-    'Unsupported PCX format...':
-      WriteLn('Use 256-color PCX (8-bit, 1 plane)');
-    'Image too large...':
-      WriteLn('Max 65520 bytes (320×204 for 320-width)');
-  end;
-end;
 ```
 
 ## Testing

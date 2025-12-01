@@ -3,7 +3,7 @@ unit MiniXML;
 interface
 
 uses
-  StrMap, GenTypes;
+  GenTypes, Strings;
 
 const
   XML_MaxNameLength = 20;  { Maximum element/attribute name length }
@@ -12,8 +12,8 @@ const
   MAX_CHILDREN_HINT = 0;   { Not used, kept for clarity }
 
 type
-  PPShortString = ^PShortString;
-  TPShortStringArray = array[0..7] of PShortString;  { Max XML_MaxAttrsCount }
+  PAttrString = PChar;
+  TPAttrStringArray = array[0..XML_MaxAttrsCount - 1] of PAttrString;
 
   PXMLNode = ^TXMLNode;
   TXMLNode = record
@@ -24,9 +24,8 @@ type
     TextLen : Word;      { number of bytes in TextBuf }
     TextCap : Word;      { allocated capacity in bytes }
 
-    AttrMap : TStringMap;
-    AttrKeys  : TPShortStringArray;  { Static array of string pointers (max 8) }
-    AttrValues: TPShortStringArray;  { Static array of string pointers (max 8) }
+    AttrKeys  : TPAttrStringArray;
+    AttrValues: TPAttrStringArray;
     AttrCount : Integer;
 
     FirstChild : PXMLNode;
@@ -145,15 +144,19 @@ end;
 { ===== Node basics ===== }
 
 procedure XMLInitNode(var N: TXMLNode);
+var
+  i: Integer;
 begin
   N.Name := '';
-
   N.TextBuf := nil;
   N.TextLen := 0;
   N.TextCap := 0;
-
   N.AttrCount := 0;
-  MapInit(N.AttrMap);
+  for i := 0 to XML_MaxAttrsCount - 1 do
+  begin
+    N.AttrKeys[i] := nil;
+    N.AttrValues[i] := nil;
+  end;
   N.FirstChild := nil;
   N.NextSibling := nil;
   N.Parent := nil;
@@ -175,44 +178,106 @@ begin
   end;
 end;
 
+function AttrEquals(P: PAttrString; const S: string): Boolean;
+var
+  i, L: Integer;
+begin
+  if P = nil then
+  begin
+    AttrEquals := False;
+    Exit;
+  end;
+
+  L := Length(S);
+  if StrLen(P) <> L then
+  begin
+    AttrEquals := False;
+    Exit;
+  end;
+
+  for i := 0 to L - 1 do
+    if P[i] <> S[i + 1] then
+    begin
+      AttrEquals := False;
+      Exit;
+    end;
+
+  AttrEquals := True;
+end;
+
+function FindAttrIndex(const Node: PXMLNode; const Name: string): Integer;
+var
+  i: Integer;
+begin
+  FindAttrIndex := -1;
+  if Node = nil then Exit;
+
+  for i := 0 to Node^.AttrCount - 1 do
+    if AttrEquals(Node^.AttrKeys[i], Name) then
+    begin
+      FindAttrIndex := i;
+      Exit;
+    end;
+end;
+
+procedure SetAttrString(var Dest: PAttrString; const S: string);
+var
+  L: Integer;
+begin
+  { Free old string if present }
+  if Dest <> nil then
+  begin
+    FreeMem(Dest, StrLen(Dest) + 1);
+    Dest := nil;
+  end;
+
+  L := Length(S);
+  if L = 0 then Exit;  { keep nil for empty strings }
+
+  GetMem(Dest, L + 1);
+  Move(S[1], Dest^, L);
+  Dest[L] := #0;
+end;
+
 procedure XMLSetAttr(Node: PXMLNode; const Key, Value: string);
 var
   idx: Integer;
-  pKey, pVal: PShortString;
 begin
-  if (Node = nil) or (Node^.AttrCount >= MAX_ATTRS) then Exit;
+  if Node = nil then Exit;
 
-  { Allocate strings for key and value }
+  { If attribute already exists, overwrite value }
+  idx := FindAttrIndex(Node, Key);
+  if idx >= 0 then
+  begin
+    SetAttrString(Node^.AttrValues[idx], Value);
+    Exit;
+  end;
+
+  { New attribute }
+  if Node^.AttrCount >= XML_MaxAttrsCount then Exit;
+
   idx := Node^.AttrCount;
-  New(pKey);
-  New(pVal);
-  pKey^ := Key;
-  pVal^ := Value;
 
-  Node^.AttrKeys[idx] := pKey;
-  Node^.AttrValues[idx] := pVal;
-
-  MapPut(Node^.AttrMap, Key, Pointer(pVal));
+  SetAttrString(Node^.AttrKeys[idx], Key);
+  SetAttrString(Node^.AttrValues[idx], Value);
 
   Inc(Node^.AttrCount);
 end;
 
 function XMLAttr(const Node: PXMLNode; const Name: string): string;
 var
-  p: Pointer;
+  idx: Integer;
 begin
-  if Node = nil then begin XMLAttr := ''; Exit; end;
-  p := MapGet(Node^.AttrMap, Name);
-  if p <> nil then
-    XMLAttr := PShortString(p)^
+  idx := FindAttrIndex(Node, Name);
+  if (idx >= 0) and (Node^.AttrValues[idx] <> nil) then
+    XMLAttr := StrPas(Node^.AttrValues[idx])
   else
     XMLAttr := '';
 end;
 
 function XMLHasAttr(const Node: PXMLNode; const Name: string): Boolean;
 begin
-  if Node = nil then XMLHasAttr := False
-  else XMLHasAttr := MapContains(Node^.AttrMap, Name);
+  XMLHasAttr := FindAttrIndex(Node, Name) >= 0;
 end;
 
 function XMLGetText(const Node: PXMLNode): string;
@@ -300,14 +365,19 @@ begin
     c := nxt;
   end;
 
-  { Free attribute map entries (keys) }
-  MapFree(Node^.AttrMap);
-
   { Free dynamically allocated attribute strings }
   for i := 0 to Node^.AttrCount - 1 do
   begin
-    Dispose(Node^.AttrKeys[i]);
-    Dispose(Node^.AttrValues[i]);
+    if Node^.AttrKeys[i] <> nil then
+    begin
+      FreeMem(Node^.AttrKeys[i], StrLen(Node^.AttrKeys[i]) + 1);
+      Node^.AttrKeys[i] := nil;
+    end;
+    if Node^.AttrValues[i] <> nil then
+    begin
+      FreeMem(Node^.AttrValues[i], StrLen(Node^.AttrValues[i]) + 1);
+      Node^.AttrValues[i] := nil;
+    end;
   end;
 
   { Free large text buffer if used }
