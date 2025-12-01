@@ -154,7 +154,7 @@ type
     SpriteMap: TStringMap;    { name → PSpriteData }
 
     { Descriptors list (for cleanup) }
-    Descriptors: PLinkedList; { TResourceDescriptor entries }
+    Descriptors: TLinkedList; { TResourceDescriptor entries }
 
     { Sound bank (shared for all sounds) }
     SoundBank: TSoundBank;
@@ -236,8 +236,7 @@ begin
   MapInit(SpriteMap);
 
   { Initialize descriptor list }
-  New(Descriptors);
-  ListInit(Descriptors^);
+  ListInit(Descriptors);
 
   { Set loading strategy }
   LazyLoad := UseLazyLoading;
@@ -410,7 +409,7 @@ begin
       end;
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path')^;
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else if TagName = 'sound' then
     begin
@@ -423,7 +422,7 @@ begin
       end;
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path')^;
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else if TagName = 'image' then
     begin
@@ -437,7 +436,7 @@ begin
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path')^;
       Desc^.UsePalette := XMLHasAttr(Child, 'use-palette');
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else if TagName = 'font' then
     begin
@@ -450,7 +449,7 @@ begin
       end;
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path')^;  { Path to font XML file }
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else if TagName = 'sprite' then
     begin
@@ -465,7 +464,7 @@ begin
         Exit;
       end;
 
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else if TagName = 'level' then
     begin
@@ -478,7 +477,7 @@ begin
       end;
       New(Desc^.Path);
       Desc^.Path^ := XMLAttr(Child, 'path')^;
-      ListAdd(Descriptors^, Desc);
+      ListAdd(Descriptors, Desc);
     end
     else
       Dispose(Desc^.Name);
@@ -514,10 +513,10 @@ begin
   if LazyLoad then
   begin
     { Find descriptor }
-    Node := Descriptors^.Head;
+    Node := Descriptors.First;
     while Node <> nil do
     begin
-      Desc := PResourceDescriptor(Node^.Data);
+      Desc := PResourceDescriptor(Node^.Value);
       if (Desc^.ResType = ResType_Image) and (Desc^.Name^ = Name) then
       begin
         if LoadImageResource(Desc) then
@@ -744,10 +743,10 @@ begin
     { Find and mark old descriptor as unloaded }
     if CurrentMusicName <> nil then
     begin
-      Node := Descriptors^.Head;
+      Node := Descriptors.First;
       while Node <> nil do
       begin
-        OldDesc := PResourceDescriptor(Node^.Data);
+        OldDesc := PResourceDescriptor(Node^.Value);
         if (OldDesc^.ResType = ResType_Music) and
            (OldDesc^.Name^ = CurrentMusicName^) then
         begin
@@ -808,10 +807,10 @@ var
   MusicData: PMusicData;
 begin
   { Free all loaded resources }
-  Node := Descriptors^.Head;
+  Node := Descriptors.First;
   while Node <> nil do
   begin
-    Desc := PResourceDescriptor(Node^.Data);
+    Desc := PResourceDescriptor(Node^.Value);
 
     if Desc^.Loaded then
     begin
@@ -889,8 +888,7 @@ begin
     SoundBank.Done;
 
   { Free collections }
-  ListFree(Descriptors^);
-  Dispose(Descriptors);
+  ListFree(Descriptors);
   MapFree(MusicMap);
   MapFree(SoundMap);
   MapFree(ImageMap);
