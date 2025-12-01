@@ -1,18 +1,23 @@
 @echo off
 echo Compiling PCX Test...
+echo.
+
 cd ..\UNITS
-tpc PCXLOAD.PAS
+call CUNITS.BAT
 if errorlevel 1 goto error
+
+echo Compiling PCXTEST.PAS...
 cd ..\TESTS
 tpc -U..\UNITS PCXTEST.PAS
 if errorlevel 1 goto error
+
 echo.
-echo Compilation successful!
-echo Run PCXTEST.EXE to test PCX loading
+echo Build successful!
 goto end
 
 :error
 echo.
-echo Compilation failed!
+echo Build failed!
+cd ..\TESTS
 
 :end

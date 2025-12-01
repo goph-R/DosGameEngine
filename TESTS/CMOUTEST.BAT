@@ -3,25 +3,7 @@ echo Compiling MOUTEST and dependencies...
 echo.
 
 cd ..\UNITS
-
-echo Compiling GENTYPES.PAS...
-tpc GENTYPES.PAS
-if errorlevel 1 goto error
-
-echo Compiling VGA.PAS...
-tpc VGA.PAS
-if errorlevel 1 goto error
-
-echo Compiling VGAPRINT.PAS...
-tpc VGAPRINT.PAS
-if errorlevel 1 goto error
-
-echo Compiling MOUSE.PAS...
-tpc MOUSE.PAS
-if errorlevel 1 goto error
-
-echo Compiling KEYBOARD.PAS...
-tpc KEYBOARD.PAS
+call CUNITS.BAT
 if errorlevel 1 goto error
 
 echo Compiling MOUTEST.PAS...

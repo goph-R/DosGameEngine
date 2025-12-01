@@ -11,12 +11,12 @@ var
   Count: Word;
 
 begin
-  WriteLn('MiniXML Test - Loading DATA\TEST.XML');
+  WriteLn('MiniXML Test - Loading DATA\RES.XML');
   WriteLn('=========================================');
   WriteLn;
 
   { Load the XML file }
-  if not XMLLoadFile('DATA\TEST.XML', Root) then
+  if not XMLLoadFile('DATA\RES.XML', Root) then
   begin
     WriteLn('ERROR: Failed to load XML file!');
     Halt(1);
@@ -56,12 +56,10 @@ begin
     Write('  <', Node^.Name, '>');
 
     { Show attributes }
-    if XMLHasAttr(Node, 'id') then
-      Write(' id="', XMLAttr(Node, 'id'), '"');
     if XMLHasAttr(Node, 'name') then
       Write(' name="', XMLAttr(Node, 'name'), '"');
-    if XMLHasAttr(Node, 'type') then
-      Write(' type="', XMLAttr(Node, 'type'), '"');
+    if XMLHasAttr(Node, 'path') then
+      Write(' path="', XMLAttr(Node, 'path'), '"');
 
     { Show text content }
     if Node^.TextBuf <> nil then
