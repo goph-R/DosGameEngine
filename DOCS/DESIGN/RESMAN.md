@@ -21,7 +21,6 @@ Centralized resource management system for loading and accessing game assets fro
 <resources>
   <music name="main" path="DATA\TEST.HSC" />
   <sound name="explode" path="DATA\EXPLODE.VOC" />
-  <level name="first" path="DATA\TEST.TMX" />
   <image name="player" path="DATA\PLAYER.PCX" />
   <image name="background" path="DATA\BG1.PCX" use-palette />
   <font name="small" path="DATA\FONT-SM.XML" />
@@ -46,10 +45,12 @@ Centralized resource management system for loading and accessing game assets fro
 
 **XML Attributes:**
 - All resources require a `name` attribute for lookup
-- `music`, `sound`, `image`, `font`, `level` require a `path` attribute
+- `music`, `sound`, `image`, `font` require a `path` attribute
 - `image` supports optional `use-palette` attribute (boolean flag)
 - `sprite` requires `image` (image resource name) and `duration` (seconds)
 - `sprite` frames require `x`, `y`, `width`, `height` attributes
+
+**Note:** Level resources (`<level>`) are not yet implemented and will be metadata-based requiring additional design work.
 
 **Note on Image Resources:**
 The `<image>` tag references a PCX file (e.g. `DATA\BG1.PCX`). If the `use-palette` attribute is present, `LoadPCXWithPalette` will be used and `SetPalette` will be called to apply the loaded palette globally. Use this for background images or screens that define the global palette. Omit `use-palette` for sprites, HUD elements, or images that should use the existing palette.
@@ -79,8 +80,8 @@ type
     ResType_Sound,    { VOC sound files (via TSoundBank) }
     ResType_Image,    { PCX images }
     ResType_Font,     { Variable-width fonts (TFont from VGAFONT) }
-    ResType_Sprite,   { Sprite definitions (TSprite) }
-    ResType_Level     { TMX tilemaps }
+    ResType_Sprite    { Sprite definitions (TSprite) }
+    { ResType_Level - Future: Will be metadata-based, requires design }
   );
 ```
 
@@ -136,12 +137,9 @@ type
     Duration: Real;           { Animation duration (parsed from XML) }
   end;
 
-  { Level resource data }
-  PLevelData = ^TLevelData;
-  TLevelData = record
-    Map: PTileMap;            { TMXLOAD.PAS tilemap }
-  end;
 ```
+
+**Note:** Level resources are not yet implemented. They will be metadata-based and require additional design work.
 
 ### Resource Manager
 
@@ -154,7 +152,6 @@ type
     ImageMap: TStringMap;     { name → PImageData }
     FontMap: TStringMap;      { name → PFontData }
     SpriteMap: TStringMap;    { name → PSpriteData }
-    LevelMap: TStringMap;     { name → PLevelData }
 
     { Descriptors list (for cleanup) }
     Descriptors: PLinkedList; { TResourceDescriptor entries }
@@ -183,7 +180,6 @@ type
     function GetSprite(const Name: String): PSprite;
     function GetSound(const Name: String): Integer;  { Returns TSoundBank ID }
     function GetMusic(const Name: String): PHSC_Obj;
-    function GetLevel(const Name: String): PTileMap;
 
     { Manual loading/unloading }
     function LoadResource(const Name: String): Boolean;
@@ -202,7 +198,6 @@ type
       function LoadSpriteResource(Desc: PResourceDescriptor): Boolean;
       function LoadSoundResource(Desc: PResourceDescriptor): Boolean;
       function LoadMusicResource(Desc: PResourceDescriptor): Boolean;
-      function LoadLevelResource(Desc: PResourceDescriptor): Boolean;
   end;
 ```
 
@@ -239,7 +234,6 @@ begin
   MapInit(ImageMap);
   MapInit(FontMap);
   MapInit(SpriteMap);
-  MapInit(LevelMap);
 
   { Initialize descriptor list }
   New(Descriptors);
@@ -800,43 +794,6 @@ begin
 end;
 ```
 
-### Level Resource Loading
-
-```pascal
-function TResourceManager.LoadLevelResource(Desc: PResourceDescriptor): Boolean;
-var
-  LevelData: PLevelData;
-begin
-  LoadLevelResource := False;
-
-  if Desc^.Loaded then
-  begin
-    LoadLevelResource := True;
-    Exit;
-  end;
-
-  { Allocate level data }
-  New(LevelData);
-  New(LevelData^.Map);
-
-  { Load TMX tilemap }
-  if not LoadTileMap(Desc^.Path^, LevelData^.Map^, nil) then
-  begin
-    LastError := 'Failed to load level "' + Desc^.Name^ + '" from: ' + Desc^.Path^ + ' - ' + GetLoadTileMapError;
-    Dispose(LevelData^.Map);
-    Dispose(LevelData);
-    Exit;
-  end;
-
-  { Store in map }
-  MapPut(LevelMap, Desc^.Name^, LevelData);
-  Desc^.Data := LevelData;
-  Desc^.Loaded := True;
-
-  LoadLevelResource := True;
-end;
-```
-
 ### Cleanup
 
 ```pascal
@@ -849,7 +806,6 @@ var
   SprData: PSpriteData;
   SndData: PSoundData;
   MusicData: PMusicData;
-  LevelData: PLevelData;
 begin
   { Free all loaded resources }
   Node := Descriptors^.Head;
@@ -887,12 +843,6 @@ begin
         ResType_Music:
           begin
             { Music cleanup handled by singleton cleanup below }
-          end;
-        ResType_Level:
-          begin
-            LevelData := PLevelData(Desc^.Data);
-            FreeTileMap(LevelData^.Map);
-            Dispose(LevelData);
           end;
       end;
     end
@@ -946,7 +896,6 @@ begin
   MapFree(ImageMap);
   MapFree(FontMap);
   MapFree(SpriteMap);
-  MapFree(LevelMap);
 end;
 ```
 
@@ -1161,13 +1110,14 @@ Current implementation prioritizes simplicity; optimization only needed if lazy 
 
 ## Future Enhancements
 
-1. **Reference Counting:** Track active sprite instances to enable resource unloading
-2. **Resource Groups:** Load/unload sets of resources (e.g., "level1_assets")
-3. **Streaming:** Background loading with progress callbacks
-4. **Hot Reload:** Reload resources without restarting (development mode)
-5. **Compression:** Support for packed/compressed resource files
-6. **Palette Management:** Store and apply palettes per-resource
-7. **Animation Modes:** Support PlayType attribute (Forward/PingPong/Once)
+1. **Level Resources:** Metadata-based level resource type (requires design - levels will be metadata, not direct TMX loading)
+2. **Reference Counting:** Track active sprite instances to enable resource unloading
+3. **Resource Groups:** Load/unload sets of resources (e.g., "level1_assets")
+4. **Streaming:** Background loading with progress callbacks
+5. **Hot Reload:** Reload resources without restarting (development mode)
+6. **Compression:** Support for packed/compressed resource files
+7. **Palette Management:** Store and apply palettes per-resource
+8. **Animation Modes:** Support PlayType attribute (Forward/PingPong/Once)
 
 ## Error Handling
 
@@ -1205,12 +1155,11 @@ All error messages now include the resource name for better debugging context.
 - SPRITE (sprite definitions)
 - SNDBANK (sound management)
 - PLAYHSC (music playback)
-- TMXLOAD (level loading)
 - STRUTIL (StrToInt, StrToReal)
 
 **Memory:**
 - ~2KB per resource descriptor
-- Maps: 256 pointers × 6 types = ~3KB overhead
+- Maps: 256 pointers × 5 types = ~2.5KB overhead
 - Actual resource data: images, fonts, sprites, etc.
 
 ## Testing Strategy

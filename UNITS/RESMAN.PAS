@@ -3,7 +3,7 @@ unit ResMan;
 interface
 
 uses
-  GenTypes, VGA, VGAFont, Sprite, PlayHSC, SndBank, TMXLOAD, MiniXML,
+  GenTypes, VGA, VGAFont, Sprite, PlayHSC, SndBank, MiniXML,
   StrMap, LinkList, StrUtil, PCXLOAD;
 
 type
@@ -12,8 +12,7 @@ type
     ResType_Sound,    { VOC sound files (via TSoundBank) }
     ResType_Image,    { PCX images }
     ResType_Font,     { Variable-width fonts (TFont from VGAFONT) }
-    ResType_Sprite,   { Sprite definitions (TSprite) }
-    ResType_Level     { TMX tilemaps }
+    ResType_Sprite    { Sprite definitions (TSprite) }
   );
 
   { Music resource data }
@@ -49,12 +48,6 @@ type
     Duration: Real;
   end;
 
-  { Level resource data }
-  PLevelData = ^TLevelData;
-  TLevelData = record
-    Map: PTileMap;
-  end;
-
   { Base resource descriptor }
   PResourceDescriptor = ^TResourceDescriptor;
   TResourceDescriptor = record
@@ -74,7 +67,6 @@ type
     ImageMap: TStringMap;
     FontMap: TStringMap;
     SpriteMap: TStringMap;
-    LevelMap: TStringMap;
 
     { Descriptors list (for cleanup) }
     Descriptors: PLinkedList;
@@ -103,7 +95,6 @@ type
     function GetSprite(const Name: String): PSprite;
     function GetSound(const Name: String): Integer;
     function GetMusic(const Name: String): PHSC_Obj;
-    function GetLevel(const Name: String): PTileMap;
 
     { Manual loading/unloading }
     function LoadResource(const Name: String): Boolean;
@@ -122,7 +113,6 @@ type
       function LoadSpriteResource(Desc: PResourceDescriptor): Boolean;
       function LoadSoundResource(Desc: PResourceDescriptor): Boolean;
       function LoadMusicResource(Desc: PResourceDescriptor): Boolean;
-      function LoadLevelResource(Desc: PResourceDescriptor): Boolean;
   end;
 
 implementation
@@ -136,7 +126,6 @@ begin
   MapInit(ImageMap);
   MapInit(FontMap);
   MapInit(SpriteMap);
-  MapInit(LevelMap);
 
   { Initialize descriptor list }
   New(Descriptors);
@@ -359,19 +348,6 @@ begin
         Exit;
       end;
 
-      ListAdd(Descriptors^, Desc);
-    end
-    else if TagName = 'level' then
-    begin
-      Desc^.ResType := ResType_Level;
-      if not XMLHasAttr(Child, 'path') then
-      begin
-        LastError := 'Resource "' + Desc^.Name^ + '" missing path attribute';
-        Dispose(Desc^.Name); Dispose(Desc);
-        Exit;
-      end;
-      New(Desc^.Path);
-      Desc^.Path^ := XMLAttr(Child, 'path')^;
       ListAdd(Descriptors^, Desc);
     end
     else
@@ -834,81 +810,6 @@ begin
   LoadMusicResource := True;
 end;
 
-{ TResourceManager.GetLevel }
-function TResourceManager.GetLevel(const Name: String): PTileMap;
-var
-  LevelData: PLevelData;
-  Desc: PResourceDescriptor;
-  Node: PLinkedListNode;
-begin
-  GetLevel := nil;
-
-  { Check if already loaded }
-  if MapContains(LevelMap, Name) then
-  begin
-    LevelData := PLevelData(MapGet(LevelMap, Name));
-    GetLevel := LevelData^.Map;
-    Exit;
-  end;
-
-  { Lazy load if enabled }
-  if LazyLoad then
-  begin
-    { Find descriptor }
-    Node := Descriptors^.Head;
-    while Node <> nil do
-    begin
-      Desc := PResourceDescriptor(Node^.Data);
-      if (Desc^.ResType = ResType_Level) and (Desc^.Name^ = Name) then
-      begin
-        if LoadLevelResource(Desc) then
-        begin
-          LevelData := PLevelData(Desc^.Data);
-          GetLevel := LevelData^.Map;
-        end;
-        Exit;
-      end;
-      Node := Node^.Next;
-    end;
-  end;
-
-  LastError := 'Level not found: ' + Name;
-end;
-
-{ TResourceManager.LoadLevelResource }
-function TResourceManager.LoadLevelResource(Desc: PResourceDescriptor): Boolean;
-var
-  LevelData: PLevelData;
-begin
-  LoadLevelResource := False;
-
-  if Desc^.Loaded then
-  begin
-    LoadLevelResource := True;
-    Exit;
-  end;
-
-  { Allocate level data }
-  New(LevelData);
-  New(LevelData^.Map);
-
-  { Load TMX tilemap }
-  if not LoadTileMap(Desc^.Path^, LevelData^.Map^, nil) then
-  begin
-    LastError := 'Failed to load level "' + Desc^.Name^ + '" from: ' + Desc^.Path^ + ' - ' + GetLoadTileMapError;
-    Dispose(LevelData^.Map);
-    Dispose(LevelData);
-    Exit;
-  end;
-
-  { Store in map }
-  MapPut(LevelMap, Desc^.Name^, LevelData);
-  Desc^.Data := LevelData;
-  Desc^.Loaded := True;
-
-  LoadLevelResource := True;
-end;
-
 { TResourceManager.LoadResource }
 function TResourceManager.LoadResource(const Name: String): Boolean;
 var
@@ -931,7 +832,6 @@ begin
         ResType_Sprite: LoadResource := LoadSpriteResource(Desc);
         ResType_Sound: LoadResource := LoadSoundResource(Desc);
         ResType_Music: LoadResource := LoadMusicResource(Desc);
-        ResType_Level: LoadResource := LoadLevelResource(Desc);
       end;
       Exit;
     end;
@@ -966,7 +866,6 @@ begin
         ResType_Sprite: LoadSpriteResource(Desc);
         ResType_Sound: LoadSoundResource(Desc);
         ResType_Music: LoadMusicResource(Desc);
-        ResType_Level: LoadLevelResource(Desc);
       end;
     end;
     Node := Node^.Next;
@@ -982,7 +881,6 @@ var
   FontData: PFontData;
   SprData: PSpriteData;
   SndData: PSoundData;
-  LevelData: PLevelData;
 begin
   { Free all loaded resources }
   Node := Descriptors^.Head;
@@ -1020,12 +918,6 @@ begin
         ResType_Music:
           begin
             { Music cleanup handled by singleton cleanup below }
-          end;
-        ResType_Level:
-          begin
-            LevelData := PLevelData(Desc^.Data);
-            FreeTileMap(LevelData^.Map);
-            Dispose(LevelData);
           end;
       end;
     end
@@ -1079,7 +971,6 @@ begin
   MapFree(ImageMap);
   MapFree(FontMap);
   MapFree(SpriteMap);
-  MapFree(LevelMap);
 end;
 
 end.
