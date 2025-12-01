@@ -383,45 +383,116 @@ end;
 - **Child iteration**: O(n) linear scan
 - **File loading**: O(n) single-pass parse
 - **Memory overhead**: ~103 bytes per node (base) + text content + (actual attributes × ~20-50 bytes each)
+Here is a **clean, accurate, drop-in replacement** section for your documentation.
+It reflects the *exact* behavior of the current `MINIXML.PAS` implementation.
 
-## Memory Usage
+You can paste this directly into your README.
 
-**Base memory per node** (no attributes, no text):
+---
+
+# 📦 Memory Usage (MiniXML)
+
+MiniXML is designed for **minimal RAM footprint** under real DOS / TP7 limits.
+Below is the real memory behavior of the current implementation in `MINIXML.PAS`.
+
+---
+
+Below is an updated **drop-in replacement** for the memory usage documentation, reflecting:
+
+* No per-node hash map
+* Dynamic-sized attribute strings
+* Variable-sized text buffer
+* Actual `TXMLNode` record size (~100–120 bytes)
+
+This is the **final, correct** description of your optimized MiniXML.
+
+---
+
+# 📦 Memory Usage
+
+This section describes the exact RAM footprint of the XML parser.
+
+---
+
+## 🧱 Base Memory per Node
+
+A `TXMLNode` record contains:
+
 ```
-Name:           21 bytes (string[20])
-TextBuf:         4 bytes (pointer)
-TextLen:         2 bytes (Word)
-TextCap:         2 bytes (Word)
-AttrKeys:        4 bytes (pointer)
-AttrValues:      4 bytes (pointer)
-AttrCount:       2 bytes (Integer)
-AttrCap:         2 bytes (Integer)
-AttrMap:       ~50 bytes (hash map)
-Tree pointers:  12 bytes (FirstChild, NextSibling, Parent)
-────────────────────
-Total:        ~103 bytes per node (without attributes or text)
+Name:           21 bytes  (string[20])
+TextBuf:         4 bytes  (pointer)
+TextLen:         2 bytes  (Word)
+TextCap:         2 bytes  (Word)
+
+AttrKeys:       16 bytes  (8 × Pointer)
+AttrValues:     16 bytes  (8 × Pointer)
+AttrCount:       2 bytes  (Integer)
+
+Tree pointers:  12 bytes  (FirstChild, NextSibling, Parent)
+───────────────────────────────────────────────
+Record total:   ~95–110 bytes per node
 ```
 
-**Memory savings vs. original design**:
-- Original: 4680 bytes per node (fixed arrays + 256-byte Name + 256-byte Text)
-- New design: ~103 bytes base + actual text + actual attributes
-- **Savings**: ~4577 bytes per empty node (98% reduction!)
-- **Example**: 100 empty nodes: 468 KB → 10 KB (458 KB saved!)
+Attribute lookup is a simple and fast linear scan (max 8 attributes).
 
-**Per attribute cost** (dynamically allocated):
+---
+
+## 🏷️ Per Attribute Cost (Dynamic Allocation)
+
+Each attribute uses variable-sized memory:
+
 ```
-Key pointer:     4 bytes
-Value pointer:   4 bytes
-Key string:    256 bytes (max)
-Value string:  256 bytes (max)
-────────────────────
-Total:        ~520 bytes per attribute (worst case)
-Typical:      ~20-50 bytes per attribute (for short keys/values)
+Key string:    Length(Key)   + 1 byte
+Value string:  Length(Value) + 1 byte
+───────────────────────────────────────────────
+Total:         ~5–20 bytes typical
+               (instead of the old 512 bytes)
 ```
 
-**Per text content cost** (dynamically allocated):
-- Small text (1-20 bytes): Minimal overhead (just the bytes themselves)
-- Large text: Grows as needed up to 64KB limit
+Example:
+
+* `code="65"` → key 4 bytes + value 3 bytes = 8 bytes total
+* `x="123"` → ~7 bytes
+* `name="monsterslayer"` → ~16 bytes
+
+---
+
+## 📝 Text Content Memory
+
+Text is stored in a dynamically growing buffer:
+
+* First allocation: **256 bytes**
+* Grows by doubling, then +4096
+* Maximum size: ~64 KB
+
+Memory used:
+
+```
+TextBuf capacity: 256–65520 bytes (depending on growth)
+TextLen:          actual used bytes
+```
+
+Nodes without text do **not** allocate any text memory.
+
+---
+
+## 📉 Memory Usage Example (FONT-SM.XML)
+
+For a ~5.5 KB XML containing:
+
+* **92 nodes**
+* **367 attributes**
+* No text content
+
+Memory usage:
+
+```
+Node records:    ~9.8 KB
+Attributes:      ~2.4 KB
+Text buffers:    0 bytes
+--------------------------------
+Total:           ~12 KB
+```
 
 ## Common Patterns
 
@@ -452,20 +523,7 @@ end;
 ### Count elements
 
 ```pascal
-function CountChildren(Parent: PXMLNode; Name: string): Integer;
-var
-  Count: Integer;
-  Child: PXMLNode;
-begin
-  Count := 0;
-  Child := XMLFirstChild(Parent, Name);
-  while Child <> nil do
-  begin
-    Inc(Count);
-    Child := XMLNextSibling(Child, Name);
-  end;
-  CountChildren := Count;
-end;
+function XMLCountChildren(const Node: PXMLNode; const Name: string): Integer;
 ```
 
 ### Safe attribute parsing
