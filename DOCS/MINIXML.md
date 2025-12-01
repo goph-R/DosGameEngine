@@ -1,4 +1,4 @@
-# MINIXML.PAS - Lightweight XML Parser for Turbo Pascal
+# MINIXML.PAS - Lightweight XML Parser and Writer for Turbo Pascal 7.0
 
 ## Overview
 
