@@ -6,6 +6,7 @@ uses
 var
   ResMgr: TResourceManager;
   PlayerSprite: PSprite;
+  PlayerPalette: PPalette;
   Player: TSpriteInstance;
   BackBuffer: PFrameBuffer;
   Running: Boolean;
@@ -23,10 +24,7 @@ begin
   { Load resource definitions from XML }
   WriteLn('Loading RES.XML...');
 
-  { Initialize graphics }
-  InitVGA; { Needed before loading: palette will be set }
-
-  if not ResMgr.LoadFromXML('RES.XML') then
+  if not ResMgr.LoadFromXML('DATA\RES.XML') then
   begin
     WriteLn('ERROR: ', ResMgr.LastError);
     Halt(1);
@@ -58,6 +56,12 @@ begin
   Player.CurrentTime := 0.0;
 
   BackBuffer := CreateFrameBuffer;
+
+  { Initialize graphics }
+  InitVGA;
+  PlayerPalette := ResMgr.GetPalette('player');
+  SetPalette(PlayerPalette^);
+
   InitKeyboard;
   InitRTC(1024);
 
