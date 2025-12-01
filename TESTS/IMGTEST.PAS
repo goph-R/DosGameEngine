@@ -61,7 +61,7 @@ begin
 
   { 1. Stop music (IRQ0 - timer interrupt) }
   if (GameConfig.SoundCard <> SoundCard_None) and (UseMusic) and (Music <> nil) then
-    Music^.Done;
+    Music^.Stop;
 
   { 2. Stop sound (IRQ5/7 - Sound Blaster interrupt) }
   if GameConfig.SoundCard = SoundCard_SoundBlaster then
@@ -228,7 +228,7 @@ begin
   begin
     { Poll HSC music if active (polling mode doesn't use interrupts) }
     if UseMusic then
-      Music.Poll;
+      Music^.Poll;
 
     CopyFrameBuffer(BackBuffer, FrontBuffer);
 

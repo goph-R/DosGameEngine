@@ -1028,6 +1028,7 @@ var
   SprData: PSpriteData;
   SndData: PSoundData;
   PalData: PPaletteData;
+  i: Integer;
 begin
   { Free all loaded resources }
   Node := Descriptors.First;

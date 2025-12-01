@@ -8,6 +8,10 @@ echo Compiling GENTYPES.PAS...
 tpc GENTYPES.PAS
 if errorlevel 1 goto error
 
+echo Compiling STRUTIL.PAS...
+tpc STRUTIL.PAS
+if errorlevel 1 goto error
+
 echo Compiling VGA.PAS...
 tpc VGA.PAS
 if errorlevel 1 goto error
@@ -34,10 +38,6 @@ if errorlevel 1 goto error
 
 echo Compiling PLAYHSC.PAS...
 tpc PLAYHSC.PAS
-if errorlevel 1 goto error
-
-echo Compiling STRUTIL.PAS...
-tpc STRUTIL.PAS
 if errorlevel 1 goto error
 
 echo Compiling CONFIG.PAS...
