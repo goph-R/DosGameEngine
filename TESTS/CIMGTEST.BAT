@@ -48,6 +48,30 @@ echo Compiling RTCTIMER.PAS...
 tpc RTCTIMER.PAS
 if errorlevel 1 goto error
 
+echo Compiling STRMAP.PAS...
+tpc STRMAP.PAS
+if errorlevel 1 goto error
+
+echo Compiling LINKLIST.PAS...
+tpc LINKLIST.PAS
+if errorlevel 1 goto error
+
+echo Compiling MINIXML.PAS...
+tpc MINIXML.PAS
+if errorlevel 1 goto error
+
+echo Compiling VGAFONT.PAS...
+tpc VGAFONT.PAS
+if errorlevel 1 goto error
+
+echo Compiling SPRITE.PAS...
+tpc SPRITE.PAS
+if errorlevel 1 goto error
+
+echo Compiling RESMAN.PAS...
+tpc RESMAN.PAS
+if errorlevel 1 goto error
+
 echo Compiling IMGTEST.PAS...
 cd ..\TESTS
 tpc -U..\UNITS IMGTEST.PAS
