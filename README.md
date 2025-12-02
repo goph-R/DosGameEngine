@@ -63,13 +63,15 @@ cd SETUP
 CSETUP.BAT
 SETUP.EXE
 
-# 2. Copy the saved CONFIG.INI to the TESTS folder
-copy CONFIG.INI ..\TESTS
-
-# 3. Compile & try the advanced VGA demo with music and sound
+# 2. Compile & try the advanced VGA demo with music and sound
 cd ..\TESTS
 CIMGTEST.BAT
 IMGTEST.EXE
+
+# 3. Compile & try the example game (WIP)
+cd ..\XICLONE
+CXICLONE.BAT
+XICLONE.EXE
 ```
 
 **Controls:**

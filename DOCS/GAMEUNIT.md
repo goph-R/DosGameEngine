@@ -175,7 +175,7 @@ type
 
 ## TScreen Object
 
-**Unit:** `GameUnit` (or separate `ScreenUnit`)
+**Unit:** `GameUnit`
 
 Abstract screen/state object for menu screens, gameplay, etc.
 
