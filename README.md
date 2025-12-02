@@ -91,6 +91,7 @@ XICLONE.EXE
 * [PCX loader/saver](DOCS/PCX.md)  
   compatible with Aseprite, GIMP, and GrafX2 workflows.
 * [Tiled TMX integration](DOCS/TILEMAP.md)
+  Back and front layers merged automatically, blocks layer for grid collisions, objects loading hook procedure
 * [Sprite animation system](DOCS/SPRITE.md)  
   with multiple playback modes.
 
