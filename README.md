@@ -114,7 +114,6 @@ XICLONE.EXE
 
 * [Advanced XMS manager](DOCS/XMS.md)  
   for systems with >1 MB RAM.
-* Smart buffering and optimized heap usage for large assets and audio banks.
 
 ### 📦 Data & Resource Management
 
