@@ -104,11 +104,7 @@ XICLONE.EXE
 * **Variable-width bitmap fonts** using PCX art + XML metadata.
 * **UI widget toolkit** (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
 * **PCX loader/saver** compatible with Aseprite, GIMP, and GrafX2 workflows.
-* **Tiled TMX integration**
-
-  * Auto-merged background/foreground layers
-  * Collision block maps
-  * Object-layer hooks for spawning entities
+* **Tiled TMX integration** see [TILEMAP.md](DOCS/TILEMAP.md) for the restrictions.
 * **Efficient tile renderer** optimized for DOS.
 * **Sprite animation system** with multiple playback modes.
 
