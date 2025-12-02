@@ -172,6 +172,8 @@ UNIT PLAYHSC;
 INTERFACE
 
 TYPE
+  PHSC_obj = ^HSC_obj;  { Pointer to HSC_obj }
+
   HSC_obj = OBJECT
 
     (* The following variables are _internal_ variables and should not be

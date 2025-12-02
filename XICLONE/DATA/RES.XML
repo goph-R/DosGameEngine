@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<resources>
+  <music name="main" path="INTRO.HSC" />
+  <music name="normal" path="ADTHELIB.HSC" />
+  <music name="fast" path="TECHNO.HSC" />
+  
+  <image name="bg1" path="BG1.PCX" palette="default" />
+  <image name="gems1" path="GEMS1.PCX" />
+  
+  <font name="small" path="FONT-SM.XML" />
+  <font name="large" path="FONT-LG.XML" />
+</resources>

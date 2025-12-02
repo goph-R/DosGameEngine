@@ -215,7 +215,7 @@ end;
 
 procedure SelectSaveAndExit;
 begin
-  SaveConfig(GameConfig);
+  SaveConfig(GameConfig, 'CONFIG.INI');
   StopMenu;
 end;
 
@@ -350,7 +350,7 @@ begin
 
   TextMode(CO80);
   HideTextCursor;
-  LoadConfig(GameConfig);
+  LoadConfig(GameConfig, 'CONFIG.INI');
   InitKeyboard;
   SBInitialized := False;
 

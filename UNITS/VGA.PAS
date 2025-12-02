@@ -9,6 +9,7 @@ type
     R, G, B: Byte;
   end;
 
+  PPalette = ^TPalette;
   TPalette = array[0..255] of TRGBColor;
 
   PFrameBuffer = ^TFrameBuffer;

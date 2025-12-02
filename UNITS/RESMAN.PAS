@@ -7,12 +7,6 @@ uses
   StrMap, LinkList, StrUtil, PCX;
 
 type
-  { Pointer type for HSC_Obj (not defined in PLAYHSC) }
-  PHSC_Obj = ^HSC_Obj;
-
-  { Pointer type for TPalette (not defined in VGA) }
-  PPalette = ^TPalette;
-
   TResourceType = (
     ResType_Music,    { HSC music files }
     ResType_Sound,    { VOC sound files (via TSoundBank) }

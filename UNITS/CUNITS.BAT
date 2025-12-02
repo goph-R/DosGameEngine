@@ -102,6 +102,10 @@ echo Compiling RESMAN.PAS...
 tpc RESMAN.PAS
 if errorlevel 1 goto error
 
+echo Compiling GAMEUNIT.PAS...
+tpc GAMEUNIT.PAS
+if errorlevel 1 goto error
+
 echo.
 echo All units compiled successfully!
 goto end

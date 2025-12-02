@@ -562,7 +562,7 @@ begin
   WriteLn('XICLONE - Initializing...');
 
   { Load configuration }
-  LoadConfig(GameConfig);
+  LoadConfig(GameConfig, 'CONFIG.INI');
 
   { Initialize sound system if Sound Blaster is configured }
   SoundEnabled := False;

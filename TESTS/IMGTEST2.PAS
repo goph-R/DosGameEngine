@@ -1,13 +1,12 @@
-{ IMGTEST.PAS - Test program for TImage operations }
-{ Demonstrates GetImage, PutImage with transparency, and sprite animation }
-{ Refactored to use GameUnit framework }
+{ IMGTEST2.PAS - Test program using GameUnit }
+{ Demonstrates GameUnit with sprite animation and sound }
 
-program ImgTest;
+program ImgTest2;
 
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard;
+  GameUnit, VGA, VGAPrint, PCX, Crt, ResMan, Config;
 
 type
   TTestSprite = record
@@ -19,6 +18,7 @@ type
   { Test screen with sprite animation }
   PTestScreen = ^TTestScreen;
   TTestScreen = object(TScreen)
+    ResMgr: TResourceManager;
     BackgroundImage: PImage;
     Sprite1: TImage;
     TestSprites: array[1..4] of TTestSprite;
@@ -27,13 +27,10 @@ type
     FPS: Word;
     ExplosionID: Integer;
     UseVSync: Boolean;
-    UseMusic: Boolean;
-    Music: PHSC_Obj;
 
     constructor Init(AGame: PGame);
     destructor Done; virtual;
     procedure Update(DT: Real); virtual;
-    procedure Render;
     procedure Show; virtual;
     procedure Hide; virtual;
   end;
@@ -52,27 +49,30 @@ begin
   inherited Init(AGame);
 
   UseVSync := True;  { VSync enabled by default }
-  UseMusic := True;  { Music enabled by default }
 
-  { Parse command line arguments }
+  { Check command line for novsync }
   for i := 1 to ParamCount do
-  begin
     if (ParamStr(i) = 'novsync') or (ParamStr(i) = 'NOVSYNC') then
       UseVSync := False;
-    if (ParamStr(i) = 'nomusic') or (ParamStr(i) = 'NOMUSIC') then
-      UseMusic := False;
+
+  { Initialize resource manager }
+  ResMgr.Init(True);  { Lazy loading }
+  if not ResMgr.LoadFromXML('DATA\RES.XML') then
+  begin
+    WriteLn('ERROR: Failed to load resources: ', ResMgr.LastError);
+    Halt(1);
   end;
 
   { Load test image }
-  BackgroundImage := Game^.ResMan.GetImage('test');
+  BackgroundImage := ResMgr.GetImage('test');
   if BackgroundImage = nil then
   begin
-    WriteLn('Error: Could not load test image: ', Game^.ResMan.LastError);
+    WriteLn('Error: Could not load test image: ', ResMgr.LastError);
     Halt(1);
   end;
 
   { Set palette }
-  TestPalette := Game^.ResMan.GetPalette('test');
+  TestPalette := ResMgr.GetPalette('test');
   if TestPalette <> nil then
     SetPalette(TestPalette^);
 
@@ -82,8 +82,7 @@ begin
   { Extract sprite from background }
   GetImage(Sprite1, 10, 10, 64, 64, Game^.BackgroundBuffer);
 
-  { Initialize test sprites with different trajectories and flip modes }
-  { Sprite 1: Top-left, moving down-right, no flip }
+  { Initialize test sprites }
   TestSprites[1].X := -32 shl 10;
   TestSprites[1].Y := -32 shl 10;
   TestSprites[1].VX := 50;
@@ -91,7 +90,6 @@ begin
   TestSprites[1].FlipX := False;
   TestSprites[1].FlipY := False;
 
-  { Sprite 2: Top-right, moving down-left, FlipX }
   TestSprites[2].X := 320 shl 10;
   TestSprites[2].Y := -32 shl 10;
   TestSprites[2].VX := -45;
@@ -99,7 +97,6 @@ begin
   TestSprites[2].FlipX := True;
   TestSprites[2].FlipY := False;
 
-  { Sprite 3: Bottom-left, moving up-right, FlipY }
   TestSprites[3].X := -32 shl 10;
   TestSprites[3].Y := 200 shl 10;
   TestSprites[3].VX := 55;
@@ -107,7 +104,6 @@ begin
   TestSprites[3].FlipX := False;
   TestSprites[3].FlipY := True;
 
-  { Sprite 4: Bottom-right, moving up-left, FlipX+FlipY }
   TestSprites[4].X := 320 shl 10;
   TestSprites[4].Y := 200 shl 10;
   TestSprites[4].VX := -60;
@@ -118,18 +114,9 @@ begin
   { Load sound effect if Sound Blaster is configured }
   if Game^.Config.SoundCard = SoundCard_SoundBlaster then
   begin
-    ExplosionID := Game^.ResMan.GetSound('explode');
+    ExplosionID := ResMgr.GetSound('explode');
     if ExplosionID < 0 then
       WriteLn('Warning: Failed to load explosion sound');
-  end;
-
-  { Load music if enabled }
-  Music := nil;
-  if (Game^.Config.SoundCard <> SoundCard_None) and UseMusic then
-  begin
-    Music := Game^.ResMan.GetMusic('fantasy');
-    if Music <> nil then
-      Music^.Start;
   end;
 
   ElapsedTime := 0.0;
@@ -139,11 +126,8 @@ end;
 
 destructor TTestScreen.Done;
 begin
-  { Stop music if playing }
-  if (Music <> nil) and UseMusic then
-    Music^.Stop;
-
   FreeImage(Sprite1);
+  ResMgr.Done;
   inherited Done;
 end;
 
@@ -151,13 +135,26 @@ procedure TTestScreen.Update(DT: Real);
 var
   i: Integer;
   DeltaTimeMS: LongInt;
+  FPSStr: String;
+  Key: Char;
 begin
-  { Poll HSC music if active }
-  if (Music <> nil) and UseMusic then
-    Music^.Poll;
+  { Draw all test sprites }
+  for i := 1 to 4 do
+  begin
+    PutFlippedImage(Sprite1, Trunc(TestSprites[i].X shr 10), Trunc(TestSprites[i].Y shr 10),
+                    TestSprites[i].FlipX, TestSprites[i].FlipY, True, Game^.BackBuffer);
+  end;
 
-  { Render }
-  Render;
+  { Draw FPS and info }
+  Str(FPS, FPSStr);
+  PrintText(5, 5, 'FPS: ' + FPSStr, 15, Game^.BackBuffer);
+  PrintText(5, 15, 'Clipping Test', 14, Game^.BackBuffer);
+  PrintText(5, 25, '4 sprites', 14, Game^.BackBuffer);
+  PrintText(5, 35, 'ESC=Exit E=Sound', 14, Game^.BackBuffer);
+
+  { Wait for vertical sync }
+  if UseVSync then
+    WaitForVSync;
 
   { Calculate FPS }
   ElapsedTime := ElapsedTime + DT;
@@ -175,7 +172,7 @@ begin
     TestSprites[i].X := TestSprites[i].X + TestSprites[i].VX * DeltaTimeMS;
     TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTimeMS;
 
-    { Bounce off edges - allow sprites to go partially off-screen for clipping test }
+    { Bounce off edges }
     if (TestSprites[i].X <= -32 shl 10) or (TestSprites[i].X >= 320 shl 10) then
       TestSprites[i].VX := -TestSprites[i].VX;
     if (TestSprites[i].Y <= -32 shl 10) or (TestSprites[i].Y >= 200 shl 10) then
@@ -184,35 +181,14 @@ begin
 
   Inc(Frame);
 
-  { Handle keyboard - use KEYBOARD unit for proper integration }
-  if IsKeyPressed(Key_E) then
-    if (Game^.Config.SoundCard = SoundCard_SoundBlaster) and (ExplosionID >= 0) then
-      Game^.ResMan.SoundBank.PlaySound(ExplosionID);
-end;
-
-procedure TTestScreen.Render;
-var
-  i: Integer;
-  FPSStr: String;
-begin
-  { Draw all test sprites - they will clip properly at screen edges }
-  for i := 1 to 4 do
+  { Handle keyboard }
+  if KeyPressed then
   begin
-    PutFlippedImage(Sprite1, Trunc(TestSprites[i].X shr 10), Trunc(TestSprites[i].Y shr 10),
-                    TestSprites[i].FlipX, TestSprites[i].FlipY, True, Game^.BackBuffer);
+    Key := ReadKey;
+    if Key = 'e' then
+      if (Game^.Config.SoundCard = SoundCard_SoundBlaster) and (ExplosionID >= 0) then
+        ResMgr.SoundBank.PlaySound(ExplosionID);
   end;
-
-  { Draw FPS and info }
-  Str(FPS, FPSStr);
-  PrintText(5, 5, 'FPS: ' + FPSStr, 15, Game^.BackBuffer);
-  PrintText(5, 15, 'Clipping Test', 14, Game^.BackBuffer);
-  PrintText(5, 25, '4 sprites with', 14, Game^.BackBuffer);
-  PrintText(5, 35, 'different flips', 14, Game^.BackBuffer);
-  PrintText(5, 45, 'E=Explosion', 14, Game^.BackBuffer);
-
-  { Wait for vertical sync to prevent tearing }
-  if UseVSync then
-    WaitForVSync;
 end;
 
 procedure TTestScreen.Show;
@@ -229,8 +205,8 @@ end;
 
 begin
   ClrScr;
-  WriteLn('IMGTEST - Image Operations Test (GameUnit)');
-  WriteLn('===========================================');
+  WriteLn('IMGTEST2 - GameUnit Test');
+  WriteLn('========================');
   WriteLn;
 
   { Initialize game }
@@ -250,26 +226,7 @@ begin
 
   WriteLn;
   WriteLn('Image test completed!');
-  WriteLn('');
-  WriteLn('Summary:');
-  WriteLn('- Clipping Test: 4 sprites bouncing off all screen edges');
-  WriteLn('  * Sprite 1: No flip (normal rendering)');
-  WriteLn('  * Sprite 2: FlipX (horizontal flip)');
-  WriteLn('  * Sprite 3: FlipY (vertical flip)');
-  WriteLn('  * Sprite 4: FlipX+FlipY (both flips)');
-  WriteLn('- Timer: RTC based (IRQ8 high-resolution timing)');
-  WriteLn('- Animation: Frame-rate independent using delta time');
-  WriteLn('- Text overlay: Real-time FPS counter with embedded 8x8 font');
-  WriteLn('- Double-buffering: Off-screen rendering with RenderFrameBuffer');
-  WriteLn('- GameUnit: Managed lifecycle with TGame and TScreen');
-  WriteLn('');
-  WriteLn('Clipping: Sprites properly clip at negative X/Y coordinates');
-  WriteLn('  and at right/bottom edges (320x200 screen boundaries).');
-  WriteLn('');
-  WriteLn('Usage: IMGTEST [novsync] [nomusic]');
-  WriteLn('  novsync - Disable VSync for maximum framerate (with tearing)');
-  WriteLn('  nomusic - Disable background music');
-  WriteLn('');
-  WriteLn('Press E to play explosion sound effect (if Sound Blaster enabled)');
-  WriteLn('Press ESC to exit');
+  WriteLn('Usage: IMGTEST2 [novsync]');
+  WriteLn('  novsync - Disable VSync for maximum framerate');
+  WriteLn('Press E to play explosion sound effect');
 end.
