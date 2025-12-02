@@ -80,7 +80,6 @@ XICLONE.EXE
 
 ## 📖 Documentation
 
-**APIs:**
 - **[GAMEUNIT.md](DOCS/GAMEUNIT.md)** - Central game loop framework with screens
 - **[RESMAN.md](DOCS/RESMAN.md)** - Resource Manager (XML-based asset loading)
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
@@ -92,10 +91,8 @@ XICLONE.EXE
 - **[SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system
 - **[VGAFONT.md](DOCS/VGAFONT.md)** - Variable-width fonts
 - **[MINIXML.md](DOCS/MINIXML.md)** - XML parser and writer
-
-**Formats:**
-- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, GrafX2)
-- **[HSC.md](DOCS/HSC.md)** - HSC music format (demoscene tracker)
+- **[PCX.md](DOCS/PCX.md)** - PCX image format loading and saving (Aseprite, GIMP, GrafX2)
+- **[HSC.md](DOCS/HSC.md)** - HSC music format player (HSC-tracker, Adlib Tracker II)
 - **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
 
 ## ✨ Features
