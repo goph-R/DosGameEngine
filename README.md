@@ -78,69 +78,50 @@ XICLONE.EXE
 - **E**: Play an explosion
 - **ESC**: Exit demo
 
-## 📖 Documentation
-
-- **[GAMEUNIT.md](DOCS/GAMEUNIT.md)** - Central game loop framework with screens
-- **[RESMAN.md](DOCS/RESMAN.md)** - Resource Manager (XML-based asset loading)
-- **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
-- **[VGAUI.md](DOCS/VGAUI.md)** - UI widgets (Label, Button, Checkbox, LineEdit)
-- **[KEYBOARD.md](DOCS/KEYBOARD.md)** - Keyboard handler & scan codes
-- **[MOUSE.md](DOCS/MOUSE.md)** - Mouse input & buttons
-- **[SBDSP.md](DOCS/SBDSP.md)** - Sound Blaster driver
-- **[SNDBANK.md](DOCS/SNDBANK.md)** - XMS sound bank
-- **[SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system
-- **[VGAFONT.md](DOCS/VGAFONT.md)** - Variable-width fonts
-- **[MINIXML.md](DOCS/MINIXML.md)** - XML parser and writer
-- **[PCX.md](DOCS/PCX.md)** - PCX image format loading and saving (Aseprite, GIMP, GrafX2)
-- **[HSC.md](DOCS/HSC.md)** - HSC music format player (HSC-tracker, Adlib Tracker II)
-- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
-
 ## ✨ Features
 
 ### 🎨 Graphics Engine
 
-* **320×200 VGA Mode 13h renderer** with double-buffering for flicker-free visuals.
-* **Full palette control** (RGB 0–63) and smooth palette effects.
-* **Variable-width bitmap fonts** using PCX art + XML metadata.
-* **UI widget toolkit** (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
-* **PCX loader/saver** compatible with Aseprite, GIMP, and GrafX2 workflows.
-* **Tiled TMX integration** see [TILEMAP.md](DOCS/TILEMAP.md) for the restrictions.
-* **Efficient tile renderer** optimized for DOS.
-* **Sprite animation system** with multiple playback modes.
+* [320×200 VGA Mode 13h renderer](DOCS/VGA.md) with double-buffering for flicker-free visuals, full palette control.
+* [Variable-width bitmap fonts](DOCS/VGAUI.md) using PCX art + XML metadata.
+* [UI widget toolkit](DOCS/VGAUI.md) (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
+* [PCX loader/saver](DOCS/PCX.md) compatible with Aseprite, GIMP, and GrafX2 workflows.
+* [Tiled TMX integration](DOCS/TILEMAP.md)
+* [Sprite animation system](DOCS/SPRITE.md) with multiple playback modes.
 
 ### 🔊 Audio System
 
-* **HSC music playback** via AdLib/OPL2 (interrupt-driven).
-* **Sound bank stored in XMS**, perfect for memory-heavy sample sets.
-* **VOC format support** (8-bit PCM, 11–44 kHz) with DMA-safe mixing.
-* **Dedicated Sound Blaster DSP driver** for maximum compatibility.
+* [HSC music playback](DOCS/HSC.md) via AdLib/OPL2 (interrupt-driven).
+* [Sound bank stored in XMS](DOCS/SNDBANK.md), perfect for memory-heavy sample sets.
+* VOC format support (8-bit PCM, 11–44 kHz) with DMA-safe mixing.
+* [Dedicated Sound Blaster DSP driver](DOCS/SBDSP.md) for maximum compatibility.
 
 ### 🎮 Input Handling
 
-* **Real-time keyboard system** with key-down and key-press tracking.
-* **Mouse support via INT 33h**, including 3-button mice.
+* [Real-time keyboard system](DOCS/KEYBOARD.md) with key-down and key-press tracking.
+* [Mouse support via INT 33h](DOCS/MOUSE.md), including 3-button mice.
 
 ### 🧠 Memory & Performance
 
-* **Advanced XMS manager** for systems with >1 MB RAM.
+* [Advanced XMS manager](DOCS/XMS.md) for systems with >1 MB RAM.
 * Smart buffering and optimized heap usage for large assets and audio banks.
 
 ### 📦 Data & Resource Management
 
-* **Unified game loop framework** with screen management and subsystem initialization.
-* **XML-based resource manager** with lazy/eager loading and palette extraction.
-* **Lightweight XML parser/writer** (DOM-style, supports files up to 64 KB).
-* **Simple INI parser** for configuration.
-* **Fast string hash map** (O(1) lookup).
-* **Linked list utilities** for game data structures.
+* [Unified game loop framework](DOCS/GAMEUNIT.md) with screen management and subsystem initialization.
+* [XML-based resource manager](DOCS/RESMAN.md) with lazy/eager loading and palette extraction.
+* [Lightweight XML parser/writer](DOCS/MINIXML.md) (DOM-style, supports files up to 64 KB).
+* Simple INI parser for configuration.
+* Fast string hash map (O(1) lookup).
+* Linked list utilities for game data structures.
 
 ### 🛠 Tools & Utilities
 
-* **Setup utility** for configuring sound hardware.
-* **Text-mode UI toolkit** for installers and tools.
-* **Debug logger** for startup/shutdown diagnostics (safe for DOS’s slow disk I/O).
-* **Test programs** for graphics, fonts, tiles, UI, sprites, audio, etc.
-* **Automated build scripts** for quickly generating test binaries.
+* Setup utility for configuring sound hardware.
+* Text-mode UI toolkit for installers and tools.
+* Debug logger for startup/shutdown diagnostics (safe for DOS’s slow disk I/O).
+* Test programs for graphics, fonts, tiles, UI, sprites, audio, etc.
+* Automated build scripts for quickly generating test binaries.
 
 ## 📁 Project Structure
 
