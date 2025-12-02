@@ -83,7 +83,7 @@ XICLONE.EXE
 ### 🎨 Graphics Engine
 
 * [320×200 VGA Mode 13h renderer](DOCS/VGA.md)  
-  with double-buffering for flicker-free visuals, full palette control.
+  with double-buffering for flicker-free visuals, transparent images, primitive drawing, full palette control.
 * [Variable-width bitmap fonts](DOCS/VGAUI.md)  
   using PCX art + XML metadata.
 * [UI widget toolkit](DOCS/VGAUI.md)  
