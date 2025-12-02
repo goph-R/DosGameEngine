@@ -78,18 +78,8 @@ IMGTEST.EXE
 
 ## 📖 Documentation
 
-**Core:**
-- **[CLAUDE.md](CLAUDE.md)** - Technical reference for all units
-- **[DOCS/BUILD.md](DOCS/BUILD.md)** - Building and compilation
-- **[DOCS/ISSUES.md](DOCS/ISSUES.md)** - Critical cleanup rules
-- **[DOCS/UNITS_REFERENCE.md](DOCS/UNITS_REFERENCE.md)** - Complete units reference
-
-**Formats:**
-- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, GrafX2)
-- **[HSC.md](DOCS/HSC.md)** - HSC music format (demoscene tracker)
-- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
-
 **APIs:**
+- **[GAMEUNIT.md](DOCS/GAMEUNIT.md)** - Central game loop framework with screens
 - **[RESMAN.md](DOCS/RESMAN.md)** - Resource Manager (XML-based asset loading)
 - **[VGA.md](DOCS/VGA.md)** - Graphics (Mode 13h, sprites, palettes)
 - **[VGAUI.md](DOCS/VGAUI.md)** - UI widgets (Label, Button, Checkbox, LineEdit)
@@ -100,6 +90,11 @@ IMGTEST.EXE
 - **[SPRITE.md](DOCS/SPRITE.md)** - Sprite animation system
 - **[VGAFONT.md](DOCS/VGAFONT.md)** - Variable-width fonts
 - **[MINIXML.md](DOCS/MINIXML.md)** - XML parser and writer
+
+**Formats:**
+- **[PCX.md](DOCS/PCX.md)** - PCX image format (Aseprite, GIMP, GrafX2)
+- **[HSC.md](DOCS/HSC.md)** - HSC music format (demoscene tracker)
+- **[TILEMAP.md](DOCS/TILEMAP.md)** - TMX tilemap format (replaces PNG to PCX on load)
 
 ## ✨ Features
 
@@ -135,6 +130,7 @@ IMGTEST.EXE
 - **XMS.PAS**: XMS extended memory (>1MB via HIMEM.SYS), smart buffering, heap management
 
 ### Data & Resources
+- **GAMEUNIT.PAS**: Central game loop framework with screen management, resource loading, and subsystem initialization.
 - **RESMAN.PAS**: Resource Manager (XML-based asset loading, lazy/eager loading, palette extraction)
 - **MINIXML.PAS**: XML parser and writer (DOM-style, 64KB file support)
 - **CONFIG.PAS**: simple INI parser and writer

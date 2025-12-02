@@ -234,7 +234,7 @@ begin
   WriteLn;
 
   { Initialize game }
-  Game.Init('CONFIG.INI', 'DATA\RES.XML');
+  Game.Init('..\SETUP\CONFIG.INI', 'DATA\RES.XML');
   Game.Start;
 
   { Create and register test screen }
