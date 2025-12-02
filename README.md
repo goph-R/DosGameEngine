@@ -97,51 +97,54 @@ XICLONE.EXE
 
 ## ✨ Features
 
-### Graphics
-- **VGA.PAS**: VGA Mode 13h (320×200 256-color)
-  - double-buffering (PFrameBuffer)
-  - palette control (0-63 RGB, TPalette)
-  - clipping support
-- **VGAFONT.PAS**: Variable-width fonts (PCX + XML)
-- **VGAUI.PAS**: UI widget system (Label, Button, Checkbox, LineEdit)
-  - keyboard-driven navigation (Tab, Enter, Space)
-  - event-driven architecture with procedure pointers
-  - focus management and rendering
-  - requires constructor/destructor pattern for VMT initialization
-- **PCX.PAS**: PCX image loading and saving (ZSoft RLE, Aseprite/GIMP/GrafX2-compatible)
-- **TMXLOAD.PAS**: Tiled TMX tilemap loader
-  - back and front tile layers (merges all before and after the objects layer)
-  - `Blocks` collision layer (loads a block map)
-  - objects layer detection (can be hooked to a function)
-- **TMXDRAW.PAS**: TMX renderer
-- **SPRITE.PAS**: Sprite animation (3 play modes)
+### 🎨 Graphics Engine
 
-### Audio
-- **PLAYHSC.PAS**: HSC music player (Adlib/OPL2, interrupt-based)
-- **SNDBANK.PAS**: XMS sound bank, VOC files (8-bit PCM 11-44kHz, DMA-safe buffers)
-- **SBDSP.PAS**: SoundBlaster driver
+* **320×200 VGA Mode 13h renderer** with double-buffering for flicker-free visuals.
+* **Full palette control** (RGB 0–63) and smooth palette effects.
+* **Variable-width bitmap fonts** using PCX art + XML metadata.
+* **UI widget toolkit** (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
+* **PCX loader/saver** compatible with Aseprite, GIMP, and GrafX2 workflows.
+* **Tiled TMX integration**
 
-### Input
-- **KEYBOARD.PAS**: Keyboard (INT 9h, IsKeyDown/IsKeyPressed)
-- **MOUSER.PAS**: Mouse (INT 33h, 3-button support)
+  * Auto-merged background/foreground layers
+  * Collision block maps
+  * Object-layer hooks for spawning entities
+* **Efficient tile renderer** optimized for DOS.
+* **Sprite animation system** with multiple playback modes.
 
-### Memory
-- **XMS.PAS**: XMS extended memory (>1MB via HIMEM.SYS), smart buffering, heap management
+### 🔊 Audio System
 
-### Data & Resources
-- **GAMEUNIT.PAS**: Central game loop framework with screen management, resource loading, and subsystem initialization.
-- **RESMAN.PAS**: Resource Manager (XML-based asset loading, lazy/eager loading, palette extraction)
-- **MINIXML.PAS**: XML parser and writer (DOM-style, 64KB file support)
-- **CONFIG.PAS**: simple INI parser and writer
-- **STRMAP.PAS**: Hash map (O(1) lookup)
-- **LINKLIST.PAS**: Linked list
+* **HSC music playback** via AdLib/OPL2 (interrupt-driven).
+* **Sound bank stored in XMS**, perfect for memory-heavy sample sets.
+* **VOC format support** (8-bit PCM, 11–44 kHz) with DMA-safe mixing.
+* **Dedicated Sound Blaster DSP driver** for maximum compatibility.
 
-### Tools
-- **SETUP.PAS**: Basic setup utility (sound card config)
-- **TEXTUI.PAS**: Text mode UI library
-- **LOGGER.PAS**: File-based debug logger (startup/shutdown only, NOT for render loops)
-- Test programs (VGATEST, FNTTEST, SPRTEST, TMXTEST, UITEST, etc.)
-- Automated builds (CxxxTEST.BAT scripts)
+### 🎮 Input Handling
+
+* **Real-time keyboard system** with key-down and key-press tracking.
+* **Mouse support via INT 33h**, including 3-button mice.
+
+### 🧠 Memory & Performance
+
+* **Advanced XMS manager** for systems with >1 MB RAM.
+* Smart buffering and optimized heap usage for large assets and audio banks.
+
+### 📦 Data & Resource Management
+
+* **Unified game loop framework** with screen management and subsystem initialization.
+* **XML-based resource manager** with lazy/eager loading and palette extraction.
+* **Lightweight XML parser/writer** (DOM-style, supports files up to 64 KB).
+* **Simple INI parser** for configuration.
+* **Fast string hash map** (O(1) lookup).
+* **Linked list utilities** for game data structures.
+
+### 🛠 Tools & Utilities
+
+* **Setup utility** for configuring sound hardware.
+* **Text-mode UI toolkit** for installers and tools.
+* **Debug logger** for startup/shutdown diagnostics (safe for DOS’s slow disk I/O).
+* **Test programs** for graphics, fonts, tiles, UI, sprites, audio, etc.
+* **Automated build scripts** for quickly generating test binaries.
 
 ## 📁 Project Structure
 
