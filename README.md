@@ -1,6 +1,6 @@
 # DOS Game Engine
 
-A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featuring VGA Mode 13h graphics, Adlib/OPL2 music, and Sound Blaster digital audio. Perfect for demoscene-style programming, retro game development, and learning classic DOS systems programming.
+A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featuring VGA Mode 13h graphics, AdLib/OPL2 music, and Sound Blaster digital audio. Perfect for demoscene-style programming, retro game development, and learning classic DOS systems programming.
 
 ![DOS](https://img.shields.io/badge/DOS-16--bit-blue)
 ![Turbo Pascal](https://img.shields.io/badge/Turbo%20Pascal-7.0-orange)
