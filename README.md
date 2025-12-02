@@ -99,9 +99,7 @@ XICLONE.EXE
 * [HSC music playback](DOCS/HSC.md)  
   via AdLib/OPL2 (interrupt-driven).
 * [Sound bank stored in XMS](DOCS/SNDBANK.md),  
-  perfect for memory-heavy sample sets.
-* VOC format support (8-bit PCM, 11–44 kHz)  
-  with DMA-safe mixing.
+  perfect for memory-heavy sample sets. VOC format support (8-bit PCM, 11–44 kHz) with DMA-safe mixing.
 * [Dedicated Sound Blaster DSP driver](DOCS/SBDSP.md)  
   for maximum compatibility.
 
