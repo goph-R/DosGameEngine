@@ -82,35 +82,50 @@ XICLONE.EXE
 
 ### 🎨 Graphics Engine
 
-* [320×200 VGA Mode 13h renderer](DOCS/VGA.md) with double-buffering for flicker-free visuals, full palette control.
-* [Variable-width bitmap fonts](DOCS/VGAUI.md) using PCX art + XML metadata.
-* [UI widget toolkit](DOCS/VGAUI.md) (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
-* [PCX loader/saver](DOCS/PCX.md) compatible with Aseprite, GIMP, and GrafX2 workflows.
+* [320×200 VGA Mode 13h renderer](DOCS/VGA.md)  
+  with double-buffering for flicker-free visuals, full palette control.
+* [Variable-width bitmap fonts](DOCS/VGAUI.md)  
+  using PCX art + XML metadata.
+* [UI widget toolkit](DOCS/VGAUI.md)  
+  (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.
+* [PCX loader/saver](DOCS/PCX.md)  
+  compatible with Aseprite, GIMP, and GrafX2 workflows.
 * [Tiled TMX integration](DOCS/TILEMAP.md)
-* [Sprite animation system](DOCS/SPRITE.md) with multiple playback modes.
+* [Sprite animation system](DOCS/SPRITE.md)  
+  with multiple playback modes.
 
 ### 🔊 Audio System
 
-* [HSC music playback](DOCS/HSC.md) via AdLib/OPL2 (interrupt-driven).
-* [Sound bank stored in XMS](DOCS/SNDBANK.md), perfect for memory-heavy sample sets.
-* VOC format support (8-bit PCM, 11–44 kHz) with DMA-safe mixing.
-* [Dedicated Sound Blaster DSP driver](DOCS/SBDSP.md) for maximum compatibility.
+* [HSC music playback](DOCS/HSC.md)  
+  via AdLib/OPL2 (interrupt-driven).
+* [Sound bank stored in XMS](DOCS/SNDBANK.md),  
+  perfect for memory-heavy sample sets.
+* VOC format support (8-bit PCM, 11–44 kHz)  
+  with DMA-safe mixing.
+* [Dedicated Sound Blaster DSP driver](DOCS/SBDSP.md)  
+  for maximum compatibility.
 
 ### 🎮 Input Handling
 
-* [Real-time keyboard system](DOCS/KEYBOARD.md) with key-down and key-press tracking.
-* [Mouse support via INT 33h](DOCS/MOUSE.md), including 3-button mice.
+* [Real-time keyboard system](DOCS/KEYBOARD.md)  
+  with key-down and key-press tracking.
+* [Mouse support via INT 33h](DOCS/MOUSE.md),  
+  including 3-button mice.
 
 ### 🧠 Memory & Performance
 
-* [Advanced XMS manager](DOCS/XMS.md) for systems with >1 MB RAM.
+* [Advanced XMS manager](DOCS/XMS.md)  
+  for systems with >1 MB RAM.
 * Smart buffering and optimized heap usage for large assets and audio banks.
 
 ### 📦 Data & Resource Management
 
-* [Unified game loop framework](DOCS/GAMEUNIT.md) with screen management and subsystem initialization.
-* [XML-based resource manager](DOCS/RESMAN.md) with lazy/eager loading and palette extraction.
-* [Lightweight XML parser/writer](DOCS/MINIXML.md) (DOM-style, supports files up to 64 KB).
+* [Unified game loop framework](DOCS/GAMEUNIT.md)  
+  with screen management and subsystem initialization.
+* [XML-based resource manager](DOCS/RESMAN.md)  
+  with lazy/eager loading and palette extraction.
+* [Lightweight XML parser/writer](DOCS/MINIXML.md)  
+  (DOM-style, supports files up to 64 KB).
 * Simple INI parser for configuration.
 * Fast string hash map (O(1) lookup).
 * Linked list utilities for game data structures.
