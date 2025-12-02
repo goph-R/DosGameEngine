@@ -153,8 +153,8 @@ begin
   ReadLn;
 
   { Load palette }
-  WriteLn('Loading palette from DATA\TEST.PAL...');
-  if not LoadPalette('DATA\TEST.PAL', Palette) then
+  WriteLn('Loading palette from DATA\TMXTEST.PAL...');
+  if not LoadPalette('DATA\TMXTEST.PAL', Palette) then
   begin
     WriteLn('Could not load palette.');
     Halt(1);

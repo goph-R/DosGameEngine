@@ -238,6 +238,8 @@ SourceY = Row * TileSet.TileHeight
 **Supported features:**
 - CSV-encoded tile data (`<data encoding="csv">`)
 - Multiple tilesets per map
+- External tileset files (TSX format)
+- Special "Blocks" and "Objects" tilesets
 - Multiple layers (merged to 2 final layers)
 - Objectgroup layer separator
 - Tile dimensions and map dimensions
@@ -249,23 +251,77 @@ SourceY = Row * TileSet.TileHeight
 - Tile animations
 - Tile properties/custom data
 - Isometric/hexagonal orientations (orthogonal only)
-- External TSX tileset files (only internal)
 
 **TMX format info:** https://doc.mapeditor.org/en/stable/reference/tmx-map-format/
 
-## 🧱 Blocks Layer (Collision Detection)
+## 🔗 External Tileset Support (TSX Files)
 
-**Feature:** Tile-based collision detection using custom layer properties.
+**Feature:** Tilesets can be defined in external `.tsx` files and referenced from the TMX file.
 
 **How it works:**
-- Layers with `<property name="blocks">` are treated as collision data (not visual tiles)
-- The special tileset named **"Blocks"** stores collision tile definitions
-- Block data is stored separately in `TTileMap.BlocksLayer` (PByteArray)
-- Each byte represents a block type (0 = passable, 1+ = different collision types)
 
-**TMX Configuration:**
+When loading a TMX file, the loader first processes all `<tileset>` tags in the `<map>` root node:
 
-1. Create a tileset named exactly **"Blocks"** in your TMX file:
+1. **Detection:** If a `<tileset>` tag has a `source` attribute, it's an external tileset reference
+   ```xml
+   <tileset firstgid="1" source="tilesets/terrain.tsx"/>
+   ```
+
+2. **Loading Process:**
+   - The `source` attribute contains a path **relative to the TMX file** location
+   - Load the TSX file content into an XMLNode (called `ExternalTilesetNode`)
+   - The root element in the TSX file is a `<tileset>` tag with full tileset definition
+   - Copy all attributes from the referencing `<tileset>` tag to the loaded `ExternalTilesetNode` (except the `source` attribute itself)
+   - Replace the original tileset reference node with the loaded external tileset node
+
+3. **Path Conversion:**
+   - All `/` characters in the `source` path are replaced with `\` for DOS compatibility
+   - Example: `source="tilesets/terrain.tsx"` → `TILESETS\TERRAIN.TSX`
+
+4. **Merged Processing:**
+   - After external tilesets are loaded and merged, the loading process continues normally
+   - Each tileset (whether originally internal or external) is processed identically
+
+**Example TSX file (`TERRAIN.TSX`):**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<tileset version="1.10" name="Terrain" tilewidth="16" tileheight="16"
+         tilecount="64" columns="8">
+  <image source="terrain.png" width="128" height="128"/>
+</tileset>
+```
+
+**Example TMX reference:**
+```xml
+<map version="1.10" width="20" height="15" tilewidth="16" tileheight="16">
+  <!-- External tileset reference -->
+  <tileset firstgid="1" source="TILESETS\TERRAIN.TSX"/>
+
+  <!-- Layers use the tiles normally -->
+  <layer id="1" name="Ground" width="20" height="15">
+    <data encoding="csv">1,2,3,4,...</data>
+  </layer>
+</map>
+```
+
+**Benefits:**
+- Reuse tilesets across multiple maps
+- Smaller TMX files
+- Easier tileset management and updates
+
+## 🧱 Special Tilesets: Blocks and Objects
+
+The engine recognizes two special tileset types by name:
+
+### 1. **"Blocks" Tileset** (Collision Detection)
+
+- **Type:** Simple image tileset
+- **Purpose:** Contains block tiles for the collision/blocks layer
+- **Name:** Must be exactly `"Blocks"` (case-sensitive)
+- **Format:** Standard tileset with a single tileset image
+- **Usage:** Used by the blocks layer for tile-based collision detection
+
+**Example:**
 ```xml
 <tileset firstgid="241" name="Blocks" tilewidth="16" tileheight="16"
          tilecount="16" columns="4">
@@ -273,7 +329,51 @@ SourceY = Row * TileSet.TileHeight
 </tileset>
 ```
 
-2. Create a layer with the `blocks` property:
+### 2. **"Objects" Tileset** (Entity Sprites)
+
+- **Type:** Image collection tileset
+- **Purpose:** Contains object tiles for game entities (player, enemies, items, etc.)
+- **Name:** Must be exactly `"Objects"` (case-sensitive)
+- **Format:** Collection-based tileset where each tile can have different dimensions
+- **Usage:** Entity system references tiles from this tileset for sprite rendering
+
+**Example:**
+```xml
+<tileset firstgid="300" name="Objects" tilewidth="16" tileheight="16">
+  <tile id="0">
+    <image source="player.png" width="16" height="24"/>
+  </tile>
+  <tile id="1">
+    <image source="enemy.png" width="16" height="16"/>
+  </tile>
+  <tile id="2">
+    <image source="coin.png" width="8" height="8"/>
+  </tile>
+</tileset>
+```
+
+**Both tilesets can be external (TSX files):**
+```xml
+<!-- External Blocks tileset -->
+<tileset firstgid="241" source="BLOCKS.TSX"/>
+
+<!-- External Objects tileset -->
+<tileset firstgid="300" source="OBJECTS.TSX"/>
+```
+
+## 🧱 Blocks Layer (Collision Detection)
+
+**Feature:** Tile-based collision detection using custom layer properties.
+
+**How it works:**
+- Layers with `<property name="blocks">` are treated as collision data (not visual tiles)
+- The special **"Blocks"** tileset (see above) stores collision tile definitions
+- Block data is stored separately in `TTileMap.BlocksLayer` (PByteArray)
+- Each byte represents a block type (0 = passable, 1+ = different collision types)
+
+**TMX Configuration:**
+
+Create a layer with the `blocks` property:
 ```xml
 <layer id="5" name="Collision" width="20" height="15">
   <properties>

@@ -122,7 +122,7 @@ begin
   end;
 end;
 
-{ Load a single tileset from XML node }
+{ Load a single tileset from resolved XML node }
 function LoadTileSet(const FolderPath: String; const XMLNode: PXMLNode; var TileSet: TTileSet): Boolean;
 var
   ImageNode: PXMLNode;
@@ -291,6 +291,16 @@ var
   ObjectGroupFound: Boolean;
   ObjectGroupNode: PXMLNode;
   LayersBefore, LayersAfter: Byte;
+  TilesetName: String;
+  IsBlocks, IsObjects: Boolean;
+  ExternalTSXNode: PXMLNode;
+  TSXSource: String;
+  TSXPath: String;
+  ResolvedTilesets: array[0..TileMap_MaxTileSets - 1] of PXMLNode;
+  IsExternalTileset: array[0..TileMap_MaxTileSets - 1] of Boolean;
+  ResolvedCount: Byte;
+  I: Integer;
+  FirstGIDAttr: String;
 begin
   LoadTileMap := False;
   LoadTileMapError := '';
@@ -341,36 +351,104 @@ begin
   { Extract folder path for relative tileset loading }
   FolderPath := ExtractFolder(FilePath);
 
-  { Load all tilesets }
-  TileMap.TileSetCount := 0;
+  { ===== STEP 1: Resolve external tilesets ===== }
+  { Build array of resolved tileset nodes (external TSX loaded and merged) }
+  ResolvedCount := 0;
   Node := XMLFirstChild(MapNode, 'tileset');
-  while (Node <> nil) and (TileMap.TileSetCount < TileMap_MaxTileSets) do
+  while (Node <> nil) and (ResolvedCount < TileMap_MaxTileSets) do
   begin
-    { Check if this is a `Blocks` named tileset }
-    if XMLAttr(Node, 'name') = 'Blocks' then
+    if XMLHasAttr(Node, 'source') then
+    begin
+      { External tileset reference - load TSX file }
+      TSXSource := FixPath(XMLAttr(Node, 'source'));
+      TSXPath := FolderPath + TSXSource;
+
+      { Load external TSX }
+      XMLLoadFile(TSXPath, ExternalTSXNode);
+      if ExternalTSXNode = nil then
+      begin
+        LoadTileMapError := 'Failed to load external tileset: ' + TSXPath;
+        { Free any previously loaded external tilesets }
+        for I := 0 to ResolvedCount - 1 do
+          if IsExternalTileset[I] then
+            XMLFreeTree(ResolvedTilesets[I]);
+        XMLFreeTree(MapNode);
+        Exit;
+      end;
+
+      { Copy firstgid attribute from reference to external node }
+      if XMLHasAttr(Node, 'firstgid') then
+      begin
+        FirstGIDAttr := XMLAttr(Node, 'firstgid');
+        XMLSetAttr(ExternalTSXNode, 'firstgid', FirstGIDAttr);
+      end;
+
+      { Store the external node (it now has firstgid + all TSX content) }
+      ResolvedTilesets[ResolvedCount] := ExternalTSXNode;
+      IsExternalTileset[ResolvedCount] := True;
+      Inc(ResolvedCount);
+    end
+    else
+    begin
+      { Internal tileset - use as-is }
+      ResolvedTilesets[ResolvedCount] := Node;
+      IsExternalTileset[ResolvedCount] := False;
+      Inc(ResolvedCount);
+    end;
+
+    Node := XMLNextSibling(Node, 'tileset');
+  end;
+
+  { ===== STEP 2: Process resolved tilesets ===== }
+  TileMap.TileSetCount := 0;
+  for I := 0 to ResolvedCount - 1 do
+  begin
+    Node := ResolvedTilesets[I];
+
+    { Get tileset name }
+    TilesetName := '';
+    if XMLHasAttr(Node, 'name') then
+      TilesetName := XMLAttr(Node, 'name');
+
+    IsBlocks := (TilesetName = 'Blocks');
+    IsObjects := (TilesetName = 'Objects');
+
+    if IsBlocks then
     begin
       { Store FirstGID for blocks tileset and skip loading image }
       if XMLHasAttr(Node, 'firstgid') then
         TileMap.BlocksTilesetFirstGID := StrToInt(XMLAttr(Node, 'firstgid'));
+    end
+    else if IsObjects then
+    begin
+      { Objects tileset - skip loading for now (future: entity system) }
+      { Just skip it, don't increment TileSetCount }
     end
     else
     begin
       { Normal tileset - load it }
       if not LoadTileSet(FolderPath, Node, TileMap.TileSets[TileMap.TileSetCount]) then
       begin
+        { Free any external TSX nodes before exit }
+        for I := 0 to ResolvedCount - 1 do
+          if IsExternalTileset[I] then
+            XMLFreeTree(ResolvedTilesets[I]);
         XMLFreeTree(MapNode);
         FreeTileMap(TileMap);
         Exit;
       end;
       Inc(TileMap.TileSetCount);
     end;
-    Node := XMLNextSibling(Node, 'tileset');
   end;
 
   { Verify at least one tileset was loaded }
   if TileMap.TileSetCount = 0 then
   begin
     LoadTileMapError := 'No tilesets found';
+    { Free any external TSX nodes before exit }
+    for I := 0 to ResolvedCount - 1 do
+      if IsExternalTileset[I] then
+        XMLFreeTree(ResolvedTilesets[I]);
     XMLFreeTree(MapNode);
     FreeTileMap(TileMap);
     Exit;
@@ -404,6 +482,11 @@ begin
   { Call objectgroup callback AFTER tilemap is fully loaded }
   if (ObjectGroupNode <> nil) and (@ObjectGroupProc <> nil) then
     ObjectGroupProc(ObjectGroupNode);
+
+  { Free external TSX trees }
+  for I := 0 to ResolvedCount - 1 do
+    if IsExternalTileset[I] then
+      XMLFreeTree(ResolvedTilesets[I]);
 
   XMLFreeTree(MapNode);
   LoadTileMap := True;
