@@ -6,8 +6,28 @@ cd ..\UNITS
 call CUNITS.BAT
 if errorlevel 1 goto error
 
-echo Compiling XICLONE.PAS...
 cd ..\XICLONE
+echo Compiling XITYPES.PAS...
+tpc -U..\UNITS XITYPES.PAS
+if errorlevel 1 goto error
+
+cd ..\XICLONE
+echo Compiling XILOGIC.PAS...
+tpc -U..\UNITS XILOGIC.PAS
+if errorlevel 1 goto error
+
+cd ..\XICLONE
+echo Compiling XISTYLE.PAS...
+tpc -U..\UNITS XISTYLE.PAS
+if errorlevel 1 goto error
+
+cd ..\XICLONE
+echo Compiling XIRENDER.PAS...
+tpc -U..\UNITS XIRENDER.PAS
+if errorlevel 1 goto error
+
+cd ..\XICLONE
+echo Compiling XICLONE.PAS...
 tpc -U..\UNITS XICLONE.PAS
 if errorlevel 1 goto error
 
