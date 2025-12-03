@@ -265,32 +265,30 @@ begin
     DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
-    { Update mouse if initialized }
-    if MouseInitialized then
-      UpdateMouse;
-
-    { Clear back buffer with background }
-    CopyFrameBuffer(BackgroundBuffer, BackBuffer);
-
-    { Update current screen (which renders to BackBuffer) }
+    { Update }
     Update(DeltaTime);
-
-    { Display back buffer to VGA }
-    RenderFrameBuffer(BackBuffer);
-
-    { Handle exit Mortal Kombat style }
-    if (IsKeyDown(Key_LAlt) and IsKeyPressed(Key_Q)) then
-      Running := False;
-
-    ClearKeyPressed;
   end;
 end;
 
 procedure TGame.Update(DT: Real);
 begin
-  { Call current screen's update if exists }
+  { Update mouse if initialized }
+  if MouseInitialized then
+    UpdateMouse;
+
+  { Handle exit Mortal Kombat style }
+  { TODO: make this optional }
+  if (IsKeyDown(Key_LAlt) and IsKeyPressed(Key_Q)) then
+    Running := False;
+
+  { Call current screen's update if exists, it should render itself how it wishes }
   if Screen <> nil then
     Screen^.Update(DT);
+
+  { TODO: make this optional }
+  WaitForVSync;
+
+  ClearKeyPressed;
 end;
 
 procedure TGame.PlayMusic(const Name: String);

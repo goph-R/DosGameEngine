@@ -188,6 +188,9 @@ begin
   if IsKeyPressed(Key_E) then
     if (Game^.Config.SoundCard = SoundCard_SoundBlaster) and (ExplosionID >= 0) then
       Game^.ResMan.SoundBank.PlaySound(ExplosionID);
+
+  if IsKeyPressed(Key_Escape) then
+    Game^.Running := False;
 end;
 
 procedure TTestScreen.Render;
@@ -195,6 +198,8 @@ var
   i: Integer;
   FPSStr: String;
 begin
+  CopyFrameBuffer(Game^.BackgroundBuffer, Game^.BackBuffer);
+
   { Draw all test sprites - they will clip properly at screen edges }
   for i := 1 to 4 do
   begin
@@ -213,6 +218,8 @@ begin
   { Wait for vertical sync to prevent tearing }
   if UseVSync then
     WaitForVSync;
+
+  RenderFrameBuffer(Game^.BackBuffer);
 end;
 
 procedure TTestScreen.Show;
