@@ -1,29 +1,102 @@
-unit XiLogic;
+unit GameScr;
 
 interface
 
-uses XiTypes;
+uses
+  VGA, GameUnit, BaseScr, XiStyle, XiTypes;
 
-{ Stack operations }
-function RandomGemColor: TGemColor;
-procedure SpawnStack(var Stack: TGemStack; var NextGems: array of TGemColor;
-                     var LastX: Integer; var LastY: Real; First: Boolean);
-procedure RotateStack(var Stack: TGemStack);
+const
+  { Playfield dimensions }
+  PlayfieldCols = 6;
+  PlayfieldRows = 12;
+  TileSize = 16;
 
-{ Collision detection }
-function CheckStackCollision(const Field: TPlayfield; CheckX, StartCheckY: Integer): Boolean;
+type
+  { Gem colors }
+  TGemColor = (
+    Gem_Empty,       { 0 - No gem }
+    Gem_Red,         { 1 - Red gem }
+    Gem_Yellow,      { 2 - Yellow gem }
+    Gem_Green,       { 3 - Green gem }
+    Gem_Blue,        { 4 - Blue gem }
+    Gem_Pink,        { 5 - Pink gem }
+    Gem_Purple,      { 6 - Purple gem }
+    Gem_MagicJewel   { 7 - Special multi-colored gem }
+  );
 
-{ Match detection }
-function CountMatchInDirection(const Field: TPlayfield; StartX, StartY, DX, DY: Integer;
-                                Color: TGemColor): Integer;
-function FindAndRemoveMatches(var Field: TPlayfield;
-                               var FlashTiles: array of Boolean): Integer;
+  { Playfield grid }
+  TPlayfield = record
+    Tiles: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of TGemColor;
+    TileChanged: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
+  end;
 
-{ Gravity and removal }
-procedure RemoveFlashedGems(var Field: TPlayfield; var FlashTiles: array of Boolean);
-procedure ApplyGravity(var Field: TPlayfield);
+  { Falling gem stack }
+  TGemStack = record
+    Gems: array[0..2] of TGemColor;  { Top, Middle, Bottom }
+    GridX: Integer;     { Grid column (0-5) }
+    PixelX: Integer;    { Pixel X position (for rendering) }
+    PixelY: Real;       { Pixel Y position (smooth falling) }
+    FallSpeed: Real;    { Pixels per second }
+    Active: Boolean;    { Is stack currently falling? }
+  end;
+
+type 
+  PGameScreen = ^TGameScreen;
+  TGameScreen = object(TBaseScreen)
+
+    { Images }
+    BackgroundImage: PImage;
+    GemsImage: PImage;
+
+    { Game data }
+    Playfield: TPlayfield;
+    CurrentStack: TGemStack;
+    LastStackY: Real;
+    LastStackX: Integer;  { Track last rendered position }
+
+    { Game state }
+    Score: LongInt;
+    Level: Integer;
+    Blocks: Integer;
+    NeedMatchCheck: Boolean;
+    FlashTimer: Real;
+    FlashActive: Boolean;
+    FlashTiles: array[0..PlayfieldCols * PlayfieldRows - 1] of Boolean;
+
+    { HUD tracking - for dirty rectangle optimization }
+    LastScore: LongInt;
+    LastLevel: Integer;
+    LastBlocks: Integer;
+
+    { Next stack preview gems }
+    NextStackGems: array [0..2] of TGemColor;
+
+    Paused: Boolean;
+
+    constructor Init(G: PGame);
+    destructor Done; virtual;
+    procedure Update(DT: Real); virtual;    
+  end;
 
 implementation
+
+const
+  { Screen positions }
+  PlayfieldX = 113;  { Game stage start position }
+  PlayfieldY = 4;
+
+  { Game tuning }
+  InitialFallSpeed = 16.0; { 1 tile per second }
+  FastFallSpeed = 160.0;   { 10 tile per second, when holding down }
+
+  { Next stack preview position }
+  NextStackX = 230;
+  NextStackY = 31;
+  NextLabelX = 226;
+  NextLabelY = 17;
+
+  StatLabelsX = 99;
+
 
 function RandomGemColor: TGemColor;
 var
@@ -277,6 +350,39 @@ begin
       end;
     end;
   until not Moved;
+end;
+
+procedure CheckForMatches;
+var
+  GemsRemoved: Integer;
+begin
+  { Find matches and mark them for flashing }
+  GemsRemoved := FindAndRemoveMatches(Playfield, FlashTiles);
+
+  if GemsRemoved > 0 then
+  begin
+    { Start flash effect }
+    FlashActive := True;
+    FlashTimer := 0.0;
+
+    { Update score }
+    Inc(Score, GemsRemoved * 10);
+  end;
+end;
+
+constructor TGameScreen.Init(G: PGame);
+begin
+  inherited Init(G);
+  GemsImage       := G^.ResMan.GetImage('gems1');
+  BackgroundImage := G^.ResMan.GetImage('bg1');
+end;
+
+destructor TGameScreen.Done;
+begin
+end;
+
+procedure TGameScreen.Update(DT: Real);
+begin
 end;
 
 end.

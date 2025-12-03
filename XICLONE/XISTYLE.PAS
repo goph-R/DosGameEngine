@@ -1,11 +1,11 @@
-unit XIStyle;
+unit XiStyle;
 
 interface
 
 uses VGA, VGAUI;
 
 type
-  TXIStyle = object(TUIStyle)
+  TXiStyle = object(TUIStyle)
     procedure RenderPanel(const R: TRectangle; Pressed: Boolean; FrameBuffer: PFrameBuffer); virtual;
   end;
 

@@ -278,8 +278,8 @@ begin
     { Display back buffer to VGA }
     RenderFrameBuffer(BackBuffer);
 
-    { Handle exit }
-    if IsKeyPressed(Key_Escape) then
+    { Handle exit Mortal Kombat style }
+    if (IsKeyDown(Key_LAlt) and IsKeyPressed(Key_Q)) then
       Running := False;
 
     ClearKeyPressed;

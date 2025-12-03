@@ -33,9 +33,9 @@ D:\ENGINE\
 ### Compile (automated)
 ```bash
 cd TESTS
-CVGATEST.BAT  CDRWTEST.BAT  CFNTTEST.BAT  CSNDTEST.BAT  CIMGTEST.BAT
-CTMXTEST.BAT  CSPRTEST.BAT  CMOUTEST.BAT  CMAPTEST.BAT  CXMLTEST.BAT
-CPCXTEST.BAT  CIMFTEST.BAT  CUITEST.BAT
+CDRWTEST.BAT  CFNTTEST.BAT  CIMGTEST.BAT  CMAPTEST.BAT  CMOUTEST.BAT
+CPCXTEST.BAT  CSNDTEST.BAT  CSPRTEST.BAT  CTMXTEST.BAT  CUITEST.BAT
+CXMLTEST.BAT
 cd ..\SETUP
 CSETUP.BAT
 ```
@@ -48,43 +48,76 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 ## Core Units (Condensed)
 
-**GENTYPES.PAS** - Generic types (PWord, PShortString, TByteArray, PByteArray, TWordArray, PWordArray)
+**GENTYPES.PAS** - Generic types
+- Pointer types: PByte, PWord, PShortString
+- Array types: TByteArray (0..65520), PByteArray, TWordArray (0..32000), PWordArray
 
 **VGA.PAS** - Mode 13h graphics
 - Types: TFrameBuffer, PFrameBuffer, TImage, PImage, TRectangle, TPalette, TRGBColor
 - Init: InitVGA, CloseVGA, WaitForVSync
 - Buffers: CreateFrameBuffer, GetScreenBuffer, ClearFrameBuffer, CopyFrameBuffer, CopyFrameBufferRect (REP MOVSW for 286 speed), RenderFrameBuffer, FreeFrameBuffer
-- Palette: SetPalette, RotatePalette, LoadPalette
-- Draw: DrawLine, GetImage, PutImage, PutImageRect, PutFlippedImage, PutFlippedImageRect, ClearImage, FreeImage
+- Palette: SetPalette, SetRGB, GetRGB, RotatePalette, LoadPalette
+- Clipping: SetClipRectangle (set rendering bounds)
+- Draw: DrawLine, DrawHLine, DrawVLine, DrawFillRect, DrawRect, GetImage, PutImage, PutImageRect, PutFlippedImage, PutFlippedImageRect, ClearImage, FreeImage
 - Color 0 = transparent, auto-clip (0-319, 0-199)
 
 **VGAPRINT.PAS** - Embedded 8x8 bitmap font, PrintText(x,y,text,color,fb)
 
 **VGAFONT.PAS** - Variable-width font from PCX sprite sheet + XML
-- LoadFont(xml,font), PrintFontText(x,y,text,font,fb), GetLoadFontError, FreeFont
+- Types: TFont (Image, Height, Padding, Chars, Loaded), PFont, TCharInfo
+- Constants: MaxChars = 128
+- LoadFont(xml,font), FreeFont(font), GetLoadFontError
+- PrintFontText(x,y,text,font,fb), PrintFontTextCentered(x,y,text,font,fb), PrintFontTextRight(x,y,text,font,fb)
+- GetTextWidth(text,font)
 
 **PCX.PAS** - PCX image loading and saving (ZSoft PCX v5, Aseprite/GIMP-compatible)
-- LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLastErrorMessage
-- SavePCX(file,img,pal)
+- Types: TPCXHeader
+- LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLoadPCXError
+- SavePCX(file,img,pal), GetSavePCXError
 - Simple RLE decoding, 256-color indexed, palette at EOF-768 bytes
 - Handles scanline padding (BytesPerLine), auto-converts palette 0-255 → 0-63 for VGA
 - Max 65520 bytes (320×204 for 320-width)
 
+**BMP.PAS** - BMP image loading and saving (Windows BMP, 256-color indexed)
+- Types: TBMPFileHeader, TBMPInfoHeader, TBMPRGBQuad
+- LoadBMP(file,img), LoadBMPWithPalette(file,img,pal), GetLoadBMPError
+- SaveBMP(file,img,pal), GetSaveBMPError
+- Uncompressed BMP (BI_RGB), 8-bit indexed color, bottom-up scanlines
+- Auto-converts BGRA palette to VGA RGB (0-63)
+- Compatible with Windows Paint, Photoshop, GIMP
+
 **SBDSP.PAS** - Sound Blaster driver (1995, Romesh Prakashpalan, VENDOR/SBDSP2B)
-- ResetDSP(Base,IRQ,DMA,HighDMA), PlaySound(BaseSoundType), PlaySoundRPD(file), DMAStop/Continue, SpeakerOn/Off
-- InstallHandler/UninstallHandler, global `Playing` flag
+- Types: BaseSoundType, SoundType, RPDHeader, PhaseType (Mono/Stereo/Surround)
+- Constants: Volume levels (SilentVol..QuadrupleVol), DMA types (EightBitDMA, SixteenBitDMA, HighSpeedDMA, etc.)
+- Init: ResetDSP(Base,IRQ,DMA,HighDMA), InstallHandler, UninstallHandler
+- Playback: PlaySound(BaseSoundType), PlaySoundRPD(file), PlaySoundDSK(file,freq,type)
+- Control: DMAStop, DMAContinue, SpeakerOn, SpeakerOff
+- Loading: LoadSoundRPD(file,sound,memalloc)
+- Recording: RecordSoundRPD(file,freq), StopRecording
+- DAC: WriteDAC(level), ReadDAC
+- Globals: Playing (Boolean), Recording (Boolean), CurrentSound (SoundType)
 - **CRITICAL**: Call UninstallHandler before exit. Base: 2=$220, IRQ: 5/7, DMA: 1
 
-**VOCLOAD.PAS** - VOC file loader for SBDSP
+**VOCLOAD.PAS** - VOC file loader for SBDSP (SETUP\ folder, not UNITS\)
 - PlayVOCFile(file), FreeVOCBuffer
 - Don't wait `while Playing` if HSC music active (freezes)
+- Used by SETUP utility; games should use SNDBANK instead
 
 **XMS.PAS** - Extended memory (1992, KIV without Co) ✅ WORKING
-- XMSinstalled, AllocXMS(KB), FreeXMS(Handle), Mem2Xms/Xms2Mem, MoveXMS, GetXMSmem
+- Types: EMMstruct (size, soh, soo, dsh, dso)
+- Globals: XMSerror (Byte)
+- Detection: XMSinstalled
+- Memory: GetXMSmem(total,block), AllocXMS(KB), ReallocXMS(handle,KB), FreeXMS(handle)
+- Transfer: MoveXMS(EMMstruct), Mem2Xms(buf,count,handle,offset), Xms2Mem(handle,offset,buf,count)
+- Locking: LockBlock(handle,address), UnlockBlock(handle)
+- Info: GetXMShandleInfo(handle,lockcount,freehandles,size), XMSerrorMSG(error)
+- HMA: RequestHMA(mem), ReleaseHMA
 - **CRITICAL**: When handle=0 in EMMstruct, offset = pointer (seg:ofs), NOT linear address
 
 **SNDBANK.PAS** - XMS sound bank for SBDSP (2025)
-- TSoundBank: Init, LoadSound(file)→ID, PlaySound(ID), StopSound, Done
+- Types: TSoundBank (object), TSoundInfo
+- Constants: MaxSounds = 32
+- TSoundBank methods: Init, LoadSound(file)→ID, PlaySound(ID), StopSound, Done
 - DMA-safe allocation (no 64KB boundary crossing)
 - Requires HIMEM.SYS + SBDSP.ResetDSP
 
@@ -93,63 +126,105 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Hooks IRQ0 timer. **CRITICAL**: Call Done before exit
 - **WARNING**: Don't read PIT Timer 0 or hook IRQ0 while HSC active. Use RTCTimer.PAS (IRQ8)
 
-**PLAYIMF.PAS** - IMF music player (Id Music Format, 2025)
-- IMF_obj: Init(rate), LoadFile/LoadMem, Start/Stop, Poll, Done
-- Polling-based (no interrupts), safe with HSC/RTC/SBDSP
-- Rates: 560 Hz (Keen), 700 Hz (Wolf3D). Call Poll every frame!
-- Games: Wolfenstein 3D, Commander Keen 4-6, Blake Stone
-- **CRITICAL**: Call Poll in main loop, Done before exit. NO interrupt conflicts
-
 **RTCTIMER.PAS** - RTC high-res timer (2025, IRQ8)
-- InitRTC(Freq), DoneRTC, GetTimeSeconds, RTC_Ticks
+- Constants: CMOS_PORT ($70), CMOS_DATA ($71), PIC1_OCW1 ($21), PIC2_OCW1 ($A1)
+- Globals: RTC_Ticks (LongInt), RTC_Freq_Hz (Word), OldInt70 (Pointer)
+- InitRTC(Freq), DoneRTC, GetTimeSeconds
 - IRQ8 on slave PIC - no conflict with HSC (IRQ0)
 - **CRITICAL**: Call DoneRTC before exit. NEVER mask IRQ2 (cascade)
 
 **KEYBOARD.PAS** - INT 9h keyboard handler
 - InitKeyboard, DoneKeyboard, IsKeyDown(scancode), IsKeyPressed(scancode), ClearKeyPressed
-- Constants: Key_A..Key_Z, Key_0..Key_9, Key_F1..Key_F12, Key_Up/Down/Left/Right, Key_Escape/Enter/Space
+- Constants: Key_A..Key_Z, Key_0..Key_9, Key_F1..Key_F12
+- Arrow keys: Key_Up/Down/Left/Right
+- Special: Key_Escape, Key_Enter, Key_Space, Key_Backspace, Key_Tab
+- Extended: Key_Home/End/PgUp/PgDn/Insert/Delete
+- Modifiers: Key_LShift/RShift/LCtrl/LAlt/CapsLock
+- Punctuation: Key_Minus/Equals/LBracket/RBracket/Semicolon/Quote/Backquote/Backslash/Comma/Period/Slash
+- CharMapNormal, CharMapShift: Scancode→character lookup tables (array[0..127])
 - **CRITICAL**: Call ClearKeyPressed at end of game loop, DoneKeyboard before exit
 
 **MOUSE.PAS** - INT 33h mouse driver (requires MOUSE.COM/MOUSE.SYS)
-- InitMouse, ShowMouse/HideMouse, UpdateMouse, GetMouseX/Y, GetMouseButtons, IsMouseButtonDown(btn), DoneMouse
 - Constants: MouseButton_Left/Right/Middle ($01/$02/$04)
-- Call UpdateMouse once per frame
+- Init: InitMouse, DoneMouse
+- Visibility: ShowMouse, HideMouse
+- Input: UpdateMouse, GetMouseX, GetMouseY, GetMouseButtons, IsMouseButtonDown(btn)
+- Range: SetMouseRangeX(minx,maxx), SetMouseRangeY(miny,maxy)
+- **CRITICAL**: Call UpdateMouse once per frame
 
 **SPRITE.PAS** - Delta-time sprite animation
-- TSprite (shared): Image, FrameCount, Duration (ms), PlayType (Forward/PingPong/Once), Frames[0..63]
-- TSpriteInstance (per-entity): Sprite, X, Y, FlipX/Y, CurrentTime, Hidden
+- Constants: SpritePlayType_Forward/PingPong/Once (0/1/2), MaxSpriteFrames = 64
+- Types: TSprite (PImage, Frames, FrameCount, Width, Height, Duration (seconds), PlayType), PSprite
+- TSpriteInstance (Sprite, X, Y, FlipX, FlipY, CurrentTime, Hidden, PlayBackward), PSpriteInstance
 - UpdateSprite(instance,deltatime), DrawSprite(instance,fb)
 
-**ENTITIES.PAS** - Entity/physics system
-- TEntity: X,Y (fixed-point LongInt×256), Width, Height, AlignH/V, SpriteInstance, Physics, Parent
-- Methods: Init, GetGlobalX/Y, GetTop/Right/Bottom/Left, PreUpdate/Update/Draw
-- TPhysics: velocity, acceleration, gravity, Update(entity,dt)
+**RESMAN.PAS** - Resource manager (2025)
+- TResourceManager: Centralized asset loading from XML manifest
+- Types: ResType_Music/Sound/Image/Font/Sprite/Palette
+- Methods: Init(lazy), LoadFromXML(file), GetImage/Font/Sprite/Sound/Music/Palette, Done
+- Features: Lazy/eager loading, XML-relative paths, dependency resolution, name-based lookup
+- See DOCS\RESMAN.md for XML format
+
+**GAMEUNIT.PAS** - Game framework (2025)
+- TGame: Main game object (Init, Start, Run, Done, PlayMusic, SetScreen, AddScreen)
+- TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide)
+- Auto-initializes: VGA, Config, ResMan, RTC, Keyboard, Mouse, SBDSP, framebuffers
+- Screen management via ScreenMap, delta-time game loop
+- See DOCS\GAMEUNIT.md for architecture
+
+**DRECT.PAS** - Dirty rectangle system (2025)
+- Optimized rendering for partial screen updates
+- AddDirtyRect(rect), FlushDirtyRects(backbuffer), ClearDirtyRects, GetDirtyCount
+- Max 256 rectangles, copies only changed regions to screen
 
 **MINIXML.PAS** - Lightweight XML parser
-- XMLLoadFile(file,root), XMLFreeTree(node)
-- XMLAttr/XMLHasAttr/XMLGetText, XMLFirstChild/NextSibling/CountChildren, XMLReadWordArray
+- Types: PXMLNode, TXMLNode (Name, TextBuf, TextLen, TextCap, AttrKeys, AttrValues, AttrCount, FirstChild, NextSibling, Parent)
+- Constants: XML_MaxNameLength = 20, XML_MaxAttrsCount = 8
+- Loading: XMLLoadFile(file,root), GetLoadXMLError
+- Saving: XMLSaveFile(file,root), GetSaveXMLError
+- Query: XMLAttr(node,name), XMLHasAttr(node,name), XMLGetText(node)
+- Navigation: XMLFirstChild(node,name), XMLNextSibling(node,name), XMLCountChildren(node,name)
+- Data: XMLReadWordArray(node,arr,count)
+- Building: XMLInitNode(node), XMLAddChild(parent,child), XMLSetAttr(node,key,value), XMLSetText(node,text), XMLAppendText(node,text), XMLAddChildElement(parent,name)
+- Cleanup: XMLFreeTree(node)
 
 **STRMAP.PAS** - String→pointer hash map (256 entries)
-- MapInit/Put/Get/Contains/Remove/Free
+- Constants: MAX_ENTRIES = 256
+- Types: TStringMap, TMapEntry (Key, Value, Used), PMapEntry, PMapValue
+- MapInit(map), MapPut(map,key,value), MapGet(map,key), MapContains(map,key), MapRemove(map,key), MapFree(map)
 
 **STRUTIL.PAS** - String utilities
-- StrToInt, IntToStr, Trim, HexStr, HexStrToWord
+- StrToInt(s), StrToReal(s), IntToStr(value), Trim(s), HexStr(value,digits), HexStrToWord(s)
 
 **LINKLIST.PAS** - Doubly-linked list
-- ListInit/Add/Remove/RemoveByValue/Contains/Free
+- Types: TLinkedList (First, Last, Count), TListEntry (Next, Prev, Value), PListEntry, PListValue
+- ListInit(list), ListAdd(list,value), ListRemove(list,entry), ListRemoveByValue(list,value), ListContains(list,value), ListFree(list)
 
 **CONFIG.PAS** - CONFIG.INI management
-- LoadConfig/SaveConfig, TConfig record
-- Constants: SoundCard_None/Adlib/SoundBlaster (0/1/2), GameTitle/Version, TileSize
-- SBPort: 2=$220, 4=$240, 6=$260, 8=$280
+- Types: TConfig (SoundCard, SBPort, SBIRQ, SBDMA, UseMouse)
+- Constants: GameTitle, GameVersion, TileSize
+- Sound card types: SoundCard_None/Adlib/SoundBlaster (0/1/2), SoundCardNames array
+- SBPort values: 2=$220, 4=$240, 6=$260, 8=$280
+- LoadConfig(config,file), SaveConfig(config,file)
 
 **TEXTUI.PAS** - Text mode UI ($B800:0000)
-- HideCursor/ShowCursor, PutCharAt, RenderText/CenterText/EmptyLine/Box/Background
-- TMenu/TMenuItem: AddMenuItem/EmptyMenuItem, RenderMenu, RunMenu, FreeMenu, ShowMessage
-- Menu callbacks need `{$F+}` (far calls)
+- Constants: ScreenCols = 80, ScreenRows = 25
+- Types: TMenu (Title, FirstMenuItem, Col, Row, Width, SelectedIndex), PMenu
+- TMenuItem (Text, Process, NextMenuItem, Disabled), PMenuItem, TMenuItemProc
+- Globals: VidMem (array at $B800:0000)
+- Cursor: HideTextCursor, ShowTextCursor, SetTextCursorPosition(row,col)
+- Text: PutCharAt(col,row,ch,color), RenderText(col,row,text,color), RenderCenterText(row,text,color), RenderEmptyLine(row,color), GetColumnForCenter(text)
+- Box: RenderTextBox(col,row,w,h,boxcolor,shadowcolor), RenderTextBackground
+- Menu: AddMenuItem(menu,text,proc), AddEmptyMenuItem(menu), CountMenuItems(menu), GetMenuItem(menu,idx), RenderMenu(menu,idx,withbox), FreeMenu(menu), SetMenu(menu), StartMenu, StopMenu
+- Dialog: ShowMessage(msg,info), ShowMessageNoWait(msg,info), ShowInput(col,row,width,currentvalue)
+- **CRITICAL**: Menu callbacks need `{$F+}` (far calls)
 
 **TMXLOAD.PAS** - TMX tilemap loader (Tiled Map Editor)
-- LoadTileMap(file,map,objgroup_callback), FreeTileMap, GetLoadTileMapError, IsBlockType(x,y,type)
+- Constants: TileMap_MaxTileSets = 4, TileMapLayer_Front/Back (0/1)
+- Types: TTileSet (FirstGID, TileWidth, TileHeight, Columns, Image)
+- TTileMap (Width, Height, TileSetCount, TileSets[0..3], Layers[0..1], BlocksLayer, BlocksTilesetFirstGID)
+- TObjectGroupProc (callback for objectgroups)
+- LoadTileMap(file,map,objgroup_callback), FreeTileMap(map), GetLoadTileMapError, IsBlockType(map,x,y,type)
 - Merges layers: before 1st objectgroup→Front (0), after→Back (1)
 - Blocks layer: custom `blocks` property + "Blocks" tileset → BlocksLayer (PByteArray)
 - CSV encoding only, .png→.pcx auto-conversion, max 4 tilesets
@@ -159,29 +234,32 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Viewport rendering, auto-clip, skips tile ID=0
 
 **VGAUI.PAS** - VGA Mode 13h UI system (2025)
-- TUIStyle: Theme/panel rendering (Init, RenderPanel virtual method)
-- TWidget: Base object (Init constructor, HandleEvent/Render virtual, Done destructor)
-- TLabel: Non-interactive text display
-- TButton: Clickable button (Enter/Space activation)
-- TCheckbox: Toggle control (Space to toggle, sprite sheet image)
-- TLineEdit: Text input (typing, backspace, max length, cursor blink)
-- TUIManager: Widget manager (AddWidget, SetFocus, FocusNext/Prev, HandleEvent, RenderAll)
+- Types: TEventType (Event_None/KeyPress/FocusGain/FocusLost)
+- TEvent (EventType, KeyCode, Handled)
+- TUIStyle object: HighColor, NormalColor, LowColor, FocusColor; Init(high,normal,low,focus), RenderPanel(rect,pressed,fb) virtual
+- TWidget object (base): Rectangle, Visible, Enabled, Focused, NeedsRedraw, EventHandler, Tag
+  - Init(x,y,w,h), SetEventHandler(handler), MarkDirty, SetVisible(value), SetEnabled(value), HandleEvent(event) virtual, Update(dt) virtual, Render(fb,style) virtual, RenderFocusRectangle(fb,style), Done virtual
+- TLabel(TWidget): Text, Font; Init(x,y,w,h,text,font), SetText(text), Render virtual, Done virtual
+- TButton(TWidget): Text, Font, Pressed; Init(x,y,w,h,text,font), SetText(text), HandleEvent virtual, Render virtual, Done virtual
+- TCheckbox(TWidget): Text, Font, Image, Checked; Init(x,y,w,h,text,font,image), SetText(text), SetChecked(value), IsChecked, HandleEvent virtual, Render virtual, Done virtual
+- TLineEdit(TWidget): Text, Font, MaxLength, CursorVisible, CursorTimer; Init(x,y,w,h,maxlen,font), SetText(text), GetText, HandleEvent virtual, Update virtual, Render virtual, Done virtual
+- TEventHandler = procedure(widget,event) `{$F+}`, TUpdateProcedure = procedure `{$F+}`
 - **CRITICAL**: Use constructor/destructor syntax `New(Button, Init(...))` and `Dispose(Button, Done)` for VMT initialization
-- **NOTE**: Widgets use simplified rendering (DrawFillRect + DrawRect) instead of Style.RenderPanel for stability
 - Keyboard-only navigation (Tab, Enter, Space), event-driven architecture
-- Integrates with LINKLIST, VGAFONT, KEYBOARD, VGA
+- Integrates with LINKLIST, VGAFONT, KEYBOARD, VGA, DRECT, RTCTIMER
 
 **LOGGER.PAS** - File-based debug logger (2025)
+- Constants: LogLevelError/Warning/Info/Debug (0/1/2/3)
 - InitLogger(path,level), CloseLogger
-- LogError/Warning/Info/Debug with log levels 0-3
+- LogError(msg), LogWarning(msg), LogInfo(msg), LogDebug(msg)
 - **WARNING**: Do NOT use in render loops - file I/O causes stack overflow at 60 FPS
 - Safe for startup/shutdown logging only
 
 ## File Formats
 
 **PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite/GIMP-compatible, palette 0-255 auto-converted to 0-63)
+**BMP**: Windows BMP uncompressed 256-color (Paint/Photoshop/GIMP-compatible, BGRA palette auto-converted to VGA RGB 0-63)
 **HSC**: Adlib OPL2 tracker (embeddable via BINOBJ.EXE→.OBJ)
-**IMF**: Id Music Format OPL2 (Wolfenstein 3D 700Hz, Keen 4-6 560Hz, polling-based player)
 **VOC**: Creative Voice File (8-bit PCM, 11025/22050 Hz mono)
 
 ## Creating PCX Files
@@ -190,11 +268,11 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **GIMP**: Image → Mode → Indexed (256 colors) → Export as PCX
 **Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
 
-## Creating IMF Files
+## Creating BMP Files
 
-**IMFCreator** (MIDI→IMF): https://github.com/adambiser/imf-creator (set rate: 560 or 700 Hz)
-**Adlib Tracker II**: https://adlibtracker.net/ → Export IMF
-**Extract from games**: See DOCS\MISC\IMFSRC.md (Wolfenstein 3D, Commander Keen music packs)
+**Windows Paint**: Image → Resize → 256 colors → Save As (24-bit BMP, auto-converts to 8-bit)
+**GIMP**: Image → Mode → Indexed (256 colors) → Export as BMP (8 bits, no color space)
+**Photoshop**: Image → Mode → Indexed Color → Save As BMP (8 bits/pixel, Windows format)
 
 ## Creating VOC Files
 
@@ -213,13 +291,6 @@ RenderFrameBuffer(fb); CloseVGA; FreeFrameBuffer(fb);
 **Music (HSC)**:
 ```pascal
 Music.Init(0); Music.LoadFile('X.HSC'); Music.Start; Music.Done;
-```
-
-**Music (IMF)**:
-```pascal
-IMF.Init(700); IMF.LoadFile('X.IMF'); IMF.Start;
-while run do IMF.Poll; { MUST call Poll in loop! }
-IMF.Done;
 ```
 
 **Sound (simple)**:
@@ -263,6 +334,44 @@ while run do
   Cur := GetTimeSeconds; Delta := Cur - Last; Last := Cur;
   UI.Update(Delta); UI.RenderDirty; ClearKeyPressed;
 UI.RemoveWidget(Button); Dispose(Button, Done); UI.Done; DoneRTC;
+```
+
+**Resources (RESMAN)**:
+```pascal
+ResMan.Init(True); { Lazy loading }
+ResMan.LoadFromXML('DATA\RES.XML');
+img := ResMan.GetImage('player'); { Auto-loads on first access }
+spr := ResMan.GetSprite('walk'); { Resolves image dependency }
+id := ResMan.GetSound('explode');
+ResMan.Done; { Cleanup all resources }
+```
+
+**Game Framework (GAMEUNIT)**:
+```pascal
+{ Define game screen }
+type PMenuScreen = ^TMenuScreen;
+     TMenuScreen = object(TScreen)
+       procedure Update(DT: Real); virtual;
+       procedure Show; virtual;
+     end;
+
+{ Main program }
+var Game: TGame;
+    Menu: PMenuScreen;
+Game.Init('CONFIG.INI', 'DATA\RES.XML');
+New(Menu, Init(@Game)); Game.AddScreen('menu', Menu);
+Game.SetScreen('menu'); Game.PlayMusic('theme');
+Game.Run; { Auto delta-time loop }
+Game.Done;
+```
+
+**Dirty Rectangles (DRECT)**:
+```pascal
+{ In render code }
+AddDirtyRect(ButtonRect);
+AddDirtyRect(SpriteRect);
+FlushDirtyRects(BackBuffer); { Copy only changed regions to screen }
+ClearDirtyRects; { Prepare for next frame }
 ```
 
 ## Common Pitfalls

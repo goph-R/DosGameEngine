@@ -1,4 +1,4 @@
-unit XITypes;
+unit XiTypes;
 
 interface
 
