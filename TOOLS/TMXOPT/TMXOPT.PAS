@@ -1028,13 +1028,16 @@ var
   x, y: Word;
   Result: string;
   NumStr: string;
+  DataArray: PWordArray;
 begin
   Result := '';
+  DataArray := PWordArray(Data);
+
   for y := 0 to Height - 1 do
   begin
     for x := 0 to Width - 1 do
     begin
-      Str(Data^[y * Width + x], NumStr);
+      Str(DataArray^[y * Width + x], NumStr);
       Result := Result + NumStr;
       if (y < Height - 1) or (x < Width - 1) then
         Result := Result + ',';
