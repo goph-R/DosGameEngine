@@ -17,7 +17,7 @@ This dramatically reduces DOS memory usage and rendering overhead.
 In DOSBox/FreeDOS:
 
 ```
-CD TOOLS\TILEMGR
+CD TOOLS\TMXOPT
 CTMXOPT.BAT
 ```
 
@@ -43,7 +43,7 @@ TMXOPT ..\..\DATA\LEVEL1.TMX ..\..\DATA\LEVEL1O.TMX
 
 ## How It Works
 
-1. **Phase A**: Load TMX file and all tileset images
+1. **Phase A**: Load TMX file, resolve external TSX tilesets, and load all tileset images
 2. **Phase B**: Build tile stacks for each cell (merge layers bottom-to-top)
 3. **Phase C**: Deduplicate stacks and assign composite tile indices
 4. **Phase D**: Build atlas tilesets, render composites, save PCX files
@@ -58,6 +58,7 @@ TMXOPT ..\..\DATA\LEVEL1.TMX ..\..\DATA\LEVEL1O.TMX
 - Max 4 atlas tilesets (240 tiles each @ 16x16)
 - CSV encoding only
 - Requires PCX tileset images
+- Supports external TSX tilesets (firstgid preserved from TMX reference)
 
 ## Memory Requirements
 
@@ -73,6 +74,7 @@ For a 64×64 map: ~100KB conventional memory needed.
 - Color 0 is always treated as transparent
 - Blocks and Objects tilesets are preserved with updated FirstGIDs
 - Objectgroup tile references (gid attributes) are automatically updated
+- External TSX tilesets are fully supported (loaded, processed, merged)
 - The runtime engine (TMXLOAD.PAS) needs no changes
 
 ## See Also

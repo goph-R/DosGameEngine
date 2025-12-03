@@ -101,6 +101,10 @@ var
   OldBlocksFirstGID : Word;
   OldObjectsFirstGID: Word;
 
+  { TSX external tileset tracking }
+  ExternalTilesets   : array[0..MaxTileSets-1] of PXMLNode;
+  IsExternalTileset  : array[0..MaxTileSets-1] of Boolean;
+
   { Raw layers }
   RawLayers     : array[0..MaxRawLayers-1] of TRawLayer;
   RawLayerCount : Byte;
@@ -173,6 +177,18 @@ begin
       Exit;
     end;
   GetFolderPath := '';
+end;
+
+function FixPath(const Path: string): string;
+var
+  i: Integer;
+  Result: string;
+begin
+  Result := Path;
+  for i := 1 to Length(Result) do
+    if Result[i] = '/' then
+      Result[i] := '\';
+  FixPath := Result;
 end;
 
 function LoadTileSetInfo(const FolderPath: string; TilesetNode: PXMLNode;
@@ -352,6 +368,10 @@ var
   CSVText: string;
   LayerWidth, LayerHeight: Word;
   AttrVal: string;
+  ResolvedTilesets: array[0..MaxTileSets-1] of PXMLNode;
+  ResolvedCount: Byte;
+  TSXSource, TSXPath, FirstGIDAttr: string;
+  ExternalTSXNode: PXMLNode;
 begin
   WriteLn('Phase A: Loading TMX file...');
 
@@ -386,13 +406,61 @@ begin
 
   FolderPath := GetFolderPath(InputFile);
 
-  { Load tilesets }
+  { ===== STEP 1: Resolve external tilesets (TSX files) ===== }
+  ResolvedCount := 0;
   TilesetNode := XMLFirstChild(MapNode, 'tileset');
-  while (TilesetNode <> nil) and (TileSetCount < MaxTileSets) do
+  while (TilesetNode <> nil) and (ResolvedCount < MaxTileSets) do
   begin
-    WriteLn('  Loading tileset #', TileSetCount + 1);
+    if XMLHasAttr(TilesetNode, 'source') then
+    begin
+      { External tileset reference - load TSX file }
+      TSXSource := FixPath(XMLAttr(TilesetNode, 'source'));
+      TSXPath := FolderPath + TSXSource;
 
-    if not LoadTileSetInfo(FolderPath, TilesetNode, TileSets[TileSetCount]) then
+      WriteLn('  Loading external tileset: ', TSXPath);
+
+      { Load external TSX }
+      if not XMLLoadFile(TSXPath, ExternalTSXNode) then
+      begin
+        WriteLn('ERROR: Failed to load external tileset: ', GetLoadXMLError);
+        { Free any previously loaded external tilesets }
+        for i := 0 to ResolvedCount - 1 do
+          if IsExternalTileset[i] then
+            XMLFreeTree(ExternalTilesets[i]);
+        Halt(1);
+      end;
+
+      { Copy firstgid attribute from reference to external node }
+      if XMLHasAttr(TilesetNode, 'firstgid') then
+      begin
+        FirstGIDAttr := XMLAttr(TilesetNode, 'firstgid');
+        XMLSetAttr(ExternalTSXNode, 'firstgid', FirstGIDAttr);
+      end;
+
+      { Store the external node }
+      ResolvedTilesets[ResolvedCount] := ExternalTSXNode;
+      IsExternalTileset[ResolvedCount] := True;
+      ExternalTilesets[ResolvedCount] := ExternalTSXNode;
+      Inc(ResolvedCount);
+    end
+    else
+    begin
+      { Internal tileset - use as-is }
+      ResolvedTilesets[ResolvedCount] := TilesetNode;
+      IsExternalTileset[ResolvedCount] := False;
+      ExternalTilesets[ResolvedCount] := nil;
+      Inc(ResolvedCount);
+    end;
+
+    TilesetNode := XMLNextSibling(TilesetNode, 'tileset');
+  end;
+
+  { ===== STEP 2: Process resolved tilesets ===== }
+  for i := 0 to ResolvedCount - 1 do
+  begin
+    WriteLn('  Processing tileset #', i + 1);
+
+    if not LoadTileSetInfo(FolderPath, ResolvedTilesets[i], TileSets[TileSetCount]) then
     begin
       WriteLn('ERROR: Failed to load tileset');
       Halt(1);
@@ -413,7 +481,6 @@ begin
     end;
 
     Inc(TileSetCount);
-    TilesetNode := XMLNextSibling(TilesetNode, 'tileset');
   end;
 
   if TileSetCount = 0 then
@@ -1104,6 +1171,11 @@ begin
   { Cleanup }
   WriteLn('  Cleaning up...');
 
+  { Free external TSX trees }
+  for i := 0 to TileSetCount - 1 do
+    if IsExternalTileset[i] and (ExternalTilesets[i] <> nil) then
+      XMLFreeTree(ExternalTilesets[i]);
+
   { Free XML tree }
   XMLFreeTree(Root);
 
@@ -1171,6 +1243,8 @@ begin
   ObjectsTileSetIndex := -1;
   StackReg.Count := 0;
   AtlasCount := 0;
+  FillChar(IsExternalTileset, SizeOf(IsExternalTileset), 0);
+  FillChar(ExternalTilesets, SizeOf(ExternalTilesets), 0);
 
   { Execute phases }
   LoadTMXFile;
