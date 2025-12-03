@@ -301,15 +301,18 @@ var
   NumStr: string;
   InNum: Boolean;
   Digit: Char;
+  WordArray: ^TWordArray;
 begin
   ParseCSVLayer := False;
 
-  GetMem(Data, Width * Height * SizeOf(Word));
+  GetMem(Data, LongInt(Width) * LongInt(Height) * SizeOf(Word));
   if Data = nil then
   begin
     WriteLn('ERROR: Out of memory allocating layer data');
     Exit;
   end;
+
+  WordArray := Ptr(Seg(Data^), Ofs(Data^));
 
   i := 1;
   j := 0;
@@ -330,7 +333,7 @@ begin
       if InNum then
       begin
         val := StrToInt(NumStr);
-        Data^[j] := val;
+        WordArray^[j] := val;
         Inc(j);
         NumStr := '';
         InNum := False;
@@ -344,14 +347,14 @@ begin
   if InNum and (j < Width * Height) then
   begin
     val := StrToInt(NumStr);
-    Data^[j] := val;
+    WordArray^[j] := val;
     Inc(j);
   end;
 
   if j <> Width * Height then
   begin
     WriteLn('ERROR: Layer data count mismatch. Expected ', Width * Height, ', got ', j);
-    FreeMem(Data, Width * Height * SizeOf(Word));
+    FreeMem(Data, LongInt(Width) * LongInt(Height) * SizeOf(Word));
     Data := nil;
     Exit;
   end;
@@ -588,6 +591,7 @@ var
   S: PTileStack;
   LayerKind: TRawLayerKind;
   StackSize: LongInt;
+  LayerData: PWordArray;
 begin
   WriteLn('Phase B: Building tile stacks...');
 
@@ -616,10 +620,12 @@ begin
     begin
       WriteLn('  Processing layer "', RawLayers[i].Name, '"');
 
+      LayerData := PWordArray(RawLayers[i].Data);
+
       for y := 0 to MapHeight - 1 do
         for x := 0 to MapWidth - 1 do
         begin
-          gid := RawLayers[i].Data^[y * MapWidth + x];
+          gid := LayerData^[y * MapWidth + x];
 
           if gid <> 0 then
           begin
@@ -946,22 +952,22 @@ begin
 
   { Convert layer data from local indices to real atlas GIDs }
   WriteLn('  Converting layer GIDs...');
-  for i := 0 to (MapWidth * MapHeight) - 1 do
+  for i := 0 to (LongInt(MapWidth) * LongInt(MapHeight)) - 1 do
   begin
-    Idx := BackLayer^[i];
+    Idx := PWordArray(BackLayer)^[i];
     if Idx > 0 then
     begin
       CI := CompositeTiles[Idx];
       Atlas := @Atlases[CI.AtlasIndex];
-      BackLayer^[i] := Atlas^.FirstGID + CI.TileIndex;
+      PWordArray(BackLayer)^[i] := Atlas^.FirstGID + CI.TileIndex;
     end;
 
-    Idx := FrontLayer^[i];
+    Idx := PWordArray(FrontLayer)^[i];
     if Idx > 0 then
     begin
       CI := CompositeTiles[Idx];
       Atlas := @Atlases[CI.AtlasIndex];
-      FrontLayer^[i] := Atlas^.FirstGID + CI.TileIndex;
+      PWordArray(FrontLayer)^[i] := Atlas^.FirstGID + CI.TileIndex;
     end;
   end;
 
