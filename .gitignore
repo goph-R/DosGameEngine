@@ -3,4 +3,6 @@
 *.tpu
 *.bak
 *.exe
+TESTS/DATA/RES-OUT.XML
+TESTS/DATA/TEXT-OUT.PCX
 config.ini
