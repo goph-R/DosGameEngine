@@ -5,13 +5,13 @@ program TMXOptimizer;
 {$M 16384,0,655360}  { Stack, MinHeap, MaxHeap }
 
 uses
-  MiniXML, PCX, GenTypes, StrUtil;
+  MiniXML, PCX, GenTypes, StrUtil, VGA;
 
 const
   MaxTileSets     = 4;
   MaxRawLayers    = 16;
   MaxStackHeight  = 8;
-  MaxUniqueStacks = 4096;
+  MaxUniqueStacks = 960;
   AtlasWidth      = 256;
   AtlasHeight     = 240;
   AtlasesMax      = 4;
@@ -286,7 +286,7 @@ begin
     WriteLn('  Loading tileset image: ', FullPath);
     if not LoadPCXWithPalette(FullPath, TileSet.Image, Palette) then
     begin
-      WriteLn('ERROR: Failed to load tileset image: ', GetLastErrorMessage);
+      WriteLn('ERROR: Failed to load tileset image: ', GetLoadPCXError);
       Exit;
     end;
   end;
@@ -665,6 +665,7 @@ var
   idx: Integer;
   nextIdx: Word;
   LayerSize: LongInt;
+  LayerArray: PWordArray;
 begin
   WriteLn('  Processing ', LayerName, ' layer...');
 
@@ -678,6 +679,7 @@ begin
 
   FillChar(OutLayer^, LayerSize, 0);
 
+  LayerArray := PWordArray(OutLayer);
   nextIdx := 1;
 
   for y := 0 to MapHeight - 1 do
@@ -686,12 +688,12 @@ begin
       S := StackAt(StackBase, x, y, MapWidth);
 
       if S^.Count = 0 then
-        OutLayer^[y * MapWidth + x] := 0
+        LayerArray^[y * MapWidth + x] := 0
       else
       begin
         idx := FindStackIndex(StackReg, S^);
         if idx >= 0 then
-          OutLayer^[y * MapWidth + x] := StackReg.LocalIndex[idx]
+          LayerArray^[y * MapWidth + x] := StackReg.LocalIndex[idx]
         else
         begin
           if StackReg.Count >= MaxUniqueStacks then
@@ -702,7 +704,7 @@ begin
 
           StackReg.Keys[StackReg.Count] := S^;
           StackReg.LocalIndex[StackReg.Count] := nextIdx;
-          OutLayer^[y * MapWidth + x] := nextIdx;
+          LayerArray^[y * MapWidth + x] := nextIdx;
           Inc(StackReg.Count);
           Inc(nextIdx);
         end;
@@ -1011,7 +1013,7 @@ begin
 
     if not SavePCX(FileName, Atlases[i].Image, GlobalPalette) then
     begin
-      WriteLn('ERROR: Failed to save atlas PCX: ', GetLastErrorMessage);
+      WriteLn('ERROR: Failed to save atlas PCX: ', GetSavePCXError);
       Halt(1);
     end;
   end;
