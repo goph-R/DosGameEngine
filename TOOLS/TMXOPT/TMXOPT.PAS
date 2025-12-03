@@ -832,10 +832,10 @@ begin
   AtlasCount := 1;
   with Atlases[0] do
   begin
-    TileWidth := Self.TileWidth;
-    TileHeight := Self.TileHeight;
-    Columns := AtlasWidth div TileWidth;
-    Rows := AtlasHeight div TileHeight;
+    Atlases[0].TileWidth := TileWidth;
+    Atlases[0].TileHeight := TileHeight;
+    Columns := AtlasWidth div Atlases[0].TileWidth;
+    Rows := AtlasHeight div Atlases[0].TileHeight;
     MaxTiles := Columns * Rows;
     UsedTiles := 0;
 
@@ -878,10 +878,10 @@ begin
       WriteLn('  Creating atlas #', AtlasCount + 1);
       with Atlases[AtlasCount] do
       begin
-        TileWidth := Self.TileWidth;
-        TileHeight := Self.TileHeight;
-        Columns := AtlasWidth div TileWidth;
-        Rows := AtlasHeight div TileHeight;
+        Atlases[AtlasCount].TileWidth := TileWidth;
+        Atlases[AtlasCount].TileHeight := TileHeight;
+        Columns := AtlasWidth div Atlases[AtlasCount].TileWidth;
+        Rows := AtlasHeight div Atlases[AtlasCount].TileHeight;
         MaxTiles := Columns * Rows;
         UsedTiles := 0;
 
