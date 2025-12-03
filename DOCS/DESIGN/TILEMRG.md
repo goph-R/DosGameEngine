@@ -409,51 +409,131 @@ We’ll decide `FirstGID` later based on Blocks and Objects tileset.
 
 ### 6.3. Decide atlas FirstGID & Blocks tileset positioning
 
-To keep the **Blocks tileset unchanged**, easiest is:
+To keep the **Blocks tileset unchanged**, we need to assign FirstGID values that don't conflict with the special tilesets:
 
-* Leave original Blocks tileset **as-is** in TMX (same `firstgid`, same `image`).
-* Place new atlas tilesets **after** it in the TMX **and** assign their `firstgid`s so they don’t overlap Blocks.
+**Strategy:**
 
-So compute:
+1. **Preserve special tilesets:** Blocks and Objects tilesets keep their original FirstGID values from the source TMX.
+2. **Atlas placement:** Place atlas tilesets in gaps or append after all special tilesets.
 
-* `BlocksFirst := TileSets[BlocksTileSetIndex].FirstGID;`
-* `BlocksTileCount := Columns * Rows` of Blocks tileset.
+**Simple approach (recommended):**
 
-Let:
-
-```pascal
-NextFirstGID := BlocksFirst + BlocksTileCount;
-```
-
-Then for each atlas:
+Start atlases at FirstGID = 1, then adjust Blocks and Objects tilesets to come after:
 
 ```pascal
+{ Assign atlas FirstGIDs starting at 1 }
+NextGID := 1;
 for i := 0 to AtlasCount-1 do
 begin
-  Atlases[i].FirstGID := NextFirstGID;
-  Inc(NextFirstGID, Atlases[i].MaxTiles); { or Atlases[i].UsedTiles if you prefer }
+  Atlases[i].FirstGID := NextGID;
+  Inc(NextGID, Atlases[i].UsedTiles);
+end;
+
+{ Now place Blocks tileset after all atlases }
+if BlocksTileSetIndex >= 0 then
+begin
+  TileSets[BlocksTileSetIndex].FirstGID := NextGID;
+  Inc(NextGID, TileSets[BlocksTileSetIndex].TileCount);
+end;
+
+{ Objects tileset comes last }
+if ObjectsTileSetIndex >= 0 then
+begin
+  TileSets[ObjectsTileSetIndex].FirstGID := NextGID;
+  Inc(NextGID, TileSets[ObjectsTileSetIndex].TileCount);
 end;
 ```
 
-Now update your composite layers’ values:
+3. **Convert layer data:** Now convert `BackLayer`/`FrontLayer` from local composite indices (1..N) to real atlas GIDs:
 
 ```pascal
 for y := 0 to MapHeight-1 do
   for x := 0 to MapWidth-1 do
   begin
-    idx := BackLayer^[y*MapWidth + x]; { composite index 0..N }
-    if idx <> 0 then
+    Idx := BackLayer^[y*MapWidth + x];
+    if Idx > 0 then
     begin
-      AInfo := CompositeTiles[idx];
-      A := @Atlases[AInfo.AtlasIndex];
-      BackLayer^[y*MapWidth + x] :=
-        A^.FirstGID + AInfo.TileIndex;
+      CI := CompositeTiles[Idx];
+      Atlas := @Atlases[CI.AtlasIndex];
+      BackLayer^[y*MapWidth + x] := Atlas^.FirstGID + CI.TileIndex;
     end;
-    { same for FrontLayer }
+
+    { Repeat for FrontLayer }
+    Idx := FrontLayer^[y*MapWidth + x];
+    if Idx > 0 then
+    begin
+      CI := CompositeTiles[Idx];
+      Atlas := @Atlases[CI.AtlasIndex];
+      FrontLayer^[y*MapWidth + x] := Atlas^.FirstGID + CI.TileIndex;
+    end;
   end;
 ```
 
-Now `BackLayer`/`FrontLayer` are **real GIDs** that match atlas tilesets and won’t collide with Blocks.
+4. **Update Blocks layer tile IDs (if present):**
+
+If the Blocks tileset FirstGID changed, update BlocksLayer data:
+
+```pascal
+if BlocksTileSetIndex >= 0 then
+begin
+  OldBlocksFirstGID := { original FirstGID from source TMX };
+  NewBlocksFirstGID := TileSets[BlocksTileSetIndex].FirstGID;
+  Offset := NewBlocksFirstGID - OldBlocksFirstGID;
+
+  { Only update if offset is non-zero }
+  if Offset <> 0 then
+    for i := 0 to (MapWidth * MapHeight)-1 do
+      if BlocksLayerData^[i] <> 0 then
+        BlocksLayerData^[i] := BlocksLayerData^[i] + Offset;
+end;
+```
+
+5. **Update objectgroup tile references (if present):**
+
+If any `<objectgroup>` tags contain `<object>` elements with `gid` attributes (tile objects from the Objects tileset), those GIDs must be updated too:
+
+```pascal
+{ During Phase A when loading, store original Objects FirstGID }
+if ObjectsTileSetIndex >= 0 then
+  OldObjectsFirstGID := TileSets[ObjectsTileSetIndex].FirstGID;
+
+{ After atlas GID assignment in Phase D }
+if ObjectsTileSetIndex >= 0 then
+begin
+  NewObjectsFirstGID := TileSets[ObjectsTileSetIndex].FirstGID;
+  Offset := NewObjectsFirstGID - OldObjectsFirstGID;
+
+  { Only update if offset is non-zero }
+  if Offset <> 0 then
+  begin
+    { Iterate all <objectgroup> nodes in the XML tree }
+    ObjGroupNode := XMLFindFirstChild(MapNode, 'objectgroup');
+    while ObjGroupNode <> nil do
+    begin
+      { Iterate all <object> children }
+      ObjNode := XMLFindFirstChild(ObjGroupNode, 'object');
+      while ObjNode <> nil do
+      begin
+        { Check if object has a gid attribute }
+        if XMLHasAttr(ObjNode, 'gid') then
+        begin
+          OldGID := StrToInt(XMLAttr(ObjNode, 'gid'));
+          { Only update if GID belongs to Objects tileset }
+          if OldGID >= OldObjectsFirstGID then
+          begin
+            NewGID := OldGID + Offset;
+            XMLSetAttr(ObjNode, 'gid', IntToStr(NewGID));
+          end;
+        end;
+        ObjNode := XMLNextSibling(ObjNode);
+      end;
+      ObjGroupNode := XMLNextSibling(ObjGroupNode);
+    end;
+  end;
+end;
+```
+
+Now `BackLayer`/`FrontLayer` are **real GIDs** that match atlas tilesets, and Blocks layer + objectgroup tile references won't collide with the new atlas tilesets.
 
 ### 6.4. Save atlas images as PCX
 
@@ -477,7 +557,7 @@ Now use your new MiniXML editing API.
 
 * Iterate `<tileset>` nodes:
 
-  * If it’s the Blocks tileset (`name="Blocks"`), **keep**.
+  * If it’s the Blocks or Objects tileset (`name="Blocks"` or `name="Objects"`), **keep**.
   * All others: **remove** from the tree.
 
 You may want a helper like `XMLRemoveNode(Node: PXMLNode);` but you can also just rebuild children list manually; or be lazy and mark them, and when saving only use the new ones — up to you.
@@ -532,11 +612,11 @@ Do the same for `FrontLayer`.
 
 **Blocks layer & tileset:**
 
-* Leave the Blocks `<tileset>` and Blocks `<layer>` node **untouched**, so `BlocksTilesetFirstGID` and collision logic stay compatible.
+* Leave the Blocks `<tileset>`, the Objects `<tileset>` and Blocks `<layer>` node **untouched**, only the `<tileset>` GID can be changed depending on the order of the layers and the `tilecount` of the created tilesets.
 
 ### 7.4. Keep `<objectgroup>` as-is
 
-Your engine already uses objectgroups; just leave them in the tree.
+The engine already uses objectgroups; just leave them in the tree.
 
 ---
 
