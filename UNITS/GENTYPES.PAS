@@ -7,6 +7,7 @@ interface
 
 type
   { Generic pointer types }
+  PByte = ^Byte;
   PWord = ^Word;
   PShortString = ^string;
 

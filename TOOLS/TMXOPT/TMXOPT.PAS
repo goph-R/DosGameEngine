@@ -120,6 +120,9 @@ var
   { Atlases }
   Atlases     : array[0..AtlasesMax-1] of TAtlas;
   AtlasCount  : Byte;
+
+  { Palette for output }
+  GlobalPalette : TPalette;
   CompositeTiles: array[1..MaxUniqueStacks] of TCompositeInfo;
 
 { ========================================================================== }
@@ -177,6 +180,26 @@ begin
       Exit;
     end;
   GetFolderPath := '';
+end;
+
+function HasBlocksProperty(LayerNode: PXMLNode): Boolean;
+var
+  PropsNode, PropNode: PXMLNode;
+begin
+  HasBlocksProperty := False;
+  PropsNode := XMLFirstChild(LayerNode, 'properties');
+  if PropsNode = nil then Exit;
+
+  PropNode := XMLFirstChild(PropsNode, 'property');
+  while PropNode <> nil do
+  begin
+    if XMLHasAttr(PropNode, 'name') and (XMLAttr(PropNode, 'name') = 'blocks') then
+    begin
+      HasBlocksProperty := True;
+      Exit;
+    end;
+    PropNode := XMLNextSibling(PropNode, 'property');
+  end;
 end;
 
 function FixPath(const Path: string): string;
@@ -289,6 +312,10 @@ begin
       WriteLn('ERROR: Failed to load tileset image: ', GetLoadPCXError);
       Exit;
     end;
+
+    { Save palette from first visual tileset for atlas output }
+    if TileSetCount = 0 then
+      GlobalPalette := Palette;
   end;
 
   LoadTileSetInfo := True;
@@ -513,7 +540,7 @@ begin
           Name := 'Layer' + IntToStr(RawLayerCount);
 
         { Determine layer kind }
-        if XMLHasAttr(LayerNode, 'properties') then
+        if HasBlocksProperty(LayerNode) then
           Kind := lkBlocks
         else if FirstObjectGroup then
           Kind := lkFront
@@ -584,6 +611,17 @@ begin
   end;
 
   WriteLn('  Loaded ', TileSetCount, ' tilesets, ', RawLayerCount, ' layers');
+
+  { Debug: show tileset info }
+  WriteLn('  Tileset details:');
+  for i := 0 to TileSetCount - 1 do
+  begin
+    WriteLn('    [', i, '] FirstGID=', TileSets[i].FirstGID,
+            ' Columns=', TileSets[i].Columns,
+            ' TileCount=', TileSets[i].TileCount,
+            ' IsBlocks=', TileSets[i].IsBlocks,
+            ' IsObjects=', TileSets[i].IsObjects);
+  end;
 end;
 
 { ========================================================================== }
@@ -772,10 +810,17 @@ begin
   { Clear tile buffer to transparent }
   FillChar(TileBuf.Data^, LongInt(TileWidth) * LongInt(TileHeight), 0);
 
+  { Debug: show stack contents }
+  Write('    Stack has ', Stack.Count, ' tiles: ');
+  for i := 0 to Stack.Count - 1 do
+    Write(Stack.Items[i], ' ');
+  WriteLn;
+
   { Render each tile in stack from bottom to top }
   for i := 0 to Stack.Count - 1 do
   begin
     gid := Stack.Items[i];
+    WriteLn('      Rendering GID ', gid);
     TileSetIdx := FindTileSetForGID(gid);
 
     if TileSetIdx < 0 then
@@ -786,9 +831,25 @@ begin
 
     { Skip special tilesets }
     if TileSets[TileSetIdx].IsBlocks or TileSets[TileSetIdx].IsObjects then
+    begin
+      WriteLn('DEBUG: Skipping GID ', gid, ' from tileset ', TileSetIdx,
+        ' (IsBlocks=', TileSets[TileSetIdx].IsBlocks, ', IsObjects=', TileSets[TileSetIdx].IsObjects, ')');
       Continue;
+    end;
 
     localID := gid - TileSets[TileSetIdx].FirstGID;
+
+    { Debug: check for zero columns }
+    if TileSets[TileSetIdx].Columns = 0 then
+    begin
+      WriteLn('ERROR: Tileset ', TileSetIdx, ' has 0 columns (GID=', gid, ')');
+      WriteLn('  IsBlocks: ', TileSets[TileSetIdx].IsBlocks);
+      WriteLn('  IsObjects: ', TileSets[TileSetIdx].IsObjects);
+      WriteLn('  FirstGID: ', TileSets[TileSetIdx].FirstGID);
+      WriteLn('  TileCount: ', TileSets[TileSetIdx].TileCount);
+      Halt(1);
+    end;
+
     Col := localID mod TileSets[TileSetIdx].Columns;
     Row := localID div TileSets[TileSetIdx].Columns;
     SrcX := Col * TileWidth;
@@ -830,31 +891,28 @@ var
   FileName: string;
   MapName: string;
   DotPos: Integer;
-  GlobalPalette: TPalette;
 begin
   WriteLn('Phase D: Building atlas tilesets...');
+  WriteLn('  Global TileWidth=', TileWidth, ', TileHeight=', TileHeight);
 
   { Initialize first atlas }
   AtlasCount := 1;
-  with Atlases[0] do
-  begin
-    Atlases[0].TileWidth := TileWidth;
-    Atlases[0].TileHeight := TileHeight;
-    Columns := AtlasWidth div Atlases[0].TileWidth;
-    Rows := AtlasHeight div Atlases[0].TileHeight;
-    MaxTiles := Columns * Rows;
-    UsedTiles := 0;
+  Atlases[0].TileWidth := TileWidth;
+  Atlases[0].TileHeight := TileHeight;
+  Atlases[0].Columns := AtlasWidth div TileWidth;
+  Atlases[0].Rows := AtlasHeight div TileHeight;
+  Atlases[0].MaxTiles := Atlases[0].Columns * Atlases[0].Rows;
+  Atlases[0].UsedTiles := 0;
 
-    Image.Width := AtlasWidth;
-    Image.Height := AtlasHeight;
-    GetMem(Image.Data, LongInt(AtlasWidth) * LongInt(AtlasHeight));
-    if Image.Data = nil then
-    begin
-      WriteLn('ERROR: Out of memory for atlas image');
-      Halt(1);
-    end;
-    FillChar(Image.Data^, LongInt(AtlasWidth) * LongInt(AtlasHeight), 0);
+  Atlases[0].Image.Width := AtlasWidth;
+  Atlases[0].Image.Height := AtlasHeight;
+  GetMem(Atlases[0].Image.Data, LongInt(AtlasWidth) * LongInt(AtlasHeight));
+  if Atlases[0].Image.Data = nil then
+  begin
+    WriteLn('ERROR: Out of memory for atlas image');
+    Halt(1);
   end;
+  FillChar(Atlases[0].Image.Data^, LongInt(AtlasWidth) * LongInt(AtlasHeight), 0);
 
   WriteLn('  Atlas capacity: ', Atlases[0].MaxTiles, ' tiles (', Atlases[0].Columns, 'x', Atlases[0].Rows, ')');
 
@@ -871,6 +929,8 @@ begin
   { Process each composite tile }
   for i := 1 to CompositeCount do
   begin
+    WriteLn('  Processing composite ', i, '/', CompositeCount);
+
     { Pick current atlas }
     if Atlases[AtlasCount-1].UsedTiles = Atlases[AtlasCount-1].MaxTiles then
     begin
@@ -882,25 +942,22 @@ begin
 
       { Initialize new atlas }
       WriteLn('  Creating atlas #', AtlasCount + 1);
-      with Atlases[AtlasCount] do
-      begin
-        Atlases[AtlasCount].TileWidth := TileWidth;
-        Atlases[AtlasCount].TileHeight := TileHeight;
-        Columns := AtlasWidth div Atlases[AtlasCount].TileWidth;
-        Rows := AtlasHeight div Atlases[AtlasCount].TileHeight;
-        MaxTiles := Columns * Rows;
-        UsedTiles := 0;
+      Atlases[AtlasCount].TileWidth := TileWidth;
+      Atlases[AtlasCount].TileHeight := TileHeight;
+      Atlases[AtlasCount].Columns := AtlasWidth div TileWidth;
+      Atlases[AtlasCount].Rows := AtlasHeight div TileHeight;
+      Atlases[AtlasCount].MaxTiles := Atlases[AtlasCount].Columns * Atlases[AtlasCount].Rows;
+      Atlases[AtlasCount].UsedTiles := 0;
 
-        Image.Width := AtlasWidth;
-        Image.Height := AtlasHeight;
-        GetMem(Image.Data, LongInt(AtlasWidth) * LongInt(AtlasHeight));
-        if Image.Data = nil then
-        begin
-          WriteLn('ERROR: Out of memory for atlas image');
-          Halt(1);
-        end;
-        FillChar(Image.Data^, LongInt(AtlasWidth) * LongInt(AtlasHeight), 0);
+      Atlases[AtlasCount].Image.Width := AtlasWidth;
+      Atlases[AtlasCount].Image.Height := AtlasHeight;
+      GetMem(Atlases[AtlasCount].Image.Data, LongInt(AtlasWidth) * LongInt(AtlasHeight));
+      if Atlases[AtlasCount].Image.Data = nil then
+      begin
+        WriteLn('ERROR: Out of memory for atlas image');
+        Halt(1);
       end;
+      FillChar(Atlases[AtlasCount].Image.Data^, LongInt(AtlasWidth) * LongInt(AtlasHeight), 0);
 
       Inc(AtlasCount);
     end;
@@ -994,22 +1051,7 @@ begin
   if DotPos > 0 then
     MapName := Copy(MapName, DotPos + 1, Length(MapName));
 
-  { Load palette from first tileset for saving }
-  if TileSetCount > 0 then
-  begin
-    { Use the first visual tileset's source image to get palette }
-    i := 0;
-    while (i < TileSetCount) and
-          (TileSets[i].IsBlocks or TileSets[i].IsObjects) do
-      Inc(i);
-
-    if i < TileSetCount then
-    begin
-      { Reload with palette - we need it for saving }
-      { For now, use a dummy palette - would need to reload PCX }
-      FillChar(GlobalPalette, SizeOf(TPalette), 0);
-    end;
-  end;
+  { GlobalPalette already loaded from first visual tileset during Phase A }
 
   { Save atlas images }
   for i := 0 to AtlasCount - 1 do
@@ -1029,29 +1071,29 @@ end;
 { Phase E - Update TMX MiniXML tree }
 { ========================================================================== }
 
-function LayerDataToCSV(Data: PWord; Width, Height: Word): string;
+procedure FillLayerDataNode(DataNode: PXMLNode; Data: PWord; Width, Height: Word);
 var
   x, y: Word;
-  Result: string;
   NumStr: string;
   DataArray: PWordArray;
 begin
-  Result := '';
   DataArray := PWordArray(Data);
+
+  { Clear any existing text }
+  XMLSetText(DataNode, '');
 
   for y := 0 to Height - 1 do
   begin
     for x := 0 to Width - 1 do
     begin
       Str(DataArray^[y * Width + x], NumStr);
-      Result := Result + NumStr;
+      XMLAppendText(DataNode, NumStr);
       if (y < Height - 1) or (x < Width - 1) then
-        Result := Result + ',';
+        XMLAppendText(DataNode, ',');
     end;
     if y < Height - 1 then
-      Result := Result + #13#10;
+      XMLAppendText(DataNode, #13#10);
   end;
-  LayerDataToCSV := Result;
 end;
 
 procedure UpdateTMXTree;
@@ -1061,7 +1103,6 @@ var
   LayerNode: PXMLNode;
   i: Integer;
   FileName: string;
-  CSVText: string;
 begin
   WriteLn('Phase E: Updating TMX structure...');
 
@@ -1148,8 +1189,7 @@ begin
 
   DataNode := XMLAddChildElement(LayerNode, 'data');
   XMLSetAttr(DataNode, 'encoding', 'csv');
-  CSVText := LayerDataToCSV(BackLayer, MapWidth, MapHeight);
-  XMLSetText(DataNode, CSVText);
+  FillLayerDataNode(DataNode, BackLayer, MapWidth, MapHeight);
 
   LayerNode := XMLAddChildElement(MapNode, 'layer');
   XMLSetAttr(LayerNode, 'id', '101');
@@ -1159,8 +1199,7 @@ begin
 
   DataNode := XMLAddChildElement(LayerNode, 'data');
   XMLSetAttr(DataNode, 'encoding', 'csv');
-  CSVText := LayerDataToCSV(FrontLayer, MapWidth, MapHeight);
-  XMLSetText(DataNode, CSVText);
+  FillLayerDataNode(DataNode, FrontLayer, MapWidth, MapHeight);
 
   WriteLn('  TMX tree updated');
 end;

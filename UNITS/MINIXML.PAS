@@ -543,11 +543,11 @@ begin
     if Node^.AttrKeys[i] <> nil then
     begin
       WriteCharToFile(F, ' ');
-      WriteStrToFile(F, Node^.AttrKeys[i]^);
+      WriteStrToFile(F, StrPas(Node^.AttrKeys[i]));
       WriteCharToFile(F, '=');
       WriteCharToFile(F, '"');
       if Node^.AttrValues[i] <> nil then
-        WriteEscapedString(F, Node^.AttrValues[i]^, True)
+        WriteEscapedString(F, StrPas(Node^.AttrValues[i]), True)
       else
         WriteEscapedString(F, '', True);
       WriteCharToFile(F, '"');
