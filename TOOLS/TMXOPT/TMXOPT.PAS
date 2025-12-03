@@ -365,7 +365,7 @@ var
   TilesetNode, LayerNode, DataNode: PXMLNode;
   FolderPath: string;
   FirstObjectGroup: Boolean;
-  CSVText: string;
+  TileCount: Word;
   LayerWidth, LayerHeight: Word;
   AttrVal: string;
   ResolvedTilesets: array[0..MaxTileSets-1] of PXMLNode;
@@ -536,8 +536,6 @@ begin
           Halt(1);
         end;
 
-        CSVText := XMLGetText(DataNode);
-
         { Get layer dimensions }
         if XMLHasAttr(LayerNode, 'width') then
           LayerWidth := StrToInt(XMLAttr(LayerNode, 'width'))
@@ -555,8 +553,19 @@ begin
                   LayerWidth, 'x', LayerHeight, ') as ',
                   Ord(Kind):1);
 
-          if not ParseCSVLayer(CSVText, Data, LayerWidth, LayerHeight) then
+          { Use XMLReadWordArray directly to avoid 255-char string limit }
+          if not XMLReadWordArray(DataNode, Data, TileCount) then
+          begin
+            WriteLn('ERROR: Failed to parse CSV data');
             Halt(1);
+          end;
+
+          if TileCount <> LongInt(LayerWidth) * LongInt(LayerHeight) then
+          begin
+            WriteLn('ERROR: Layer data count mismatch. Expected ',
+                    LongInt(LayerWidth) * LongInt(LayerHeight), ', got ', TileCount);
+            Halt(1);
+          end;
 
           { Clear CSV text to save memory }
           XMLSetText(DataNode, '');
