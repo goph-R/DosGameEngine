@@ -297,11 +297,11 @@ end;
 function ParseCSVLayer(const CSVText: string; var Data: PWord;
                        Width, Height: Word): Boolean;
 var
-  i, j, val: Word;
-  NumStr: string;
+  i, j: Word;
   InNum: Boolean;
   Digit: Char;
-  WordArray: ^TWordArray;
+  tmpVal: LongInt;
+  WordArray: PWordArray;
 begin
   ParseCSVLayer := False;
 
@@ -312,42 +312,39 @@ begin
     Exit;
   end;
 
-  WordArray := Ptr(Seg(Data^), Ofs(Data^));
+  WordArray := PWordArray(Data);
 
-  i := 1;
   j := 0;
-  NumStr := '';
   InNum := False;
+  tmpVal := 0;
 
-  while (i <= Length(CSVText)) and (j < Width * Height) do
+  for i := 1 to Length(CSVText) do
   begin
     Digit := CSVText[i];
 
     if (Digit >= '0') and (Digit <= '9') then
     begin
-      NumStr := NumStr + Digit;
       InNum := True;
+      tmpVal := tmpVal * 10 + Ord(Digit) - Ord('0');
+      if tmpVal > 65535 then tmpVal := 65535;  { Clamp to Word range }
     end
-    else if (Digit = ',') or (Digit = #10) or (Digit = #13) then
+    else
     begin
+      { Any non-digit ends a number (space, comma, newline, etc.) }
       if InNum then
       begin
-        val := StrToInt(NumStr);
-        WordArray^[j] := val;
+        WordArray^[j] := Word(tmpVal);
         Inc(j);
-        NumStr := '';
         InNum := False;
+        tmpVal := 0;
       end;
     end;
-
-    Inc(i);
   end;
 
-  { Handle last number if no trailing comma }
-  if InNum and (j < Width * Height) then
+  { Handle last number if no trailing separator }
+  if InNum then
   begin
-    val := StrToInt(NumStr);
-    WordArray^[j] := val;
+    WordArray^[j] := Word(tmpVal);
     Inc(j);
   end;
 
