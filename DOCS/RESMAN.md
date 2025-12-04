@@ -42,6 +42,10 @@ type
     function GetMusic(const Name: String): PHSC_Obj;
     function GetPalette(const Name: String): PPalette;
 
+    { Manual resource management }
+    function LoadResource(const Name: String): Boolean;
+    procedure UnloadResource(const Name: String);  { Free individual resource }
+
     procedure Done;
   end;
 ```
@@ -129,6 +133,45 @@ TitleMusic^.Start;
 GameMusic := ResMgr.GetMusic('level1');
 GameMusic^.Start;
 { TitleMusic pointer now invalid! }
+```
+
+## Manual Resource Unloading
+
+Free individual resources when no longer needed:
+
+```pascal
+{ Load level assets }
+BgImage := ResMgr.GetImage('level1_bg');
+EnemySprite := ResMgr.GetSprite('enemy1');
+
+{ Use them... }
+
+{ Switch to next level - free old assets }
+ResMgr.UnloadResource('level1_bg');
+ResMgr.UnloadResource('enemy1');
+
+{ Load new level assets }
+BgImage := ResMgr.GetImage('level2_bg');
+EnemySprite := ResMgr.GetSprite('enemy2');
+```
+
+**Supported:**
+- Images, fonts, sprites, palettes, music
+
+**Not supported:**
+- Sounds (managed by SoundBank as a group)
+
+**Behavior:**
+- Frees memory immediately
+- Marks resource as unloaded (can be re-loaded via lazy loading)
+- Invalidates all pointers to that resource
+
+⚠️ **Warning:** After unloading, any existing pointers become invalid!
+
+```pascal
+Img := ResMgr.GetImage('player');
+ResMgr.UnloadResource('player');
+PutImage(0, 0, Img, FB);  { ❌ CRASH - pointer invalid! }
 ```
 
 ## Critical Notes

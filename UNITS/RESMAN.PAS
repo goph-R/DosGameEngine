@@ -982,9 +982,103 @@ end;
 
 { TResourceManager.UnloadResource }
 procedure TResourceManager.UnloadResource(const Name: String);
+var
+  Node: PListEntry;
+  Desc: PResourceDescriptor;
+  ImgData: PImageData;
+  FontData: PFontData;
+  SprData: PSpriteData;
+  SndData: PSoundData;
+  PalData: PPaletteData;
 begin
-  { Not implemented - resources are unloaded only on Done }
-  LastError := 'UnloadResource not implemented';
+  LastError := '';
+
+  { Find descriptor in list }
+  Node := Descriptors.First;
+  while Node <> nil do
+  begin
+    Desc := PResourceDescriptor(Node^.Value);
+    if Desc^.Name^ = Name then
+    begin
+      { Check if loaded }
+      if not Desc^.Loaded then
+      begin
+        LastError := 'Resource not loaded: ' + Name;
+        Exit;
+      end;
+
+      { Free resource data based on type }
+      case Desc^.ResType of
+        ResType_Image:
+          begin
+            ImgData := PImageData(Desc^.Data);
+            FreeImage(ImgData^.Image);
+            if ImgData^.PaletteName <> nil then
+              Dispose(ImgData^.PaletteName);
+            Dispose(ImgData);
+            MapRemove(ImageMap, Name);
+          end;
+
+        ResType_Font:
+          begin
+            FontData := PFontData(Desc^.Data);
+            FreeFont(FontData^.Font);
+            Dispose(FontData);
+            MapRemove(FontMap, Name);
+          end;
+
+        ResType_Sprite:
+          begin
+            { Sprite doesn't own the image, just the frame data }
+            SprData := PSpriteData(Desc^.Data);
+            Dispose(SprData^.ImageName);
+            Dispose(SprData);
+            MapRemove(SpriteMap, Name);
+          end;
+
+        ResType_Sound:
+          begin
+            { Sounds managed by SoundBank, can't unload individually }
+            LastError := 'Cannot unload individual sounds (managed by SoundBank)';
+            Exit;
+          end;
+
+        ResType_Music:
+          begin
+            { Music is singleton - stop and free }
+            if CurrentMusic <> nil then
+            begin
+              CurrentMusic^.Music.Stop;
+              CurrentMusic^.Music.Done;
+              Dispose(CurrentMusic);
+              CurrentMusic := nil;
+            end;
+            if CurrentMusicName <> nil then
+            begin
+              Dispose(CurrentMusicName);
+              CurrentMusicName := nil;
+            end;
+            MapRemove(MusicMap, Name);
+          end;
+
+        ResType_Palette:
+          begin
+            PalData := PPaletteData(Desc^.Data);
+            Dispose(PalData);
+            MapRemove(PaletteMap, Name);
+          end;
+      end;
+
+      { Mark as unloaded (allows lazy re-load) }
+      Desc^.Loaded := False;
+      Desc^.Data := nil;
+      Exit;
+    end;
+
+    Node := Node^.Next;
+  end;
+
+  LastError := 'Resource not found: ' + Name;
 end;
 
 { TResourceManager.PreloadAll }
