@@ -3,14 +3,14 @@ unit GameScr;
 interface
 
 uses
-  VGA, VGAFont, GameUnit, BaseScr, XiStyle, XiTypes, XiRender, XiLogic, DRect, Keyboard;
+  VGA, VGAFont, VGAUI, DRect, Keyboard, GameUnit,
+  BaseScr, XiStyle, XiTypes, XiRender, XiLogic;
 
 type 
   PGameScreen = ^TGameScreen;
   TGameScreen = object(TBaseScreen)
 
     { Images }
-    BackgroundImage: PImage;
     GemsImage: PImage;
 
     { Game data }
@@ -38,7 +38,7 @@ type
 
     Paused: Boolean;
 
-    constructor Init(G: PGame);
+    constructor Init;
     destructor Done; virtual;
 
     procedure Show; virtual;
@@ -49,16 +49,17 @@ type
     procedure InitPlayfield;
     procedure LandStack;
     procedure Update(DT: Real); virtual;
+    procedure FullRender;
   end;
 
 implementation
 
-constructor TGameScreen.Init(G: PGame);
+constructor TGameScreen.Init;
 begin
-  inherited Init(G);
-  GemsImage       := G^.ResMan.GetImage('gems1');
-  BackgroundImage := G^.ResMan.GetImage('bg1');
-  Palette         := G^.ResMan.GetPalette('default');
+  inherited Init;
+  GemsImage := Game.ResMan.GetImage('gems1');
+  Palette := Game.ResMan.GetPalette('default');
+  SetPalette(Palette^);
 end;
 
 destructor TGameScreen.Done;
@@ -66,19 +67,23 @@ begin
 end;
 
 procedure TGameScreen.Show;
+var
+  BackgroundImage: PImage; { Temporary, 64KB }
 begin
   { Render background }
-  PutImage(BackgroundImage^, 0, 0, False, Game^.BackgroundBuffer);
-  PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall^, Game^.BackgroundBuffer);
-  PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall^, Game^.BackgroundBuffer);
-  PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall^, Game^.BackgroundBuffer);
-  PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game^.BackgroundBuffer);
+  BackgroundImage := Game.ResMan.GetImage('bg1');
+  PutImage(BackgroundImage^, 0, 0, False, Game.BackgroundBuffer);  
+  Game.ResMan.UnloadResource('bg1'); { Free right away! }
+
+  PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall^, Game.BackgroundBuffer);
+  PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall^, Game.BackgroundBuffer);
+  PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall^, Game.BackgroundBuffer);
+  PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game.BackgroundBuffer);
 
   { Initialize renderer }
-  SetPalette(Palette^);
-  InitRenderer(Game^.BackgroundBuffer, Game^.BackBuffer, GemsImage^);
-  CopyFrameBuffer(Game^.BackgroundBuffer, Game^.BackBuffer);
-  CopyFrameBuffer(Game^.BackBuffer, Game^.ScreenBuffer);
+  InitRenderer(Game.BackgroundBuffer, Game.BackBuffer, GemsImage^);
+  CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+  CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
 
   { Initialize game state }
   Score := 0;
@@ -105,7 +110,10 @@ begin
 
   { Render initial playfield state }
   RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
-  FlushDirtyRects(Game^.BackBuffer);  
+  FlushDirtyRects(Game.BackBuffer);  
+
+  { Reset timing to prevent delta time jump }
+  Game.ResetTiming;  
 end;
 
 procedure TGameScreen.CheckForMatches;
@@ -135,7 +143,7 @@ begin
     LastScore, LastLevel, LastBlocks, FontLarge^, FontSmall^);
 
   { Copy dirty regions to screen }
-  FlushDirtyRects(Game^.BackBuffer);
+  FlushDirtyRects(Game.BackBuffer);
 
   { Check for matches AFTER rendering (deferred from LandStack) }
   if NeedMatchCheck then
@@ -161,7 +169,7 @@ begin
   R.Height := TileSize * 3;
 
   { CopyFrameBufferRect now handles clipping automatically }
-  CopyFrameBufferRect(Game^.BackgroundBuffer, R, Game^.BackBuffer, R.X, R.Y);
+  CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
   AddDirtyRect(R);
 
   { --- Logic to place gems in grid --- }
@@ -312,13 +320,70 @@ begin
     CurrentStack.FallSpeed := InitialFallSpeed;
 end;
 
+{$F+}
+procedure DialogUpdate;
+begin
+  if IsKeyPressed(Key_Escape) then
+    UI.Stop;
+end;
+
+procedure ContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if UI.IsEnter(Event) then
+    UI.Stop;
+end;
+
+procedure QuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if UI.IsEnter(Event) then
+  begin
+    UI.Stop;
+    Game.Stop;
+  end;
+end;
+{$F-}
+
+procedure TGameScreen.FullRender;
+var
+  X, Y: Integer;
+begin
+  { Mark all playfield tiles as changed to force full redraw }
+  for Y := 0 to PlayfieldRows - 1 do
+    for X := 0 to PlayfieldCols - 1 do
+      Playfield.TileChanged[X, Y] := True;
+
+  { Force HUD redraw by invalidating last values }
+  LastScore := -1;
+  LastLevel := -1;
+  LastBlocks := -1;
+
+  { Re-render all game elements }
+  RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
+  RenderStack(CurrentStack, LastStackX, LastStackY);
+  RenderNextStack(NextStackGems);
+  RenderHUD(0, False, False, Score, Level, Blocks,
+    LastScore, LastLevel, LastBlocks, FontLarge^, FontSmall^);
+
+  { Display the restored screen }
+  CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
+end;
+
 procedure TGameScreen.Update(DT: Real);
 begin
-  { Check for pause
+  { Pause on ESC }
   if IsKeyPressed(Key_Escape) then
   begin
-    ShowPauseDialog;
-  end; }
+    { Create dialog }
+    InitDialog('PAUSED');
+    AddDialogButton('Continue Game', ContinueButtonEvent);
+    AddDialogButton('Quit to Menu', QuitButtonEvent);
+
+    { Run dialog event loop }
+    ShowDialog(DialogUpdate);
+
+    { Re-render the game }
+    FullRender;
+  end;
 
   { Update flash timer }
   if FlashActive then

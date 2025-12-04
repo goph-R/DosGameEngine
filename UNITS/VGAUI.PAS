@@ -173,6 +173,7 @@ type
     FirstRender: Boolean;            { Force full redraw on first frame }
     Style: PUIStyle;    
     Running: Boolean;
+    Tag: LongInt;                    { Metadata }
 
     procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);

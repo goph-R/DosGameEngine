@@ -24,6 +24,14 @@ echo Compiling XIRENDER.PAS...
 tpc -U..\UNITS XIRENDER.PAS
 if errorlevel 1 goto error
 
+echo Compiling BASESCR.PAS...
+tpc -U..\UNITS BASESCR.PAS
+if errorlevel 1 goto error
+
+echo Compiling GAMESCR.PAS...
+tpc -U..\UNITS GAMESCR.PAS
+if errorlevel 1 goto error
+
 echo Compiling XICLONE.PAS...
 tpc -U..\UNITS XICLONE.PAS
 if errorlevel 1 goto error

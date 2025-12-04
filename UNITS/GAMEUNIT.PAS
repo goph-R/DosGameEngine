@@ -15,9 +15,7 @@ type
 
   { Screen object - abstract base for game states/screens }
   TScreen = object
-    Game: PGame;  { Pointer to parent game instance }
-
-    constructor Init(AGame: PGame);
+    constructor Init;
     destructor Done; virtual;
     procedure Update(DT: Real); virtual;
     procedure Show; virtual;
@@ -42,6 +40,7 @@ type
 
     { Screen Management }
     Screen: PScreen;
+    NextScreen: PScreen;
     ScreenMap: TStringMap;
 
     { Framebuffers }
@@ -58,6 +57,8 @@ type
     procedure Start; virtual;
     procedure Run; virtual;
     procedure Update(DT: Real); virtual;
+    procedure Stop;
+    procedure ResetTiming;
 
     { Music control }
     procedure PlayMusic(const Name: String); virtual;
@@ -65,20 +66,22 @@ type
     procedure StopMusic; virtual;
 
     { Screen management }
-    procedure SetScreen(const Name: String); virtual;
+    procedure SetNextScreen(const Name: String); virtual;
+    procedure SetScreen; virtual;
     procedure AddScreen(const Name: String; AScreen: PScreen); virtual;
+    function GetScreen(const Name: String): PScreen;
   end;
+
+var
+  Game: TGame;  { Global instance }
 
 implementation
 
-var
-  GameInstance: PGame;  { Global for ExitProc }
-
 { ========== TScreen Implementation ========== }
 
-constructor TScreen.Init(AGame: PGame);
+constructor TScreen.Init;
 begin
-  Game := AGame;
+  { Base implementation - override in derived screens }
 end;
 
 destructor TScreen.Done;
@@ -107,11 +110,7 @@ end;
 {$F+}
 procedure CleanupOnExit; far;
 begin
-  if GameInstance <> nil then
-  begin
-    GameInstance^.Done;
-    GameInstance := nil;
-  end;
+  Game.Done;
 end;
 {$F-}
 
@@ -135,9 +134,6 @@ begin
 
   { Initialize screen map }
   MapInit(ScreenMap);
-
-  { Store global instance for ExitProc }
-  GameInstance := @Self;
 end;
 
 destructor TGame.Done;
@@ -199,9 +195,6 @@ begin
 
   { Close VGA }
   CloseVGA;
-
-  { Clear global instance }
-  GameInstance := nil;
 end;
 
 procedure TGame.Start;
@@ -272,6 +265,9 @@ end;
 
 procedure TGame.Update(DT: Real);
 begin
+  { Set the screen via the NextScreen if needed }
+  SetScreen;
+
   { Update mouse if initialized }
   if MouseInitialized then
     UpdateMouse;
@@ -322,31 +318,52 @@ begin
   { Music.Stop; }
 end;
 
-procedure TGame.SetScreen(const Name: String);
-var
-  NewScreen: PScreen;
+procedure TGame.SetNextScreen(const Name: String);
 begin
-  { Look up screen in map }
-  if not MapContains(ScreenMap, Name) then
-    Exit;
+  if MapContains(ScreenMap, Name) then
+    NextScreen := PScreen(MapGet(ScreenMap, Name));
+end;
 
-  NewScreen := PScreen(MapGet(ScreenMap, Name));
+procedure TGame.SetScreen;
+begin
+  if NextScreen = nil then
+    Exit;
 
   { Hide current screen }
   if Screen <> nil then
     Screen^.Hide;
 
   { Set new screen }
-  Screen := NewScreen;
+  Screen := NextScreen;
 
   { Show new screen }
   if Screen <> nil then
     Screen^.Show;
+
+  NextScreen := nil;
+end;
+
+function TGame.GetScreen(const Name: String): PScreen;
+begin
+  if MapContains(ScreenMap, Name) then
+    GetScreen := PScreen(MapGet(ScreenMap, Name))
+  else
+    GetScreen := nil
 end;
 
 procedure TGame.AddScreen(const Name: String; AScreen: PScreen);
 begin
   MapPut(ScreenMap, Name, AScreen);
+end;
+
+procedure TGame.Stop;
+begin
+  Running := False;
+end;
+
+procedure TGame.ResetTiming;
+begin
+  LastTime := GetTimeSeconds;
 end;
 
 end.

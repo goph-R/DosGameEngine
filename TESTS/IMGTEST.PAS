@@ -30,7 +30,7 @@ type
     UseMusic: Boolean;
     Music: PHSC_Obj;
 
-    constructor Init(AGame: PGame);
+    constructor Init;
     destructor Done; virtual;
     procedure Update(DT: Real); virtual;
     procedure Render;
@@ -39,17 +39,16 @@ type
   end;
 
 var
-  Game: TGame;
   TestScreen: PTestScreen;
 
 { ========== TTestScreen Implementation ========== }
 
-constructor TTestScreen.Init(AGame: PGame);
+constructor TTestScreen.Init;
 var
   i: Integer;
   TestPalette: PPalette;
 begin
-  inherited Init(AGame);
+  inherited Init;
 
   UseVSync := True;  { VSync enabled by default }
   UseMusic := True;  { Music enabled by default }
@@ -64,28 +63,28 @@ begin
   end;
 
   { Load test image }
-  BackgroundImage := Game^.ResMan.GetImage('test');
+  BackgroundImage := Game.ResMan.GetImage('test');
   if BackgroundImage = nil then
   begin
-    WriteLn('Error: Could not load test image: ', Game^.ResMan.LastError);
+    WriteLn('Error: Could not load test image: ', Game.ResMan.LastError);
     Halt(1);
   end;
 
   { Set palette }
-  TestPalette := Game^.ResMan.GetPalette('test');
+  TestPalette := Game.ResMan.GetPalette('test');
   if TestPalette <> nil then
     SetPalette(TestPalette^);
 
   { Render background to background buffer }
-  PutImage(BackgroundImage^, 0, 0, False, Game^.BackgroundBuffer);
+  PutImage(BackgroundImage^, 0, 0, False, Game.BackgroundBuffer);
 
   { Extract sprite from background }
-  GetImage(Sprite1, 10, 10, 64, 64, Game^.BackgroundBuffer);
+  GetImage(Sprite1, 10, 10, 64, 64, Game.BackgroundBuffer);
 
   { Initialize test sprites with different trajectories and flip modes }
   { Sprite 1: Top-left, moving down-right, no flip }
-  TestSprites[1].X := -32 shl 10;
-  TestSprites[1].Y := -32 shl 10;
+  TestSprites[1].X := -16 shl 10;
+  TestSprites[1].Y := -16 shl 10;
   TestSprites[1].VX := 50;
   TestSprites[1].VY := 40;
   TestSprites[1].FlipX := False;
@@ -93,14 +92,14 @@ begin
 
   { Sprite 2: Top-right, moving down-left, FlipX }
   TestSprites[2].X := 320 shl 10;
-  TestSprites[2].Y := -32 shl 10;
+  TestSprites[2].Y := -16 shl 10;
   TestSprites[2].VX := -45;
   TestSprites[2].VY := 35;
   TestSprites[2].FlipX := True;
   TestSprites[2].FlipY := False;
 
   { Sprite 3: Bottom-left, moving up-right, FlipY }
-  TestSprites[3].X := -32 shl 10;
+  TestSprites[3].X := -16 shl 10;
   TestSprites[3].Y := 200 shl 10;
   TestSprites[3].VX := 55;
   TestSprites[3].VY := -45;
@@ -116,18 +115,18 @@ begin
   TestSprites[4].FlipY := True;
 
   { Load sound effect if Sound Blaster is configured }
-  if Game^.Config.SoundCard = SoundCard_SoundBlaster then
+  if Game.Config.SoundCard = SoundCard_SoundBlaster then
   begin
-    ExplosionID := Game^.ResMan.GetSound('explode');
+    ExplosionID := Game.ResMan.GetSound('explode');
     if ExplosionID < 0 then
       WriteLn('Warning: Failed to load explosion sound');
   end;
 
   { Load music if enabled }
   Music := nil;
-  if (Game^.Config.SoundCard <> SoundCard_None) and UseMusic then
+  if (Game.Config.SoundCard <> SoundCard_None) and UseMusic then
   begin
-    Music := Game^.ResMan.GetMusic('fantasy');
+    Music := Game.ResMan.GetMusic('fantasy');
     if Music <> nil then
       Music^.Start;
   end;
@@ -186,11 +185,11 @@ begin
 
   { Handle keyboard - use KEYBOARD unit for proper integration }
   if IsKeyPressed(Key_E) then
-    if (Game^.Config.SoundCard = SoundCard_SoundBlaster) and (ExplosionID >= 0) then
-      Game^.ResMan.SoundBank.PlaySound(ExplosionID);
+    if (Game.Config.SoundCard = SoundCard_SoundBlaster) and (ExplosionID >= 0) then
+      Game.ResMan.SoundBank.PlaySound(ExplosionID);
 
   if IsKeyPressed(Key_Escape) then
-    Game^.Running := False;
+    Game.Running := False;
 end;
 
 procedure TTestScreen.Render;
@@ -198,28 +197,28 @@ var
   i: Integer;
   FPSStr: String;
 begin
-  CopyFrameBuffer(Game^.BackgroundBuffer, Game^.BackBuffer);
+  CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
 
   { Draw all test sprites - they will clip properly at screen edges }
   for i := 1 to 4 do
   begin
     PutFlippedImage(Sprite1, Trunc(TestSprites[i].X shr 10), Trunc(TestSprites[i].Y shr 10),
-                    TestSprites[i].FlipX, TestSprites[i].FlipY, True, Game^.BackBuffer);
+                    TestSprites[i].FlipX, TestSprites[i].FlipY, True, Game.BackBuffer);
   end;
 
   { Draw FPS and info }
   Str(FPS, FPSStr);
-  PrintText(5, 5, 'FPS: ' + FPSStr, 15, Game^.BackBuffer);
-  PrintText(5, 15, 'Clipping Test', 14, Game^.BackBuffer);
-  PrintText(5, 25, '4 sprites with', 14, Game^.BackBuffer);
-  PrintText(5, 35, 'different flips', 14, Game^.BackBuffer);
-  PrintText(5, 45, 'E=Explosion', 14, Game^.BackBuffer);
+  PrintText(5, 5, 'FPS: ' + FPSStr, 15, Game.BackBuffer);
+  PrintText(5, 15, 'Clipping Test', 14, Game.BackBuffer);
+  PrintText(5, 25, '4 sprites with', 14, Game.BackBuffer);
+  PrintText(5, 35, 'different flips', 14, Game.BackBuffer);
+  PrintText(5, 45, 'E=Explosion', 14, Game.BackBuffer);
 
   { Wait for vertical sync to prevent tearing }
   if UseVSync then
     WaitForVSync;
 
-  RenderFrameBuffer(Game^.BackBuffer);
+  RenderFrameBuffer(Game.BackBuffer);
 end;
 
 procedure TTestScreen.Show;
@@ -245,11 +244,11 @@ begin
   Game.Start;
 
   { Create and register test screen }
-  New(TestScreen, Init(@Game));
+  New(TestScreen, Init);
   Game.AddScreen('test', TestScreen);
 
   { Set initial screen and run }
-  Game.SetScreen('test');
+  Game.SetNextScreen('test');
   Game.Run;
 
   { Cleanup }
