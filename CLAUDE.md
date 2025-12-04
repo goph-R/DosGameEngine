@@ -72,8 +72,9 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 **PCX.PAS** - PCX image loading and saving (ZSoft PCX v5, Aseprite/GIMP-compatible)
 - Types: TPCXHeader
-- LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), GetLoadPCXError
+- LoadPCX(file,img), LoadPCXWithPalette(file,img,pal), LoadPCXToFrameBuffer(file,fb), GetLoadPCXError
 - SavePCX(file,img,pal), GetSavePCXError
+- LoadPCXToFrameBuffer: Optimized direct-to-framebuffer loading (no intermediate TImage)
 - Simple RLE decoding, 256-color indexed, palette at EOF-768 bytes
 - Handles scanline padding (BytesPerLine), auto-converts palette 0-255 → 0-63 for VGA
 - Max 65520 bytes (320×204 for 320-width)

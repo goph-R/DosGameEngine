@@ -29,6 +29,7 @@ type
 function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
+function LoadPCXToFrameBuffer(const FileName: string; FrameBuffer: PFrameBuffer): Boolean;
 function GetLoadPCXError: string;
 
 function SavePCX(const FileName: string; const Image: TImage; const Palette: TPalette): Boolean;
@@ -52,32 +53,15 @@ begin
   GetSavePCXError := SavePCXError;
 end;
 
-function LoadPCXWithPalette(const FileName: string; var Image: TImage;
-                            var Palette: TPalette): Boolean;
+{ Internal: Open and validate PCX file header }
+function OpenAndValidatePCX(const FileName: string; var F: File;
+                            var Header: TPCXHeader;
+                            var Width: Word; var Height: Word): Boolean;
 var
-  F: File;
-  Header: TPCXHeader;
   BytesRead: Word;
-  Image_size: LongInt;
-  Width, Height: Word;
-  Pixels_counter: LongInt;
-  Byte_read: Byte;
-  RunLength: Byte;
-  Color: Byte;
-  ImageBuffer: PByteArray;
-  Y, X: Word;
-  ScanlinePos: Word;
-  PalMarker: Byte;
-  i: Integer;
-  TempByte: Byte;
 begin
-  LoadPCXWithPalette := False;
+  OpenAndValidatePCX := False;
   LoadPCXError := '';
-
-  { Initialize Image structure }
-  Image.Width := 0;
-  Image.Height := 0;
-  Image.Data := nil;
 
   { Open file }
   Assign(F, FileName);
@@ -135,21 +119,45 @@ begin
     Exit;
   end;
 
-  Image_size := LongInt(Width) * LongInt(Height);
-  if Image_size > 65520 then  { Maximum GetMem block size in real mode }
-  begin
-    LoadPCXError := 'Image too large: ' + IntToStr(Width) + 'x' +
-                        IntToStr(Height) + ' (' + IntToStr(Image_size) +
-                        ' bytes, max 65520)';
-    Close(F);
-    Exit;
-  end;
+  OpenAndValidatePCX := True;
+end;
 
-  { Set image dimensions and allocate memory }
-  Image.Width := Width;
-  Image.Height := Height;
-  GetMem(Image.Data, Image_size);
-  ImageBuffer := Image.Data;
+{ Internal: Load PCX RLE data directly to a buffer }
+function LoadPCXToBuffer(var F: File; const Header: TPCXHeader;
+                         BufferWidth: Word; BufferHeight: Word;
+                         Buffer: Pointer): Boolean;
+var
+  BytesRead: Word;
+  Width, Height: Word;
+  Pixels_counter: LongInt;
+  Byte_read: Byte;
+  RunLength: Byte;
+  Color: Byte;
+  ImageBuffer: PByteArray;
+  Y, X: Word;
+  ScanlinePos: Word;
+  i: Integer;
+  DestX, DestY: Word;
+  DestWidth, DestHeight: Word;
+begin
+  LoadPCXToBuffer := False;
+
+  { Calculate source dimensions }
+  Width := Header.XMax - Header.XMin + 1;
+  Height := Header.YMax - Header.YMin + 1;
+
+  { Calculate destination dimensions (clip to buffer size) }
+  if Width > BufferWidth then
+    DestWidth := BufferWidth
+  else
+    DestWidth := Width;
+
+  if Height > BufferHeight then
+    DestHeight := BufferHeight
+  else
+    DestHeight := Height;
+
+  ImageBuffer := PByteArray(Buffer);
 
   { Decode RLE pixel data }
   Pixels_counter := 0;
@@ -164,9 +172,6 @@ begin
       if BytesRead <> 1 then
       begin
         LoadPCXError := 'Unexpected end of file while reading pixel data';
-        FreeMem(Image.Data, Image_size);
-        Image.Data := nil;
-        Close(F);
         Exit;
       end;
 
@@ -181,19 +186,18 @@ begin
         if BytesRead <> 1 then
         begin
           LoadPCXError := 'Unexpected end of file while reading RLE color';
-          FreeMem(Image.Data, Image_size);
-          Image.Data := nil;
-          Close(F);
           Exit;
         end;
 
         { Write the color RunLength times }
         for i := 1 to RunLength do
         begin
-          if ScanlinePos < Width then
+          { Only write pixels within source width AND destination bounds }
+          if (ScanlinePos < Width) and (Y < DestHeight) and (ScanlinePos < DestWidth) then
           begin
-            ImageBuffer^[Pixels_counter] := Color;
-            Inc(Pixels_counter);
+            DestY := Y;
+            DestX := ScanlinePos;
+            ImageBuffer^[DestY * BufferWidth + DestX] := Color;
           end;
           Inc(ScanlinePos);
         end;
@@ -201,16 +205,67 @@ begin
       else
       begin
         { This is a literal pixel value }
-        if ScanlinePos < Width then
+        if (ScanlinePos < Width) and (Y < DestHeight) and (ScanlinePos < DestWidth) then
         begin
-          ImageBuffer^[Pixels_counter] := Byte_read;
-          Inc(Pixels_counter);
+          DestY := Y;
+          DestX := ScanlinePos;
+          ImageBuffer^[DestY * BufferWidth + DestX] := Byte_read;
         end;
         Inc(ScanlinePos);
       end;
     end;
 
     Inc(Y);
+  end;
+
+  LoadPCXToBuffer := True;
+end;
+
+function LoadPCXWithPalette(const FileName: string; var Image: TImage;
+                            var Palette: TPalette): Boolean;
+var
+  F: File;
+  Header: TPCXHeader;
+  BytesRead: Word;
+  Image_size: LongInt;
+  Width, Height: Word;
+  PalMarker: Byte;
+  i: Integer;
+  TempByte: Byte;
+begin
+  LoadPCXWithPalette := False;
+
+  { Initialize Image structure }
+  Image.Width := 0;
+  Image.Height := 0;
+  Image.Data := nil;
+
+  { Open and validate PCX file }
+  if not OpenAndValidatePCX(FileName, F, Header, Width, Height) then
+    Exit;
+
+  Image_size := LongInt(Width) * LongInt(Height);
+  if Image_size > 65520 then  { Maximum GetMem block size in real mode }
+  begin
+    LoadPCXError := 'Image too large: ' + IntToStr(Width) + 'x' +
+                        IntToStr(Height) + ' (' + IntToStr(Image_size) +
+                        ' bytes, max 65520)';
+    Close(F);
+    Exit;
+  end;
+
+  { Set image dimensions and allocate memory }
+  Image.Width := Width;
+  Image.Height := Height;
+  GetMem(Image.Data, Image_size);
+
+  { Decode RLE data to image buffer }
+  if not LoadPCXToBuffer(F, Header, Width, Height, Image.Data) then
+  begin
+    FreeMem(Image.Data, Image_size);
+    Image.Data := nil;
+    Close(F);
+    Exit;
   end;
 
   { Read 256-color palette from end of file }
@@ -250,14 +305,6 @@ begin
   end;
 
   Close(F);
-
-  if Pixels_counter <> Image_size then
-  begin
-    LoadPCXError := 'Warning: Decoded ' + IntToStr(Pixels_counter) +
-                        ' pixels, expected ' + IntToStr(Image_size);
-    { Don't fail - we got most of the image }
-  end;
-
   LoadPCXWithPalette := True;
 end;
 
@@ -266,6 +313,30 @@ var
   DummyPalette: TPalette;
 begin
   LoadPCX := LoadPCXWithPalette(FileName, Image, DummyPalette);
+end;
+
+function LoadPCXToFrameBuffer(const FileName: string; FrameBuffer: PFrameBuffer): Boolean;
+var
+  F: File;
+  Header: TPCXHeader;
+  Width, Height: Word;
+begin
+  LoadPCXToFrameBuffer := False;
+
+  { Open and validate PCX file }
+  if not OpenAndValidatePCX(FileName, F, Header, Width, Height) then
+    Exit;
+
+  { Decode RLE data directly to framebuffer (320x200) }
+  { LoadPCXToBuffer will clip if image is larger than framebuffer }
+  if not LoadPCXToBuffer(F, Header, 320, 200, FrameBuffer) then
+  begin
+    Close(F);
+    Exit;
+  end;
+
+  Close(F);
+  LoadPCXToFrameBuffer := True;
 end;
 
 function SavePCX(const FileName: string; const Image: TImage; const Palette: TPalette): Boolean;

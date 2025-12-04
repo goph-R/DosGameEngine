@@ -129,8 +129,15 @@ uses PCX, VGA;
 function LoadPCX(const FileName: string; var Image: TImage): Boolean;
 function LoadPCXWithPalette(const FileName: string; var Image: TImage;
                             var Palette: TPalette): Boolean;
+function LoadPCXToFrameBuffer(const FileName: string; FrameBuffer: PFrameBuffer): Boolean;
 function GetLoadPCXError: string;
 ```
+
+**Functions:**
+- `LoadPCX` - Load image without palette (uses existing VGA palette)
+- `LoadPCXWithPalette` - Load image with palette extraction
+- `LoadPCXToFrameBuffer` - Load PCX directly to framebuffer (no intermediate TImage, optimized)
+- `GetLoadPCXError` - Get last error message
 
 ### Basic Example
 
@@ -173,6 +180,42 @@ end.
 if LoadPCX('SPRITE.PCX', Img) then
   PutImage(Img, 100, 50, True, FrameBuffer);
 ```
+
+### Load Directly to FrameBuffer (Optimized)
+
+```pascal
+uses VGA, PCX;
+
+var
+  FB: PFrameBuffer;
+  Pal: TPalette;
+
+begin
+  InitVGA;
+  FB := CreateFrameBuffer;
+
+  { Load PCX directly to framebuffer - no intermediate TImage needed }
+  if not LoadPCXToFrameBuffer('BACKGROUND.PCX', FB) then
+  begin
+    WriteLn('Error: ', GetLoadPCXError);
+    Halt(1);
+  end;
+
+  { Display }
+  RenderFrameBuffer(FB);
+  ReadLn;
+
+  { Cleanup }
+  FreeFrameBuffer(FB);
+  CloseVGA;
+end.
+```
+
+**Benefits:**
+- No intermediate `TImage` allocation
+- No `PutImage` call needed
+- Saves memory and CPU time
+- Perfect for loading backgrounds directly to BackgroundBuffer
 
 ## Testing
 
