@@ -4,8 +4,7 @@
   <music name="normal" path="ADTHELIB.HSC" />
   <music name="fast" path="TECHNO.HSC" />
   
-  <image name="bg1" path="BG1.PCX" palette="default" />
-  <image name="gems1" path="GEMS1.PCX" />
+  <image name="gems1" path="GEMS1.PCX" palette="default" />
   <image name="dialog" path="DIALOG.PCX" />
   
   <font name="small" path="FONT-SM.XML" />

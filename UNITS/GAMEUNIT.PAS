@@ -17,6 +17,7 @@ type
   TScreen = object
     constructor Init;
     destructor Done; virtual;
+    procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
     procedure Show; virtual;
     procedure Hide; virtual;
@@ -49,6 +50,7 @@ type
     ScreenBuffer: PFrameBuffer;
 
     { Internal state }
+    VGAInitialized: Boolean;
     MouseInitialized: Boolean;
     SoundInitialized: Boolean;
 
@@ -85,6 +87,11 @@ begin
 end;
 
 destructor TScreen.Done;
+begin
+  { Base implementation - override in derived screens }
+end;
+
+procedure TScreen.PostInit;
 begin
   { Base implementation - override in derived screens }
 end;
@@ -128,6 +135,7 @@ begin
   ScreenBuffer := nil;
   MouseInitialized := False;
   SoundInitialized := False;
+  VGAInitialized := False;
   CurrentTime := 0.0;
   LastTime := 0.0;
   DeltaTime := 0.0;
@@ -194,11 +202,14 @@ begin
   ResMan.Done;
 
   { Close VGA }
-  CloseVGA;
+  if VGAInitialized then
+    CloseVGA;
 end;
 
 procedure TGame.Start;
 begin
+  { InitVGA needs to be right before PostInit! }
+
   { Set up exit handler }
   ExitProc := @CleanupOnExit;
 
@@ -212,9 +223,6 @@ begin
     WriteLn('ERROR: Failed to load resources: ', ResMan.LastError);
     Halt(1);
   end;
-
-  { Initialize VGA }
-  InitVGA;
 
   { Initialize RTC timer (1024 Hz) }
   InitRTC(1024);
@@ -240,15 +248,30 @@ begin
   BackgroundBuffer := CreateFrameBuffer;
   BackBuffer := CreateFrameBuffer;
   ScreenBuffer := GetScreenBuffer;
-
-  { Clear buffers }
-  ClearFrameBuffer(BackgroundBuffer);
-  ClearFrameBuffer(BackBuffer);
 end;
 
 procedure TGame.Run;
+var
+  I: Integer;
+  ScreenPtr: PScreen;
+  Entry: PMapEntry;  
 begin
+  InitVGA;
+  VGAInitialized := True;
   Running := True;
+
+  { PostInit all screen }
+  for I := 0 to StrMap.MAX_ENTRIES - 1 do
+  begin
+    Entry := ScreenMap.Entries[I];
+    if (Entry <> nil) and Entry^.Used then
+    begin
+      ScreenPtr := PScreen(Entry^.Value);
+      if ScreenPtr <> nil then
+        ScreenPtr^.PostInit;
+    end;
+  end;
+
   LastTime := GetTimeSeconds;
 
   while Running do

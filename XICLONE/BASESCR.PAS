@@ -12,23 +12,10 @@ type
   PBaseScreen = ^TBaseScreen;
   TBaseScreen = object(TScreen)
 
-    { UI related }
-    DialogBackgroundBuffer: PFrameBuffer;  
-    DialogImage: PImage;
-    DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
-    DialogButtonIndex: ShortInt;
-
-    CustomStyle: TXiStyle;
-
     { Fonts }
-    FontLarge: PFont;
-    FontSmall: PFont;
-
-    { Palette }
-    Palette: PPalette;    
-
     constructor Init;
     destructor Done; virtual;
+    procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
 
     procedure InitDialog(Title: String);
@@ -37,29 +24,49 @@ type
   end;
 
 var
-  UI: TUIManager;
+  FontLarge: PFont;
+  FontSmall: PFont;
+
+  DialogUI: TUIManager;
+  UIStyle: TXiStyle;
+
+  DialogBackgroundBuffer: PFrameBuffer;  
+  DialogImage: PImage;
+  DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
+  DialogButtonIndex: ShortInt;
 
 implementation
-
 
 constructor TBaseScreen.Init;
 begin
   inherited Init;
-  { Load fonts }
-  FontLarge   := Game.ResMan.GetFont('large');
-  FontSmall   := Game.ResMan.GetFont('small');
-  
-  { Load dialog background }
-  DialogImage := Game.ResMan.GetImage('dialog');  
-  DialogBackgroundBuffer := CreateFrameBuffer;  
 
-  { Initialize the UI style }
-  CustomStyle.Init(186, 188, 189, 15);
+  { Load globally used resources only once }
+  if DialogBackgroundBuffer = nil then
+  begin
+    { Load fonts }
+    FontLarge   := Game.ResMan.GetFont('large');
+    FontSmall   := Game.ResMan.GetFont('small');
+  
+    { Load dialog background }
+    DialogImage := Game.ResMan.GetImage('dialog');  
+    DialogBackgroundBuffer := CreateFrameBuffer;  
+
+    { Initialize the UI style }
+    UIStyle.Init(186, 188, 189, 15);
+  end;
 end;
 
 destructor TBaseScreen.Done;
 begin
-  FreeFrameBuffer(DialogBackgroundBuffer);  
+  if DialogBackgroundBuffer <> nil then
+  begin
+    FreeFrameBuffer(DialogBackgroundBuffer);  
+  end;
+end;
+
+procedure TBaseScreen.PostInit;
+begin  
 end;
 
 procedure TBaseScreen.Update(DT: Real);
@@ -68,6 +75,9 @@ end;
 
 procedure TBaseScreen.InitDialog(Title: String);
 begin
+  DialogUI.Init(Game.BackBuffer, DialogBackgroundBuffer);
+  DialogUI.SetStyle(@UIStyle);
+
   DialogButtonIndex := -1;
 
   { Render the background }
@@ -82,10 +92,6 @@ begin
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
   
   ClearAllKeyStates; 
-
-  { Create UI }
-  UI.Init(Game.BackBuffer, DialogBackgroundBuffer);
-  UI.SetStyle(@CustomStyle);  
 end;
 
 procedure TBaseScreen.AddDialogButton(Text: String; EventHandler: TEventHandler);
@@ -99,7 +105,7 @@ begin
 
   New(Button, Init(100, 97 + DialogButtonIndex * 18, 120, 14, Text, FontSmall));
   Button^.SetEventHandler(@EventHandler);
-  UI.AddWidget(Button);
+  DialogUI.AddWidget(Button);
 
   DialogButtons[DialogButtonIndex] := Button;
 end;
@@ -111,16 +117,16 @@ begin
   if DialogButtonIndex < 0 then
     Exit;
 
-  UI.SetFocus(DialogButtons[0]);
-
-  UI.Run(@UpdateProcedure, True);
+  DialogUI.SetFocus(DialogButtons[0]);
+  DialogUI.Run(@UpdateProcedure, True);
 
   for i := 0 to DialogButtonIndex - 1 do
   begin
-    UI.RemoveWidget(DialogButtons[i]);
+    DialogUI.RemoveWidget(DialogButtons[i]);
     Dispose(DialogButtons[i], Done);
   end;
-  UI.Done;  
+
+  DialogUI.Done;
 
   CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
   ClearAllKeyStates;
@@ -128,4 +134,6 @@ begin
   Game.ResetTiming;
 end;
 
+begin
+  DialogBackgroundBuffer := nil;
 end.

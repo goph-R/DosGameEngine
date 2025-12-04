@@ -1,24 +1,28 @@
 program XiClone;
 
 uses
-  GameUnit, GameScr;
+  Crt, GameUnit, GameScr;
 
 var
   GameScreen: PGameScreen;
 
 begin
-  { Initialize game }
+  WriteLn('Loading XiClone...');
+
+  { Initialize }
   Game.Init('..\SETUP\CONFIG.INI', 'DATA\RES.XML');
   Game.Start;
 
-  { Create and register game screen }
+  { Create and register screens }
   New(GameScreen, Init);
   Game.AddScreen('game', GameScreen);
 
-  { Set initial screen and run }
+  { Run }
   Game.SetNextScreen('game');
   Game.Run;
 
   { Cleanup }
   Game.Done;
+
+  WriteLn('Thanks for playing XiClone!');
 end.

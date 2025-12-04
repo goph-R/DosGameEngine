@@ -3,7 +3,7 @@ unit GameScr;
 interface
 
 uses
-  VGA, VGAFont, VGAUI, DRect, Keyboard, GameUnit,
+  VGA, VGAFont, VGAUI, DRect, Keyboard, GameUnit, PCX,
   BaseScr, XiStyle, XiTypes, XiRender, XiLogic;
 
 type 
@@ -41,14 +41,15 @@ type
     constructor Init;
     destructor Done; virtual;
 
+    procedure PostInit; virtual;
     procedure Show; virtual;
+    procedure Update(DT: Real); virtual;
     procedure CheckForMatches;
     procedure RenderFrame;
     procedure UpdateFallingStack(DT: Real);
     procedure HandleStackInput;
     procedure InitPlayfield;
     procedure LandStack;
-    procedure Update(DT: Real); virtual;
     procedure FullRender;
   end;
 
@@ -58,8 +59,6 @@ constructor TGameScreen.Init;
 begin
   inherited Init;
   GemsImage := Game.ResMan.GetImage('gems1');
-  Palette := Game.ResMan.GetPalette('default');
-  SetPalette(Palette^);
 end;
 
 destructor TGameScreen.Done;
@@ -68,12 +67,9 @@ end;
 
 procedure TGameScreen.Show;
 var
-  BackgroundImage: PImage; { Temporary, 64KB }
+  Palette: PPalette;
 begin
-  { Render background }
-  BackgroundImage := Game.ResMan.GetImage('bg1');
-  PutImage(BackgroundImage^, 0, 0, False, Game.BackgroundBuffer);  
-  Game.ResMan.UnloadResource('bg1'); { Free right away! }
+  LoadPCXToFrameBuffer('DATA\BG1.PCX', Game.BackgroundBuffer);
 
   PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall^, Game.BackgroundBuffer);
   PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall^, Game.BackgroundBuffer);
@@ -114,6 +110,10 @@ begin
 
   { Reset timing to prevent delta time jump }
   Game.ResetTiming;  
+
+  { TODO: do this in the first TScreen.Show }
+  Palette := Game.ResMan.GetPalette('default');
+  SetPalette(Palette^); 
 end;
 
 procedure TGameScreen.CheckForMatches;
@@ -321,26 +321,28 @@ begin
 end;
 
 {$F+}
-procedure DialogUpdate;
+
+procedure PauseDialogUpdate;
 begin
   if IsKeyPressed(Key_Escape) then
-    UI.Stop;
+    DialogUI.Stop;
 end;
 
-procedure ContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure PauseContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if UI.IsEnter(Event) then
-    UI.Stop;
+  if DialogUI.IsEnter(Event) then
+    DialogUI.Stop;
 end;
 
-procedure QuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if UI.IsEnter(Event) then
+  if DialogUI.IsEnter(Event) then
   begin
-    UI.Stop;
+    DialogUI.Stop;
     Game.Stop;
   end;
 end;
+
 {$F-}
 
 procedure TGameScreen.FullRender;
@@ -368,6 +370,10 @@ begin
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
 end;
 
+procedure TGameScreen.PostInit;
+begin
+end;
+
 procedure TGameScreen.Update(DT: Real);
 begin
   { Pause on ESC }
@@ -375,11 +381,11 @@ begin
   begin
     { Create dialog }
     InitDialog('PAUSED');
-    AddDialogButton('Continue Game', ContinueButtonEvent);
-    AddDialogButton('Quit to Menu', QuitButtonEvent);
+    AddDialogButton('Continue Game', PauseContinueButtonEvent);
+    AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
 
     { Run dialog event loop }
-    ShowDialog(DialogUpdate);
+    ShowDialog(PauseDialogUpdate);
 
     { Re-render the game }
     FullRender;
@@ -428,29 +434,7 @@ begin
     end;
   end;
 
-  { Add some test gems }
-  { Bottom row - display all gem types }
-  Playfield.Tiles[0, 11] := Gem_Red;
-  Playfield.Tiles[1, 11] := Gem_Yellow;
-  Playfield.Tiles[2, 11] := Gem_Green;
-  Playfield.Tiles[3, 11] := Gem_Blue;
-  Playfield.Tiles[4, 11] := Gem_Pink;
-  Playfield.Tiles[5, 11] := Gem_Purple;
 
-  { Second row from bottom }
-  Playfield.Tiles[0, 10] := Gem_Blue;
-  Playfield.Tiles[1, 10] := Gem_Blue;
-  Playfield.Tiles[2, 10] := Gem_Blue;
-  Playfield.Tiles[3, 10] := Gem_Red;
-  Playfield.Tiles[4, 10] := Gem_Red;
-
-  { Third row }
-  Playfield.Tiles[2, 9] := Gem_Yellow;
-  Playfield.Tiles[3, 9] := Gem_Yellow;
-  Playfield.Tiles[4, 9] := Gem_Yellow;
-
-  { Add a magic jewel for testing }
-  Playfield.Tiles[5, 10] := Gem_MagicJewel;
 end;
 
 
