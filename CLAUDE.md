@@ -166,10 +166,11 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - See DOCS\RESMAN.md for XML format
 
 **GAMEUNIT.PAS** - Game framework (2025)
-- TGame: Main game object (Init, Start, Run, Done, PlayMusic, SetScreen, AddScreen)
+- TGame: Main game object (Init, Start, Run, Done, PlayMusic, SetNextScreen, GetScreen, AddScreen)
 - TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide)
 - Auto-initializes: VGA, Config, ResMan, RTC, Keyboard, Mouse, SBDSP, framebuffers
-- Screen management via ScreenMap, delta-time game loop
+- Screen management via ScreenMap, deferred screen switching, delta-time game loop
+- Global var: Game (global TGame instance)
 - See DOCS\GAMEUNIT.md for architecture
 
 **DRECT.PAS** - Dirty rectangle system (2025)
@@ -355,13 +356,13 @@ type PMenuScreen = ^TMenuScreen;
        procedure Show; virtual;
      end;
 
-{ Main program }
-var Game: TGame;
-    Menu: PMenuScreen;
+{ Main program - uses global Game instance }
+var Menu: PMenuScreen;
 Game.Init('CONFIG.INI', 'DATA\RES.XML');
-New(Menu, Init(@Game)); Game.AddScreen('menu', Menu);
-Game.SetScreen('menu'); Game.PlayMusic('theme');
-Game.Run; { Auto delta-time loop }
+New(Menu, Init); Game.AddScreen('menu', Menu);
+Game.Start; { Initialize subsystems }
+Game.SetNextScreen('menu'); { Queue initial screen }
+Game.Run; { Auto delta-time loop with deferred screen switching }
 Game.Done;
 ```
 

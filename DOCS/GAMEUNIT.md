@@ -2,6 +2,15 @@
 
 Central game loop framework with screen management, resource loading, and subsystem initialization.
 
+## Global Instance
+
+```pascal
+var
+  Game: TGame;  { Global game instance }
+```
+
+The `Game` variable is a global instance of `TGame` provided by `GameUnit`. Use this instance in your program instead of creating your own.
+
 ## TGame Object
 
 **Unit:** `GameUnit`
@@ -57,23 +66,13 @@ begin
     DeltaTime := CurrentTime - LastTime;
     LastTime := CurrentTime;
 
-    { Update current screen }
+    { Update (calls SetScreen, UpdateMouse, Screen^.Update, WaitForVSync, ClearKeyPressed) }
     Update(DeltaTime);
-
-    { Render }
-    CopyFrameBuffer(BackgroundBuffer, BackBuffer);  { Start with background }
-    if Screen <> nil then
-      Screen^.Render(BackBuffer);  { Screen draws to BackBuffer }
-    RenderFrameBuffer(BackBuffer);  { Blit to VGA }
-
-    { Handle exit }
-    if IsKeyPressed(Key_Escape) then
-      Running := False;
-
-    ClearKeyPressed;
   end;
 end;
 ```
+
+**Note:** Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer`.
 
 ```pascal
 destructor Done;
@@ -119,21 +118,44 @@ procedure StopMusic;
 - `Exit` if `Config.SoundCard = SoundCard_None`
 
 ```pascal
-procedure SetScreen(Name: String);
+procedure SetNextScreen(Name: String); virtual;
 ```
 
-Switch to a different screen:
+Queue a screen switch (deferred until next `Update`):
 
 1. Look up screen in `ScreenMap` by name
-2. If current `Screen <> nil`: call `Screen^.Hide`
-3. Set `Screen := NewScreen`
-4. If new `Screen <> nil`: call `Screen^.Show`
+2. Set `NextScreen` field to the found screen
+
+**Note:** Screen switch happens in `Update`, not immediately. This prevents issues with switching screens mid-frame.
 
 ```pascal
-procedure AddScreen(Name: String; Screen: PScreen);
+procedure SetScreen; virtual;
 ```
 
-Register a screen in the screen map: `ScreenMap.Put(Name, Screen)`
+Apply queued screen switch (called automatically in `Update`):
+
+1. Exit if `NextScreen = nil`
+2. If current `Screen <> nil`: call `Screen^.Hide`
+3. Set `Screen := NextScreen`
+4. If new `Screen <> nil`: call `Screen^.Show`
+5. Set `NextScreen := nil`
+
+**Note:** This is called internally by `Update`. Don't call directly unless you need immediate screen switching.
+
+```pascal
+function GetScreen(Name: String): PScreen;
+```
+
+Retrieve a screen by name from `ScreenMap`:
+
+- Returns `PScreen` if found
+- Returns `nil` if not found
+
+```pascal
+procedure AddScreen(Name: String; AScreen: PScreen); virtual;
+```
+
+Register a screen in the screen map: `MapPut(ScreenMap, Name, AScreen)`
 
 ```pascal
 procedure Update(DeltaTime: Real); virtual;
@@ -142,7 +164,12 @@ procedure Update(DeltaTime: Real); virtual;
 **Virtual method** - can be overridden in derived game objects.
 
 Default implementation:
-- If `Screen <> nil`: call `Screen^.Update(DeltaTime)`
+1. Call `SetScreen` to apply queued screen switch (if `NextScreen <> nil`)
+2. Update mouse if initialized: `UpdateMouse`
+3. Handle exit shortcut: `Alt+Q` stops the game (sets `Running := False`)
+4. If `Screen <> nil`: call `Screen^.Update(DeltaTime)`
+5. Wait for VSync: `WaitForVSync`
+6. Clear keyboard state: `ClearKeyPressed`
 
 ### Properties
 
@@ -151,25 +178,32 @@ type
   PGame = ^TGame;
   TGame = object
     { Configuration & Resources }
-    Config: TConfig;              { Game configuration (see CONFIG.PAS) }
-    ResMan: TResourceManager;     { Resource manager (see RESMAN.PAS) }
+    Config: TConfig;                 { Game configuration (see CONFIG.PAS) }
+    ConfigFilePath: String;          { Path to CONFIG.INI }
+    ResFilePath: String;             { Path to resources XML }
+    ResMan: TResourceManager;        { Resource manager (see RESMAN.PAS) }
 
     { Timing }
-    CurrentTime: Real;            { Current time in seconds (from GetTimeSeconds) }
-    LastTime: Real;               { Previous frame time in seconds }
-    DeltaTime: Real;              { Time elapsed since last frame (seconds) }
+    CurrentTime: Real;               { Current time in seconds (from GetTimeSeconds) }
+    LastTime: Real;                  { Previous frame time in seconds }
+    DeltaTime: Real;                 { Time elapsed since last frame (seconds) }
 
     { State }
-    Running: Boolean;             { Main loop control flag }
+    Running: Boolean;                { Main loop control flag }
 
     { Screen Management }
-    Screen: PScreen;              { Current active screen }
-    ScreenMap: TStringMap;        { Name -> PScreen mapping }
+    Screen: PScreen;                 { Current active screen }
+    NextScreen: PScreen;             { Next screen to switch to (queued) }
+    ScreenMap: TStringMap;           { Name -> PScreen mapping }
 
     { Framebuffers }
     BackgroundBuffer: PFrameBuffer;  { Static background (cleared once) }
     BackBuffer: PFrameBuffer;        { Working render buffer }
     ScreenBuffer: PFrameBuffer;      { VGA display buffer (from GetScreenBuffer) }
+
+    { Internal state }
+    MouseInitialized: Boolean;       { Mouse driver initialized }
+    SoundInitialized: Boolean;       { Sound Blaster initialized }
   end;
 ```
 
@@ -182,39 +216,39 @@ Abstract screen/state object for menu screens, gameplay, etc.
 ### Constructor
 
 ```pascal
-constructor Init(Game: PGame);
+constructor Init;
 ```
 
-- `Game`: Pointer to parent TGame instance (for accessing config, buffers, etc.)
+Base constructor - override in derived screens. No parameters needed since screens access the global `Game` instance.
 
 ### Methods
 
 ```pascal
-destructor Done;
+destructor Done; virtual;
 ```
 
-Cleanup screen resources.
+Cleanup screen resources. **Virtual** - override to free screen-specific resources.
 
 ```pascal
-procedure Update(DeltaTime: Real);
+procedure Update(DeltaTime: Real); virtual;
 ```
 
-Per-frame update logic (game-specific, typically overridden).
+Per-frame update logic. **Virtual** - override for game-specific logic.
 
 ```pascal
-procedure Show;
+procedure Show; virtual;
 ```
 
-Called when screen becomes active:
+Called when screen becomes active. **Virtual** - override to:
 - Initialize screen-specific resources
 - Load screen assets
 - Reset screen state
 
 ```pascal
-procedure Hide;
+procedure Hide; virtual;
 ```
 
-Called when screen becomes inactive:
+Called when screen becomes inactive. **Virtual** - override to:
 - Save screen state if needed
 - Pause screen-specific timers
 - Optionally free screen assets
@@ -225,7 +259,7 @@ Called when screen becomes inactive:
 type
   PScreen = ^TScreen;
   TScreen = object
-    Game: PGame;  { Pointer to parent game instance }
+    { No fields in base - add fields in derived screens }
   end;
 ```
 
@@ -235,25 +269,33 @@ type
 program MyGame;
 
 uses
-  GameUnit, Config;
+  GameUnit, Keyboard;
 
 type
   PMenuScreen = ^TMenuScreen;
   TMenuScreen = object(TScreen)
-    procedure Update(DeltaTime: Real);
-    procedure Show;
-    procedure Hide;
+    procedure Update(DeltaTime: Real); virtual;
+    procedure Show; virtual;
+    procedure Hide; virtual;
+  end;
+
+  PGameplayScreen = ^TGameplayScreen;
+  TGameplayScreen = object(TScreen)
+    procedure Update(DeltaTime: Real); virtual;
+    procedure Show; virtual;
+    procedure Hide; virtual;
   end;
 
 var
-  Game: TGame;
   MenuScreen: PMenuScreen;
+  GameplayScreen: PGameplayScreen;
 
+{ MenuScreen implementation }
 procedure TMenuScreen.Update(DeltaTime: Real);
 begin
-  { Handle menu input }
+  { Handle menu input - queue screen switch }
   if IsKeyPressed(Key_Enter) then
-    Game^.SetScreen('gameplay');
+    Game.SetNextScreen('gameplay');  { Deferred switch }
 end;
 
 procedure TMenuScreen.Show;
@@ -266,18 +308,39 @@ begin
   { Hide cursor, etc. }
 end;
 
+{ GameplayScreen implementation }
+procedure TGameplayScreen.Update(DeltaTime: Real);
 begin
-  { Initialize game }
+  { Game logic here }
+  if IsKeyPressed(Key_Escape) then
+    Game.SetNextScreen('menu');  { Return to menu }
+end;
+
+procedure TGameplayScreen.Show;
+begin
+  { Load level assets }
+end;
+
+procedure TGameplayScreen.Hide;
+begin
+  { Pause game, etc. }
+end;
+
+begin
+  { Initialize game (uses global Game instance) }
   Game.Init('CONFIG.INI', 'DATA\RES.XML');
 
   { Create and register screens }
-  New(MenuScreen, Init(@Game));
+  New(MenuScreen, Init);
   Game.AddScreen('menu', MenuScreen);
 
+  New(GameplayScreen, Init);
+  Game.AddScreen('gameplay', GameplayScreen);
+
   { Start and run }
-  Game.Start;
-  Game.SetScreen('menu');
-  Game.Run;
+  Game.Start;                  { Initialize all subsystems }
+  Game.SetNextScreen('menu');  { Queue initial screen }
+  Game.Run;                    { Main loop }
 
   { Cleanup }
   Game.Done;
@@ -297,15 +360,18 @@ end.
 
 ## Notes
 
-- **Virtual methods**: Only `Update` is virtual. Screens override `Update`, `Show`, `Hide` as needed.
-- **ExitProc**: `CleanupOnExit` must be installed with Turbo Pascal's `ExitProc` mechanism to ensure cleanup on abnormal exit.
+- **Global instance**: `Game` is a global variable in `GameUnit`. Use this instead of creating your own instance.
+- **Virtual methods**: All `TScreen` methods are virtual. Override `Update`, `Show`, `Hide` as needed.
+- **Deferred screen switching**: Use `SetNextScreen('name')` to queue screen switches. The switch happens in the next `Update` call. This prevents issues with switching screens mid-frame.
+- **ExitProc**: `CleanupOnExit` is automatically installed by `Start` to ensure cleanup on abnormal exit (Ctrl+C, Runtime Error).
 - **DeltaTime convention**: Real (seconds), calculated as `CurrentTime - LastTime` via `GetTimeSeconds`.
+- **Exit shortcut**: `Alt+Q` stops the game (Mortal Kombat style). TODO: Make this optional.
 - **Sound card checks**: Music functions exit early if `Config.SoundCard = SoundCard_None` to avoid unnecessary work.
-- **Screen lifecycle**: Screens are created by the game, registered with `AddScreen`, and switched with `SetScreen`. The game owns and frees all screens in `Done`.
+- **Screen lifecycle**: Screens are created by the program, registered with `AddScreen`, and switched with `SetNextScreen`. The game owns and frees all screens in `Done`.
 - **Framebuffer usage**:
   - `BackgroundBuffer`: Static content (cleared once, never redrawn)
-  - `BackBuffer`: Composed frame (background + dynamic content)
-  - `ScreenBuffer`: VGA hardware buffer (blit target)
+  - `BackBuffer`: Working buffer for compositing
+  - `ScreenBuffer`: VGA hardware buffer (pointer, don't free)
 
 ## Future Enhancements
 
