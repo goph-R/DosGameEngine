@@ -80,74 +80,106 @@ XICLONE.EXE
 
 ## ✨ Features
 
-### 🎨 Graphics Engine
+### 🎨 Graphics
+- 320×200 VGA Mode 13h with double-buffering
+- Variable-width bitmap fonts (PCX + XML)
+- UI widget toolkit (buttons, labels, checkboxes, line edits)
+- PCX/BMP image loading (Aseprite, GIMP compatible)
+- TMX tilemap support (Tiled Map Editor)
+- Delta-time sprite animation system
+- Dirty rectangle optimization
 
-* [320×200 VGA Mode 13h renderer](DOCS/VGA.md)  
-  with double-buffering for flicker-free visuals, transparent images, primitive drawing, full palette control.  
-* [Variable-width bitmap fonts](DOCS/VGAUI.md)  
-  using PCX art + XML metadata.  
-* [UI widget toolkit](DOCS/VGAUI.md)  
-  (buttons, labels, checkboxes, line edits) with keyboard navigation and event-driven behavior.  
-* [PCX loader/saver](DOCS/PCX.md)  
-  compatible with Aseprite, GIMP, and GrafX2 workflows.  
-* [Tiled TMX integration](DOCS/TILEMAP.md)  
-  Back and front layers merged automatically (a TMX optimizer is work in progress),
-  "Blocks" layer for a collision grid,
-  `<objectgroup>` loading hook: you can load your objects however you want.
-* [Sprite animation system](DOCS/SPRITE.md)  
-  with multiple playback modes.
+### 🔊 Audio
+- HSC music (AdLib/OPL2, interrupt-driven)
+- XMS-based sound bank (VOC format, 8-bit PCM)
+- Sound Blaster DSP driver (DMA-safe mixing)
 
-### 🔊 Audio System
-
-* [HSC music playback](DOCS/HSC.md)  
-  via AdLib/OPL2 (interrupt-driven).  
-* [Sound bank stored in XMS](DOCS/SNDBANK.md),  
-  perfect for memory-heavy sample sets. VOC format support (8-bit PCM, 11–44 kHz) with DMA-safe mixing.  
-* [Dedicated Sound Blaster DSP driver](DOCS/SBDSP.md)  
-  for maximum compatibility.
-
-### 🎮 Input Handling
-
-* [Real-time keyboard system](DOCS/KEYBOARD.md)  
-  with key-down and key-press tracking.  
-* [Mouse support via INT 33h](DOCS/MOUSE.md),  
-  including 3-button mice.
+### 🎮 Input
+- Hardware keyboard handler (INT 9h)
+- Mouse support (INT 33h, 3-button)
 
 ### 🧠 Memory & Performance
+- XMS extended memory manager (>1MB RAM)
+- RTC high-resolution timer (IRQ8, no HSC conflict)
+- Dirty rectangle rendering
 
-* [Advanced XMS manager](DOCS/XMS.md)  
-  for systems with >1 MB RAM.
+### 📦 Resources
+- XML-based resource manager (lazy/eager loading)
+- Unified game loop framework
+- Lightweight XML parser/writer
+- INI configuration system
+- String hash map (O(1) lookup)
+- Linked list utilities
 
-### 📦 Data & Resource Management
+### 🛠 Tools
+- Sound card setup utility
+- Text-mode UI toolkit
+- Debug logger (startup/shutdown safe)
+- Comprehensive test suite
 
-* [Unified game loop framework](DOCS/GAMEUNIT.md)  
-  with screen management and subsystem initialization.  
-* [XML-based resource manager](DOCS/RESMAN.md)  
-  with lazy/eager loading and palette extraction.  
-* [Lightweight XML parser/writer](DOCS/MINIXML.md)  
-  (DOM-style, supports files up to 64 KB).  
-* Simple INI parser for configuration.  
-* Fast string hash map (O(1) lookup).  
-* Linked list utilities for game data structures.
+## 📚 Documentation
 
-### 🛠 Tools & Utilities
+### Core Graphics
+- **[VGA.PAS](DOCS/VGA.md)** - Mode 13h graphics driver (320×200, 256 colors)
+- **[PCX.PAS](DOCS/PCX.md)** - PCX image loader/saver
+- **[BMP.PAS](DOCS/BMP.md)** - Windows BMP image loader/saver
+- **[VGAPRINT.PAS](DOCS/VGAPRINT.md)** - Embedded 8×8 bitmap font
+- **[VGAFONT.PAS](DOCS/VGAFONT.md)** - Variable-width font system
+- **[SPRITE.PAS](DOCS/SPRITE.md)** - Delta-time sprite animation
+- **[DRECT.PAS](DOCS/DRECT.md)** - Dirty rectangle optimization
 
-* Setup utility for configuring sound hardware.  
-* Text-mode UI toolkit for installers and tools.  
-* Debug logger for startup/shutdown diagnostics (safe for DOS’s slow disk I/O).  
-* Test programs for graphics, fonts, tiles, UI, sprites, audio, etc.  
-* Automated build scripts for quickly generating test binaries.
+### User Interface
+- **[VGAUI.PAS](DOCS/VGAUI.md)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
+- **[TEXTUI.PAS](DOCS/TEXTUI.md)** - Text mode UI system (SETUP utility)
+
+### Audio
+- **[SBDSP.PAS](DOCS/SBDSP.md)** - Sound Blaster DSP driver
+- **[SNDBANK.PAS](DOCS/SNDBANK.md)** - XMS sound bank manager
+- **[PLAYHSC.PAS](DOCS/PLAYHSC.md)** - HSC music player (AdLib/OPL2)
+- **[HSC Format](DOCS/HSC.md)** - HSC file format specification
+
+### Input
+- **[KEYBOARD.PAS](DOCS/KEYBOARD.md)** - Hardware keyboard handler (INT 9h)
+- **[MOUSE.PAS](DOCS/MOUSE.md)** - Mouse driver (INT 33h)
+
+### Tilemaps
+- **[TMXLOAD.PAS](DOCS/TILEMAP.md)** - TMX tilemap loader (Tiled Map Editor)
+- **[TMXDRAW.PAS](DOCS/TILEMAP.md)** - TMX rendering system
+
+### Memory & Timing
+- **[XMS.PAS](DOCS/XMS.md)** - Extended memory manager (HIMEM.SYS)
+- **[RTCTIMER.PAS](DOCS/RTCTIMER.md)** - RTC high-resolution timer (IRQ8)
+
+### Resources
+- **[RESMAN.PAS](DOCS/RESMAN.md)** - XML-based resource manager
+- **[MINIXML.PAS](DOCS/MINIXML.md)** - Lightweight XML parser/writer
+- **[CONFIG.PAS](DOCS/CONFIG.md)** - INI configuration system
+
+### Utilities
+- **[GENTYPES.PAS](DOCS/GENTYPES.md)** - Generic pointer and array types
+- **[STRUTIL.PAS](DOCS/STRUTIL.md)** - String conversion utilities
+- **[STRMAP.PAS](DOCS/STRMAP.md)** - String hash map (O(1) lookup)
+- **[LINKLIST.PAS](DOCS/LINKLIST.md)** - Doubly-linked list
+- **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
+
+### Game Framework
+- **[GAMEUNIT.PAS](DOCS/GAMEUNIT.md)** - Unified game loop and screen management
+
+### Guides
+- **[Build Guide](DOCS/BUILD.md)** - Compilation instructions
+- **[Asset Creation](DOCS/CREATE.md)** - Creating PCX, VOC, HSC, TMX assets
+- **[Example Program](DOCS/EXAMPLE.md)** - Complete game example walkthrough
 
 ## 📁 Project Structure
 
 ```
 D:\ENGINE\
-├── DOCS\           Documentation (see links above)
+├── DOCS\           Documentation and design notes
 ├── TESTS\          Test programs (IMGTEST, TMXTEST, SPRTEST, FNTTEST, etc.)
-├── SETUP\          Basic setup utility (currently for Sound card setup)
-├── UNITS\          Core engine (VGA, SBDSP, Keyboard, Mouse, XML, Sprite, etc.)
-├── VENDOR\         Third-party libraries (credits only)
-└── XICLONE\        Example game project, Columns/Xixit clone
+├── SETUP\          Sound card setup utility
+├── UNITS\          Core engine units (VGA, SBDSP, Keyboard, Mouse, XML, Sprite, etc.)
+├── VENDOR\         Third-party libraries (SBDSP, XMS, HSC)
+└── XICLONE\        Example game (Columns/Xixit clone, WIP)
 ```
 
 ## 🎨 Creating Assets
@@ -159,13 +191,13 @@ D:\ENGINE\
 - **Photoshop**: Image → Mode → Indexed Color → Save As PCX (8 bits/pixel)
 - Common sizes: 320×200 (full screen), 32×32 (sprites), 16×16 (tiles)
 
-**VOC Sounds:**  
+**VOC Sounds:**
 Use [Audacity](https://www.audacityteam.org/) → Mix to Mono → Resample 11025Hz → Export as VOC (Unsigned 8-bit PCM).
 
-**HSC Music:**  
+**HSC Music:**
 Use [Adlib Tracker II](https://adlibtracker.net/) or [HSC-tracker](https://demozoo.org/productions/293837/).
 
-**TMX Tilemaps:**  
+**TMX Tilemaps:**
 Use [Tiled](https://www.mapeditor.org/) (see [TILEMAP.md](DOCS/TILEMAP.md) for restrictions).
 
 ## 📜 Credits
