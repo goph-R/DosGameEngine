@@ -102,6 +102,7 @@ XICLONE.EXE
 - INI configuration system
 - String hash map (O(1) lookup)
 - Linked list utilities
+- MD5 cryptographic hash (RFC 1321, asset verification)
 
 ### 🛠 Tools
 - Sound card setup utility
@@ -152,6 +153,7 @@ XICLONE.EXE
 - **[STRUTIL.PAS](DOCS/STRUTIL.md)** - String conversion utilities
 - **[STRMAP.PAS](DOCS/STRMAP.md)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](DOCS/LINKLIST.md)** - Doubly-linked list
+- **[MD5.PAS](DOCS/MD5.md)** - MD5 cryptographic hash (RFC 1321)
 - **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
 
 ### Game Framework

@@ -168,10 +168,11 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 **GAMEUNIT.PAS** - Game framework (2025)
 - TGame: Main game object (Init, Start, Run, Done, PlayMusic, SetNextScreen, GetScreen, AddScreen)
-- TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide)
+- TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide, PostInit)
 - Auto-initializes: VGA, Config, ResMan, RTC, Keyboard, Mouse, SBDSP, framebuffers
 - Screen management via ScreenMap, deferred screen switching, delta-time game loop
 - Global var: Game (global TGame instance)
+- **PostInit**: Called AFTER VGA initialized - use for SetPalette, RenderFrameBuffer, etc. NOT for loading resources
 - See DOCS\GAMEUNIT.md for architecture
 
 **DRECT.PAS** - Dirty rectangle system (2025)
@@ -256,6 +257,15 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - LogError(msg), LogWarning(msg), LogInfo(msg), LogDebug(msg)
 - **WARNING**: Do NOT use in render loops - file I/O causes stack overflow at 60 FPS
 - Safe for startup/shutdown logging only
+
+**MD5.PAS** - MD5 cryptographic hash (1992, RFC 1321)
+- Types: TMD5Digest (array[0..15] of Byte), TMD5Context
+- Core: MD5Init(ctx), MD5Update(ctx,buf,len), MD5Final(digest,ctx)
+- Convenience: MD5String(s), MD5File(path,digest), MD5DigestToHex(digest), MD5DigestEqual(a,b)
+- 128-bit hash, returns 32-char hex string
+- Use cases: Asset verification, save game checksums, file integrity
+- Performance: Instant for strings, ~0.5-1s for full-screen images on 286
+- Era-appropriate (1992), period-accurate for retro engine
 
 ## File Formats
 
@@ -376,6 +386,23 @@ FlushDirtyRects(BackBuffer); { Copy only changed regions to screen }
 ClearDirtyRects; { Prepare for next frame }
 ```
 
+**MD5 Hashing**:
+```pascal
+{ Quick string hash }
+hash := MD5String('hello world');
+WriteLn('Hash: ', hash);
+
+{ File integrity check }
+if MD5File('DATA\FONT.PCX', digest) then
+  WriteLn('Hash: ', MD5DigestToHex(digest));
+
+{ Incremental hashing }
+MD5Init(ctx);
+MD5Update(ctx, @buffer1, len1);
+MD5Update(ctx, @buffer2, len2);
+MD5Final(digest, ctx);
+```
+
 ## Common Pitfalls
 
 1. **Interrupts**: Always call Done/Unhook before exit (HSC_obj.Done, DoneKeyboard, DoneRTC, UninstallHandler) or system hangs
@@ -402,6 +429,7 @@ ClearDirtyRects; { Prepare for next frame }
 - Adlib/OPL2 (HSC), Sound Blaster (VOC, DMA 0-3)
 - Memory: 640KB conventional, XMS via HIMEM.SYS ✅
 - Single-threaded, interrupt-driven audio
+- **Performance**: Targets 286 CPUs (8-25 MHz). Avoid full framebuffer copies/renders unless absolutely necessary. Use dirty rectangles (DRECT.PAS) and viewport rendering for optimal performance
 
 ## Vendor
 
