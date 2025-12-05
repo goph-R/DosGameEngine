@@ -63,6 +63,7 @@ type
     FlashTimer: Real;
     FlashActive: Boolean;
     FlashTiles: array[0..PlayfieldCols * PlayfieldRows - 1] of Boolean;
+    GameOver: Boolean;
 
     { HUD tracking - for dirty rectangle optimization }
     LastScore: LongInt;
@@ -90,7 +91,8 @@ type
     procedure CheckForMatches;
     procedure LandStack;
     function RandomGemColor: TGemColor;
-    procedure SpawnStack(First: Boolean);
+    function SpawnStack(First: Boolean): Boolean;
+    procedure ShowGameOver;
     procedure RotateStack;
     function CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
     function CountMatchInDirection(StartX, StartY, DX, DY: Integer; Color: TGemColor): Integer;
@@ -182,6 +184,7 @@ begin
   NeedMatchCheck := False;
   FlashActive := False;
   FlashTimer := 0.0;
+  GameOver := False;
 
   { Initialize HUD tracking (force initial render) }
   LastScore := -1;
@@ -255,11 +258,18 @@ begin
 
   { Deactivate stack and spawn new one }
   CurrentStack.Active := False;
-  SpawnStack(False);
-  RenderNextStack;
 
-  { Schedule match check for next frame (after render completes) }
-  NeedMatchCheck := True;
+  if not SpawnStack(False) then
+  begin
+    { Game Over - couldn't spawn new stack }
+    GameOver := True;
+  end
+  else
+  begin
+    RenderNextStack;
+    { Schedule match check for next frame (after render completes) }
+    NeedMatchCheck := True;
+  end;
 end;
 
 procedure TGameScreen.UpdateFallingStack(DT: Real);
@@ -394,14 +404,67 @@ begin
   end;
 end;
 
+procedure GameOverDialogUpdate;
+begin
+  if IsKeyPressed(Key_Escape) then
+    DialogUI.Stop;
+end;
+
+procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if DialogUI.IsEnter(Event) then
+    DialogUI.Stop;
+end;
+
+procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if DialogUI.IsEnter(Event) then
+  begin
+    DialogUI.Stop;
+    Game.Stop;
+  end;
+end;
+
 {$F-}
 
 procedure TGameScreen.PostInit;
 begin
 end;
 
+procedure TGameScreen.ShowGameOver;
+var
+  ScoreText: String;
+begin
+  { Display final score }
+  ScoreText := 'Final Score: ' + IntToStr(Score);
+
+  { Create game over dialog }
+  InitDialog('GAME OVER');
+  AddDialogButton('Restart', GameOverRestartButtonEvent);
+  AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
+
+  { Run dialog event loop }
+  ShowDialog(GameOverDialogUpdate);
+
+  { Check which button was pressed }
+  if Game.Running then
+  begin
+    { Restart was selected - reset game state }
+    ResetGameState;
+    FullRender;
+  end;
+  { Otherwise, Quit was selected and Game.Stop was called }
+end;
+
 procedure TGameScreen.Update(DT: Real);
 begin
+  { Check for Game Over }
+  if GameOver then
+  begin
+    ShowGameOver;
+    Exit;  { ShowGameOver handles restart or quit }
+  end;
+
   { Pause on ESC }
   if IsKeyPressed(Key_Escape) then
   begin
@@ -471,8 +534,25 @@ begin
   RandomGemColor := TGemColor(R);
 end;
 
-procedure TGameScreen.SpawnStack(First: Boolean);
+function TGameScreen.SpawnStack(First: Boolean): Boolean;
+var
+  SpawnCol: Integer;
+  i: Integer;
 begin
+  SpawnCol := PlayfieldCols div 2;  { Middle column }
+
+  { Check if spawn position is blocked (top 3 rows) }
+  for i := 0 to 2 do
+  begin
+    if (i < PlayfieldRows) and
+       (Playfield.Tiles[SpawnCol, i] <> Gem_Empty) then
+    begin
+      SpawnStack := False;  { Game Over - can't spawn }
+      Exit;
+    end;
+  end;
+
+  { Spawn position is clear - create new stack }
   if First then
   begin
     CurrentStack.Gems[0] := RandomGemColor;
@@ -486,7 +566,7 @@ begin
     CurrentStack.Gems[2] := NextStackGems[2];
   end;
 
-  CurrentStack.GridX := PlayfieldCols div 2;  { Start in middle column }
+  CurrentStack.GridX := SpawnCol;
   CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
   CurrentStack.PixelY := -3 * TileSize;  { Start above playfield }
   CurrentStack.FallSpeed := InitialFallSpeed;
@@ -500,6 +580,8 @@ begin
   { Initialize last position to current position }
   LastStackX := CurrentStack.PixelX;
   LastStackY := CurrentStack.PixelY;
+
+  SpawnStack := True;  { Success }
 end;
 
 procedure TGameScreen.RotateStack;
