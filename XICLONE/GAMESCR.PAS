@@ -3,15 +3,51 @@ unit GameScr;
 interface
 
 uses
-  VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX,
-  BaseScr, XiStyle, XiTypes, XiRender, XiLogic;
+  VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
+  Globals, BaseScr;
 
-type 
+const
+  { Playfield dimensions }
+  PlayfieldCols = 6;
+  PlayfieldRows = 12;
+
+  { Screen positions }
+  PlayfieldX = 113;  { Game stage start position }
+  PlayfieldY = 4;
+
+  { Game tuning }
+  InitialFallSpeed = 16.0; { 1 tile per second }
+  FastFallSpeed = 160.0;   { 10 tile per second, when holding down }
+
+  { Next stack preview position }
+  NextStackX = 230;
+  NextStackY = 31;
+  NextLabelX = 226;
+  NextLabelY = 17;
+
+  StatLabelsX = 99;
+
+  MaxDialogButtons = 10;
+
+type
+
+  { Playfield grid }
+  TPlayfield = record
+    Tiles: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of TGemColor;
+    TileChanged: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
+  end;
+  
+  TGemStack = record
+    Gems: array[0..2] of TGemColor;  { Top, Middle, Bottom }
+    GridX: Integer;     { Grid column (0-5) }
+    PixelX: Integer;    { Pixel X position (for rendering) }
+    PixelY: Real;       { Pixel Y position (smooth falling) }
+    FallSpeed: Real;    { Pixels per second }
+    Active: Boolean;    { Is stack currently falling? }
+  end;  
+
   PGameScreen = ^TGameScreen;
   TGameScreen = object(TBaseScreen)
-
-    { Images }
-    GemsImage: PImage;
 
     { Game data }
     Playfield: TPlayfield;
@@ -43,13 +79,28 @@ type
 
     procedure PostInit; virtual;
     procedure Show; virtual;
+    procedure InitPlayfield;
+
     procedure Update(DT: Real); virtual;
-    procedure CheckForMatches;
-    procedure RenderFrame;
     procedure UpdateFallingStack(DT: Real);
     procedure HandleStackInput;
-    procedure InitPlayfield;
+    procedure CheckForMatches;
     procedure LandStack;
+    function RandomGemColor: TGemColor;
+    procedure SpawnStack(First: Boolean);
+    procedure RotateStack;
+    function CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
+    function CountMatchInDirection(StartX, StartY, DX, DY: Integer; Color: TGemColor): Integer;
+    function FindAndRemoveMatches: Integer;
+    procedure RemoveFlashedGems;
+    procedure ApplyGravity;
+
+    procedure DrawGemFlash(GemColor: TGemColor; X, Y: Integer; FlashOn: Boolean);
+    procedure RenderPlayfield;
+    procedure RenderStack;
+    procedure RenderNextStack;
+    procedure RenderHUD;    
+    procedure RenderFrame;
     procedure FullRender;
   end;
 
@@ -58,7 +109,6 @@ implementation
 constructor TGameScreen.Init;
 begin
   inherited Init;
-  GemsImage := Game.ResMan.GetImage('gems1');
 end;
 
 destructor TGameScreen.Done;
@@ -85,8 +135,7 @@ begin
   Palette := Game.ResMan.GetPalette('default');
   SetPalette(Palette^); 
 
-  { Initialize renderer }
-  InitRenderer(Game.BackgroundBuffer, Game.BackBuffer, GemsImage^);
+  { Initalize buffers }
   CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
 
@@ -110,11 +159,11 @@ begin
   Randomize;
 
   { Spawn first falling stack }
-  SpawnStack(CurrentStack, NextStackGems, LastStackX, LastStackY, True);
-  RenderNextStack(NextStackGems);
+  SpawnStack(True);
+  RenderNextStack;
 
   { Render initial playfield state }
-  RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
+  RenderPlayfield;
   FlushDirtyRects(Game.BackBuffer);  
 
   { Reset timing to prevent delta time jump }
@@ -126,7 +175,7 @@ var
   GemsRemoved: Integer;
 begin
   { Find matches and mark them for flashing }
-  GemsRemoved := FindAndRemoveMatches(Playfield, FlashTiles);
+  GemsRemoved := FindAndRemoveMatches;
 
   if GemsRemoved > 0 then
   begin
@@ -138,27 +187,6 @@ begin
     Inc(Score, GemsRemoved * 10);
   end;
 end;
-
-procedure TGameScreen.RenderFrame;
-begin
-  { Render all game elements to BackBuffer }
-  RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
-  RenderStack(CurrentStack, LastStackX, LastStackY);
-  RenderHUD(0, False, False, Score, Level, Blocks,
-    LastScore, LastLevel, LastBlocks, FontLarge^, FontSmall^);
-
-  { Copy dirty regions to screen }
-  FlushDirtyRects(Game.BackBuffer);
-
-  { Check for matches AFTER rendering (deferred from LandStack) }
-  if NeedMatchCheck then
-  begin
-    CheckForMatches;
-    NeedMatchCheck := False;
-  end;
-end;
-
-{ Stack physics & collision }
 
 procedure TGameScreen.LandStack;
 var
@@ -194,8 +222,8 @@ begin
 
   { Deactivate stack and spawn new one }
   CurrentStack.Active := False;
-  SpawnStack(CurrentStack, NextStackGems, LastStackX, LastStackY, False);
-  RenderNextStack(NextStackGems);
+  SpawnStack(False);
+  RenderNextStack;
 
   { Schedule match check for next frame (after render completes) }
   NeedMatchCheck := True;
@@ -221,7 +249,7 @@ begin
 
   { CHECK 1: HARD COLLISION }
   { If we moved a full tile and hit something strictly at this new GridY }
-  if (GridY + 3 > PlayfieldRows) or CheckStackCollision(Playfield, CurrentStack.GridX, GridY) then
+  if (GridY + 3 > PlayfieldRows) or CheckStackCollision(CurrentStack.GridX, GridY) then
   begin
     { We hit something. Back up to the previous valid row (GridY - 1) and land. }
     CurrentStack.PixelY := (GridY - 1) * TileSize;
@@ -237,7 +265,7 @@ begin
     begin
       { Check if the NEXT grid position down is blocked }
       NextStepBlocked := (GridY + 1 + 3 > PlayfieldRows) or
-                         CheckStackCollision(Playfield, CurrentStack.GridX, GridY + 1);
+                         CheckStackCollision(CurrentStack.GridX, GridY + 1);
 
       if NextStepBlocked then
       begin
@@ -275,13 +303,13 @@ begin
     NewX := CurrentStack.GridX - 1;
 
     { 1. Check if the stack fits in the new column at the current Grid Y }
-    CanMove := not CheckStackCollision(Playfield, NewX, GridY);
+    CanMove := not CheckStackCollision(NewX, GridY);
 
     { 2. If we are partially fallen into the next row, we must also check }
     {    if the stack fits one row lower in the new column. }
     if CanMove and (PixelOffset > 0) then
     begin
-      if CheckStackCollision(Playfield, NewX, GridY + 1) then
+      if CheckStackCollision(NewX, GridY + 1) then
         CanMove := False;
     end;
 
@@ -298,12 +326,12 @@ begin
     NewX := CurrentStack.GridX + 1;
 
     { 1. Check main position }
-    CanMove := not CheckStackCollision(Playfield, NewX, GridY);
+    CanMove := not CheckStackCollision(NewX, GridY);
 
     { 2. Check 'dangling' position if not grid aligned }
     if CanMove and (PixelOffset > 0) then
     begin
-      if CheckStackCollision(Playfield, NewX, GridY + 1) then
+      if CheckStackCollision(NewX, GridY + 1) then
         CanMove := False;
     end;
 
@@ -316,7 +344,7 @@ begin
 
   { Rotation }
   if IsKeyPressed(Key_Space) then
-    RotateStack(CurrentStack);
+    RotateStack;
 
   { Fast fall }
   if IsKeyDown(Key_Down) then
@@ -350,31 +378,6 @@ end;
 
 {$F-}
 
-procedure TGameScreen.FullRender;
-var
-  X, Y: Integer;
-begin
-  { Mark all playfield tiles as changed to force full redraw }
-  for Y := 0 to PlayfieldRows - 1 do
-    for X := 0 to PlayfieldCols - 1 do
-      Playfield.TileChanged[X, Y] := True;
-
-  { Force HUD redraw by invalidating last values }
-  LastScore := -1;
-  LastLevel := -1;
-  LastBlocks := -1;
-
-  { Re-render all game elements }
-  RenderPlayfield(Playfield, FlashActive, FlashTimer, FlashTiles);
-  RenderStack(CurrentStack, LastStackX, LastStackY);
-  RenderNextStack(NextStackGems);
-  RenderHUD(0, False, False, Score, Level, Blocks,
-    LastScore, LastLevel, LastBlocks, FontLarge^, FontSmall^);
-
-  { Display the restored screen }
-  CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
-end;
-
 procedure TGameScreen.PostInit;
 begin
 end;
@@ -405,8 +408,8 @@ begin
     if FlashTimer >= 0.5 then
     begin
       FlashActive := False;
-      RemoveFlashedGems(Playfield, FlashTiles);
-      ApplyGravity(Playfield);
+      RemoveFlashedGems;
+      ApplyGravity;
 
       { Check for new matches after gravity }
       NeedMatchCheck := True;
@@ -438,9 +441,577 @@ begin
       Playfield.TileChanged[X, Y] := True;  { Mark all tiles as changed }
     end;
   end;
-
-
 end;
 
+{ Game logic }
+
+function TGameScreen.RandomGemColor: TGemColor;
+var
+  R: Integer;
+begin
+  R := Random(6) + 1;  { 1-6 for colored gems, excluding empty and magic jewel }
+  RandomGemColor := TGemColor(R);
+end;
+
+procedure TGameScreen.SpawnStack(First: Boolean);
+begin
+  if First then
+  begin
+    CurrentStack.Gems[0] := RandomGemColor;
+    CurrentStack.Gems[1] := RandomGemColor;
+    CurrentStack.Gems[2] := RandomGemColor;
+  end
+  else
+  begin
+    CurrentStack.Gems[0] := NextStackGems[0];
+    CurrentStack.Gems[1] := NextStackGems[1];
+    CurrentStack.Gems[2] := NextStackGems[2];
+  end;
+
+  CurrentStack.GridX := PlayfieldCols div 2;  { Start in middle column }
+  CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
+  CurrentStack.PixelY := -3 * TileSize;  { Start above playfield }
+  CurrentStack.FallSpeed := InitialFallSpeed;
+  CurrentStack.Active := True;
+
+  { Generate next stack preview }
+  NextStackGems[0] := RandomGemColor;
+  NextStackGems[1] := RandomGemColor;
+  NextStackGems[2] := RandomGemColor;
+
+  { Initialize last position to current position }
+  LastStackX := CurrentStack.PixelX;
+  LastStackY := CurrentStack.PixelY;
+end;
+
+procedure TGameScreen.RotateStack;
+var
+  Temp: TGemColor;
+begin
+  { Rotate gems: Bottom -> Top, Middle -> Bottom, Top -> Middle }
+  Temp := CurrentStack.Gems[2];
+  CurrentStack.Gems[2] := CurrentStack.Gems[1];
+  CurrentStack.Gems[1] := CurrentStack.Gems[0];
+  CurrentStack.Gems[0] := Temp;
+end;
+
+function TGameScreen.CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
+var
+  i: Integer;
+  CheckY: Integer;
+begin
+  CheckStackCollision := False;
+
+  { Check playfield boundaries }
+  if (CheckX < 0) or (CheckX >= PlayfieldCols) then
+  begin
+    CheckStackCollision := True;
+    Exit;
+  end;
+
+  { Check collision with playfield gems }
+  for i := 0 to 2 do
+  begin
+    CheckY := StartCheckY + i;
+    if (CheckY >= 0) and (CheckY < PlayfieldRows) then
+    begin
+      if Playfield.Tiles[CheckX, CheckY] <> Gem_Empty then
+      begin
+        CheckStackCollision := True;
+        Exit;
+      end;
+    end;
+  end;
+end;
+
+function TGameScreen.CountMatchInDirection(StartX, StartY, DX, DY: Integer; Color: TGemColor): Integer;
+var
+  Count: Integer;
+  CheckX, CheckY: Integer;
+begin
+  Count := 1;  { Count starting gem }
+  CheckX := StartX + DX;
+  CheckY := StartY + DY;
+
+  { Count consecutive matching gems in this direction }
+  while (CheckX >= 0) and (CheckX < PlayfieldCols) and
+        (CheckY >= 0) and (CheckY < PlayfieldRows) and
+        ((Playfield.Tiles[CheckX, CheckY] = Color) or
+         (Playfield.Tiles[CheckX, CheckY] = Gem_MagicJewel)) do
+  begin
+    Inc(Count);
+    Inc(CheckX, DX);
+    Inc(CheckY, DY);
+  end;
+
+  CountMatchInDirection := Count;
+end;
+
+function TGameScreen.FindAndRemoveMatches: Integer;
+var
+  X, Y: Integer;
+  Color: TGemColor;
+  MatchLen: Integer;
+  GemsRemoved: Integer;
+  MarkForRemoval: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
+  i, MarkX, MarkY: Integer;
+  TileIndex: Integer;
+begin
+  GemsRemoved := 0;
+
+  { Clear mark array }
+  for Y := 0 to PlayfieldRows - 1 do
+    for X := 0 to PlayfieldCols - 1 do
+      MarkForRemoval[X, Y] := False;
+
+  { PHASE 1: Find all matches and mark them (don't remove yet!) }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      Color := Playfield.Tiles[X, Y];
+
+      { Skip empty tiles }
+      if Color = Gem_Empty then Continue;
+
+      { Check horizontal (right) }
+      MatchLen := CountMatchInDirection(X, Y, 1, 0, Color);
+      if MatchLen >= 3 then
+      begin
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) then
+            MarkForRemoval[MarkX, Y] := True;
+        end;
+      end;
+
+      { Check vertical (down) }
+      MatchLen := CountMatchInDirection(X, Y, 0, 1, Color);
+      if MatchLen >= 3 then
+      begin
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkY := Y + i;
+          if (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[X, MarkY] := True;
+        end;
+      end;
+
+      { Check diagonal down-right }
+      MatchLen := CountMatchInDirection(X, Y, 1, 1, Color);
+      if MatchLen >= 3 then
+      begin
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X + i;
+          MarkY := Y + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
+             (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[MarkX, MarkY] := True;
+        end;
+      end;
+
+      { Check diagonal down-left }
+      MatchLen := CountMatchInDirection(X, Y, -1, 1, Color);
+      if MatchLen >= 3 then
+      begin
+        for i := 0 to MatchLen - 1 do
+        begin
+          MarkX := X - i;
+          MarkY := Y + i;
+          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
+             (MarkY >= 0) and (MarkY < PlayfieldRows) then
+            MarkForRemoval[MarkX, MarkY] := True;
+        end;
+      end;
+    end;
+  end;
+
+  { PHASE 2: Copy marks to flash array and count }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      TileIndex := Y * PlayfieldCols + X;
+      FlashTiles[TileIndex] := MarkForRemoval[X, Y];
+      if MarkForRemoval[X, Y] then
+        Inc(GemsRemoved);
+    end;
+  end;
+
+  FindAndRemoveMatches := GemsRemoved;
+end;
+
+procedure TGameScreen.RemoveFlashedGems;
+var
+  X, Y: Integer;
+  TileIndex: Integer;
+begin
+  { Remove all flashed gems }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      TileIndex := Y * PlayfieldCols + X;
+      if FlashTiles[TileIndex] then
+      begin
+        Playfield.Tiles[X, Y] := Gem_Empty;
+        Playfield.TileChanged[X, Y] := True;
+        FlashTiles[TileIndex] := False;
+      end;
+    end;
+  end;
+end;
+
+procedure TGameScreen.ApplyGravity;
+var
+  X, Y: Integer;
+  Moved: Boolean;
+begin
+  repeat
+    Moved := False;
+
+    { Scan bottom to top }
+    for Y := PlayfieldRows - 1 downto 1 do
+    begin
+      for X := 0 to PlayfieldCols - 1 do
+      begin
+        { If empty space below a gem, move gem down }
+        if (Playfield.Tiles[X, Y] = Gem_Empty) and
+           (Playfield.Tiles[X, Y - 1] <> Gem_Empty) then
+        begin
+          { Move gem down }
+          Playfield.Tiles[X, Y] := Playfield.Tiles[X, Y - 1];
+          Playfield.Tiles[X, Y - 1] := Gem_Empty;
+
+          { Mark both tiles as changed }
+          Playfield.TileChanged[X, Y] := True;
+          Playfield.TileChanged[X, Y - 1] := True;
+
+          Moved := True;
+        end;
+      end;
+    end;
+  until not Moved;
+end;
+
+procedure TGameScreen.DrawGemFlash(GemColor: TGemColor; X, Y: Integer; FlashOn: Boolean);
+var
+  GemRect: TRectangle;
+  GemIndex: Integer;
+begin
+  GemRect.X := X;
+  GemRect.Y := Y;
+  GemRect.Width := TileSize;
+  GemRect.Height := TileSize;
+
+  if FlashOn then
+  begin
+    { Show the gem when flash is on }
+    GemIndex := Ord(GemColor);
+    GemRect.X := GemIndex * TileSize;
+    GemRect.Y := 0;
+    GemRect.Width := TileSize;
+    GemRect.Height := TileSize;
+    PutImageRect(GemsImage^, GemRect, X, Y, True, Game.BackBuffer);
+  end
+  else
+  begin
+    { Show background when flash is off (gem disappears) }
+    GemRect.X := X;
+    GemRect.Y := Y;
+    CopyFrameBufferRect(Game.BackgroundBuffer, GemRect, Game.BackBuffer, X, Y);
+  end;
+end;
+
+procedure TGameScreen.RenderPlayfield;
+var
+  X, Y: Integer;
+  PixelX, PixelY: Integer;
+  R: TRectangle;
+  FlashOn: Boolean;
+  TileIndex: Integer;  
+begin
+  { Calculate flash state (blink every 100ms) }
+  FlashOn := FlashActive and (Trunc(FlashTimer * 10) mod 2 = 0);
+
+  { Render gems on playfield }
+  for Y := 0 to PlayfieldRows - 1 do
+  begin
+    for X := 0 to PlayfieldCols - 1 do
+    begin
+      TileIndex := Y * PlayfieldCols + X;
+
+      { Only redraw changed tiles or flashing tiles }
+      if Playfield.TileChanged[X, Y] or (FlashActive and FlashTiles[TileIndex]) then
+      begin
+        PixelX := PlayfieldX + X * TileSize;
+        PixelY := PlayfieldY + Y * TileSize;
+
+        { If this tile is flashing, draw flash effect }
+        if FlashActive and FlashTiles[TileIndex] then
+        begin
+          DrawGemFlash(Playfield.Tiles[X, Y], PixelX, PixelY, FlashOn);
+        end
+        else
+        begin
+          { Draw the gem at this position }
+          DrawGem(Playfield.Tiles[X, Y], PixelX, PixelY);
+        end;
+
+        { Mark this tile as dirty }
+        R.X := PixelX;
+        R.Y := PixelY;
+        R.Width := TileSize;
+        R.Height := TileSize;
+        AddDirtyRect(R);
+
+        { Clear changed flag }
+        Playfield.TileChanged[X, Y] := False;
+      end;
+    end;
+  end;
+end;
+
+procedure TGameScreen.RenderStack;
+var
+  I: Integer;
+  GemY: Integer;
+  R: TRectangle;
+begin
+  if not CurrentStack.Active then Exit;
+
+  { Set clipping to playfield bounds only }
+  R.X := PlayfieldX;
+  R.Y := PlayfieldY;
+  R.Width := PlayfieldCols * TileSize;
+  R.Height := PlayfieldRows * TileSize;
+  SetClipRectangle(R);
+
+  { --- STEP 1: CLEAR OLD POSITION --- }
+
+  R.X := LastStackX;
+  R.Y := Trunc(LastStackY) + PlayfieldY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+
+  { Clip playfield top }
+  if R.Y < PlayfieldY then
+  begin
+    Dec(R.Height, Abs(R.Y - PlayfieldY));
+    R.Y := PlayfieldY;
+  end;
+
+  CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+  AddDirtyRect(R);
+
+  { --- STEP 2: DRAW NEW POSITION --- }
+
+  for I := 0 to 2 do
+  begin
+    { Calculate Y relative to the stack top }
+    GemY := Trunc(CurrentStack.PixelY) + (I * TileSize);
+    DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY);
+  end;
+
+  { --- STEP 3: MARK DIRTY RECT FOR NEW POSITION --- }
+
+  R.X := CurrentStack.PixelX;
+  R.Y := Trunc(CurrentStack.PixelY) + PlayfieldY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+
+  { Clip playfield top }
+  if R.Y < PlayfieldY then
+  begin
+    Dec(R.Height, Abs(R.Y - PlayfieldY));
+    R.Y := PlayfieldY;
+  end;
+
+  AddDirtyRect(R);
+
+  { Save current position for next frame }
+  LastStackX := CurrentStack.PixelX;
+  LastStackY := CurrentStack.PixelY;
+
+  { Reset clipping to full screen }
+  R.X := 0;
+  R.Y := 0;
+  R.Width := 320;
+  R.Height := 200;
+  SetClipRectangle(R);
+end;
+
+procedure TGameScreen.RenderNextStack;
+var
+  i: Integer;
+  R: TRectangle;
+begin
+  for i := 0 to 2 do
+  begin
+    DrawGem(NextStackGems[i], NextStackX, NextStackY + i * TileSize);
+  end;
+
+  R.X := NextStackX;
+  R.Y := NextStackY;
+  R.Width := TileSize;
+  R.Height := TileSize * 3;
+  AddDirtyRect(R);
+end;
+
+{ Helper function to zero-pad numbers }
+function PadZero(Value: LongInt; Length: Integer): string;
+var
+  S: string;
+begin
+  S := IntToStr(Value);
+  while System.Length(S) < Length do
+    S := '0' + S;
+  PadZero := S;
+end;
+
+procedure TGameScreen.RenderHUD;
+var
+  {
+  NextY: Integer;
+  }
+  R: TRectangle;
+  ScoreText, LevelText, BlocksText: string;
+  TextWidth: Integer;
+  FreeMem: LongInt;
+  S: string;
+const
+  ScoreY = 25;   { 17 + 8 }
+  LevelY = 66;   { 58 + 8 }
+  BlocksY = 107; { 99 + 8 }
+begin
+  {
+  NextY := 10;
+
+  if (ShowFPS) then
+  begin    
+    R.X := NextY;
+    R.Y := 10;
+    R.Width := 80;
+    R.Height := 8;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+    PrintText(10, 10, 'FPS: ' + IntToStr(FPS), 15, Game.BackBuffer);
+    AddDirtyRect(R);
+    Inc(NextY, R.Height + 2);
+  end;
+
+  if (ShowMem) then
+  begin
+    R.X := NextY;
+    R.Y := 10;
+    R.Width := 160;
+    R.Height := 8;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+    FreeMem := MemAvail;
+    Str(FreeMem, S);
+    PrintText(10, NextY, 'Free: ' + S + ' bytes', 15, Game.BackBuffer);
+    AddDirtyRect(R);
+    Inc(NextY, R.Height + 2);
+  end; 
+  } 
+
+  R.X := 0;
+  R.Width := StatLabelsX;
+  R.Height := FontLarge^.Height;
+
+  { Render Score number (only if changed) }
+  if Score <> LastScore then
+  begin
+    ScoreText := PadZero(Score, 7);
+    TextWidth := GetTextWidth(ScoreText, FontLarge^);
+
+    { Clear area and redraw }
+    R.Y := ScoreY;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+
+    { Draw right-aligned }
+    PrintFontTextRight(StatLabelsX, ScoreY, ScoreText, FontLarge^, Game.BackBuffer);
+    AddDirtyRect(R);
+
+    LastScore := Score;
+  end;
+
+  { Render Level number (only if changed) }
+  if Level <> LastLevel then
+  begin
+    LevelText := PadZero(Level, 2);
+    TextWidth := GetTextWidth(LevelText, FontLarge^);
+
+    { Clear area and redraw }
+    R.Y := LevelY;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+
+    { Draw right-aligned }
+    PrintFontTextRight(StatLabelsX, LevelY, LevelText, FontLarge^, Game.BackBuffer);
+    AddDirtyRect(R);
+
+    LastLevel := Level;
+  end;
+
+  { Render Blocks number (only if changed) }
+  if Blocks <> LastBlocks then
+  begin
+    BlocksText := PadZero(Blocks, 3);
+    TextWidth := GetTextWidth(BlocksText, FontLarge^);
+
+    { Clear area and redraw }
+    R.Y := BlocksY;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+
+    { Draw right-aligned }
+    PrintFontTextRight(StatLabelsX, BlocksY, BlocksText, FontLarge^, Game.BackBuffer);
+    AddDirtyRect(R);
+
+    LastBlocks := Blocks;
+  end;
+end;
+
+procedure TGameScreen.RenderFrame;
+begin
+  { Render all game elements to BackBuffer }
+  RenderPlayfield;
+  RenderStack;
+  RenderHUD;
+
+  { Copy dirty regions to screen }
+  FlushDirtyRects(Game.BackBuffer);
+
+  { Check for matches AFTER rendering (deferred from LandStack) }
+  if NeedMatchCheck then
+  begin
+    CheckForMatches;
+    NeedMatchCheck := False;
+  end;
+end;
+
+procedure TGameScreen.FullRender;
+var
+  X, Y: Integer;
+begin
+  { Mark all playfield tiles as changed to force full redraw }
+  for Y := 0 to PlayfieldRows - 1 do
+    for X := 0 to PlayfieldCols - 1 do
+      Playfield.TileChanged[X, Y] := True;
+
+  { Force HUD redraw by invalidating last values }
+  LastScore := -1;
+  LastLevel := -1;
+  LastBlocks := -1;
+
+  { Re-render all game elements }
+  RenderPlayfield;
+  RenderStack;
+  RenderNextStack;
+  RenderHUD;
+
+  { Display the restored screen }
+  CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
+end;
 
 end.

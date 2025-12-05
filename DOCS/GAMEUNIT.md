@@ -69,7 +69,7 @@ begin
     begin
       ScreenPtr := PScreen(Entry^.Value);
       if ScreenPtr <> nil then
-        ScreenPtr^.PostInit;  { Load VGA-dependent resources here }
+        ScreenPtr^.PostInit;
     end;
   end;
 
@@ -90,8 +90,8 @@ end;
 
 **Note:**
 - VGA is initialized at the start of `Run`, not in `Start`. This allows screens to be created and registered before VGA mode is set.
-- All screens' `PostInit` methods are called once before the main loop starts. Use this to load graphics resources that require VGA mode.
-- Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer`.
+- All screens' `PostInit` methods are called once before the main loop starts. Use this to set palette, show loading screen.
+- Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer` or `FlushDirtyRects`.
 
 ```pascal
 destructor Done;
@@ -267,9 +267,7 @@ procedure PostInit; virtual;
 ```
 
 Called once after VGA initialization, before the main loop starts. **Virtual** - override to:
-- Load VGA-dependent resources (images, fonts, sprites)
-- Perform one-time graphics setup
-- Initialize render buffers
+- Set palette (for example)
 
 **Note:** This is called for ALL screens during `Game.Run`, before the main loop starts. At this point VGA is initialized and framebuffers are available.
 
@@ -421,7 +419,7 @@ end.
 - **Global instance**: `Game` is a global variable in `GameUnit`. Use this instead of creating your own instance.
 - **Virtual methods**: All `TScreen` methods are virtual. Override `PostInit`, `Update`, `Show`, `Hide` as needed.
 - **VGA initialization timing**: VGA is initialized in `Run`, not `Start`. This allows screens to be created and registered before VGA mode is set.
-- **PostInit lifecycle**: Called once for ALL screens during `Run`, before the main loop starts. Use this to load graphics resources (images, fonts, sprites) that require VGA mode.
+- **PostInit lifecycle**: Called once for ALL screens during `Run`, before the main loop starts.
 - **Deferred screen switching**: Use `SetNextScreen('name')` to queue screen switches. The switch happens in the next `Update` call. This prevents issues with switching screens mid-frame.
 - **ExitProc**: `CleanupOnExit` is automatically installed by `Start` to ensure cleanup on abnormal exit (Ctrl+C, Runtime Error).
 - **DeltaTime convention**: Real (seconds), calculated as `CurrentTime - LastTime` via `GetTimeSeconds`.

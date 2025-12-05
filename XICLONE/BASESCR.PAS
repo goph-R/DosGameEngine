@@ -3,7 +3,7 @@ unit BaseScr;
 interface
 
 uses
-  VGA, VGAFont, VGAUI, Keyboard, GameUnit, XiStyle, XiRender;
+  VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals;
 
 const
   MaxDialogButtons = 2;
@@ -23,19 +23,63 @@ type
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
   end;
 
+implementation
+
 var
-  FontLarge: PFont;
-  FontSmall: PFont;
-
-  DialogUI: TUIManager;
-  UIStyle: TXiStyle;
-
   DialogBackgroundBuffer: PFrameBuffer;  
   DialogImage: PImage;
   DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
   DialogButtonIndex: ShortInt;
 
-implementation
+procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
+{ Optimized assembly checkerboard dither for 286 }
+{ Odd rows (1,3,5...): black at even X positions (0,2,4...) }
+{ Even rows (0,2,4...): black at odd X positions (1,3,5...) }
+asm
+  push ds
+  les di, FrameBuffer    { ES:DI = framebuffer base }
+  xor bx, bx             { BX = row counter (0-199) }
+  cld                    { Clear direction flag }
+
+@RowLoop:
+  { Calculate row start address: FrameBuffer + (row * 320) }
+  les di, FrameBuffer
+  mov ax, bx             { AX = row number }
+  mov cx, 320
+  mul cx                 { DX:AX = row * 320 }
+  add di, ax             { ES:DI = framebuffer + row offset }
+
+  { Check if row is odd or even }
+  test bl, 1             { Test bit 0 of row number }
+  jnz @OddRow
+
+@EvenRow:
+  { Even rows: write black at odd positions (1,3,5,...) }
+  inc di                 { Start at offset 1 }
+  mov cx, 160            { 320/2 = 160 pixels to write }
+  xor al, al             { AL = 0 (black color) }
+@EvenLoop:
+  stosb                  { Write black to [ES:DI], DI++ }
+  inc di                 { Skip next pixel (DI++) }
+  loop @EvenLoop
+  jmp @NextRow
+
+@OddRow:
+  { Odd rows: write black at even positions (0,2,4,...) }
+  mov cx, 160            { 320/2 = 160 pixels to write }
+  xor al, al             { AL = 0 (black color) }
+@OddLoop:
+  stosb                  { Write black to [ES:DI], DI++ }
+  inc di                 { Skip next pixel (DI++) }
+  loop @OddLoop
+
+@NextRow:
+  inc bx                 { Next row }
+  cmp bx, 200
+  jl @RowLoop
+
+  pop ds
+end;
 
 constructor TBaseScreen.Init;
 begin
@@ -44,15 +88,14 @@ begin
   { Load globally used resources only once }
   if DialogBackgroundBuffer = nil then
   begin
-    { Load fonts }
-    FontLarge   := Game.ResMan.GetFont('large');
-    FontSmall   := Game.ResMan.GetFont('small');
+    GemsImage := Game.ResMan.GetImage('gems1');
+
+    FontLarge := Game.ResMan.GetFont('large');
+    FontSmall := Game.ResMan.GetFont('small');
   
-    { Load dialog background }
     DialogImage := Game.ResMan.GetImage('dialog');  
     DialogBackgroundBuffer := CreateFrameBuffer;  
 
-    { Initialize the UI style }
     UIStyle.Init(186, 188, 189, 15);
   end;
 end;

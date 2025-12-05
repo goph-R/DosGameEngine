@@ -488,9 +488,6 @@ begin
       New(PalData);
       PalData^.Palette := ExtractedPalette;
       MapPut(PaletteMap, Desc^.PaletteName^, PalData);
-
-      { Apply the palette }
-      SetPalette(ExtractedPalette);
     end;
   end
   else

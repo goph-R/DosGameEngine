@@ -18,6 +18,10 @@ echo Compiling LINKLIST.PAS...
 tpc LINKLIST.PAS
 if errorlevel 1 goto error
 
+echo Compiling MD5.PAS...
+tpc MD5.PAS
+if errorlevel 1 goto error
+
 echo Compiling VGA.PAS...
 tpc VGA.PAS
 if errorlevel 1 goto error

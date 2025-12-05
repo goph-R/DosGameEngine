@@ -8,20 +8,8 @@ if errorlevel 1 goto error
 
 cd ..\XICLONE
 
-echo Compiling XITYPES.PAS...
-tpc -U..\UNITS XITYPES.PAS
-if errorlevel 1 goto error
-
-echo Compiling XILOGIC.PAS...
-tpc -U..\UNITS XILOGIC.PAS
-if errorlevel 1 goto error
-
-echo Compiling XISTYLE.PAS...
-tpc -U..\UNITS XISTYLE.PAS
-if errorlevel 1 goto error
-
-echo Compiling XIRENDER.PAS...
-tpc -U..\UNITS XIRENDER.PAS
+echo Compiling GLOBALS.PAS...
+tpc -U..\UNITS GLOBALS.PAS
 if errorlevel 1 goto error
 
 echo Compiling BASESCR.PAS...
