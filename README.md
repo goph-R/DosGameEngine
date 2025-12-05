@@ -52,7 +52,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Turbo Pascal 7.0](https://winworldpc.com/product/turbo-pascal/7x) (TPC.EXE)
+- [Turbo Pascal 7.0](https://winworldpc.com/product/turbo-pascal/7x) (TPC.EXE in %PATH%)
 - [DOSBox-X](https://dosbox-x.com/), [86Box](https://86box.net/) or real DOS/FreeDOS
 - HIMEM.SYS loaded (for XMS extended memory support, default in DOSBox)
 
