@@ -3,7 +3,7 @@ unit GameScr;
 interface
 
 uses
-  VGA, VGAFont, VGAUI, DRect, Keyboard, GameUnit, PCX,
+  VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX,
   BaseScr, XiStyle, XiTypes, XiRender, XiLogic;
 
 type 
@@ -69,12 +69,21 @@ procedure TGameScreen.Show;
 var
   Palette: PPalette;
 begin
+  { Show loading message while decompressing PCX (takes ~2-3s on 8MHz) }
+  ClearFrameBuffer(Game.ScreenBuffer);
+  PrintText(120, 95, 'Loading...', 15, Game.ScreenBuffer);
+
+  { Load background (slow: RLE decompression) }
   LoadPCXToFrameBuffer('DATA\BG1.PCX', Game.BackgroundBuffer);
 
   PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall^, Game.BackgroundBuffer);
   PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall^, Game.BackgroundBuffer);
   PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall^, Game.BackgroundBuffer);
   PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game.BackgroundBuffer);
+
+  { TODO: do this in the first TScreen.Show }
+  Palette := Game.ResMan.GetPalette('default');
+  SetPalette(Palette^); 
 
   { Initialize renderer }
   InitRenderer(Game.BackgroundBuffer, Game.BackBuffer, GemsImage^);
@@ -109,11 +118,7 @@ begin
   FlushDirtyRects(Game.BackBuffer);  
 
   { Reset timing to prevent delta time jump }
-  Game.ResetTiming;  
-
-  { TODO: do this in the first TScreen.Show }
-  Palette := Game.ResMan.GetPalette('default');
-  SetPalette(Palette^); 
+  Game.ResetTiming;
 end;
 
 procedure TGameScreen.CheckForMatches;
