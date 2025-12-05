@@ -12,6 +12,10 @@ echo Compiling GLOBALS.PAS...
 tpc -U..\UNITS GLOBALS.PAS
 if errorlevel 1 goto error
 
+echo Compiling HISCORE.PAS...
+tpc -U..\UNITS HISCORE.PAS
+if errorlevel 1 goto error
+
 echo Compiling BASESCR.PAS...
 tpc -U..\UNITS BASESCR.PAS
 if errorlevel 1 goto error
