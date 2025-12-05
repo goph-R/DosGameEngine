@@ -80,10 +80,13 @@ type
     procedure PostInit; virtual;
     procedure Show; virtual;
     procedure InitPlayfield;
+    procedure ResetGameState;
+    procedure DrawStaticHUD;
 
     procedure Update(DT: Real); virtual;
     procedure UpdateFallingStack(DT: Real);
     procedure HandleStackInput;
+    procedure TryMoveStackHoriz(Direction: Integer);
     procedure CheckForMatches;
     procedure LandStack;
     function RandomGemColor: TGemColor;
@@ -104,6 +107,18 @@ type
     procedure FullRender;
   end;
 
+  TStatLabelInfo = record
+    Y: Integer;
+    Text: String;
+  end;
+
+const
+  StatLabelInfos: array[0..2] of TStatLabelInfo = (
+    (Y: 17;  Text: 'Score:'),
+    (Y: 58;  Text: 'Level:'),
+    (Y: 99;  Text: 'Blocks:')
+  );
+
 implementation
 
 constructor TGameScreen.Init;
@@ -113,6 +128,22 @@ end;
 
 destructor TGameScreen.Done;
 begin
+end;
+
+procedure TGameScreen.DrawStaticHUD;
+var
+  i: Integer;
+begin
+  for i := Low(StatLabelInfos) to High(StatLabelInfos) do
+    PrintFontTextRight(
+      StatLabelsX,
+      StatLabelInfos[i].Y,
+      StatLabelInfos[i].Text,
+      FontSmall^,
+      Game.BackgroundBuffer
+    );
+
+  PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game.BackgroundBuffer);
 end;
 
 procedure TGameScreen.Show;
@@ -126,19 +157,24 @@ begin
   { Load background (slow: RLE decompression) }
   LoadPCXToFrameBuffer('DATA\BG1.PCX', Game.BackgroundBuffer);
 
-  PrintFontTextRight(StatLabelsX, 17, 'Score:', FontSmall^, Game.BackgroundBuffer);
-  PrintFontTextRight(StatLabelsX, 58, 'Level:', FontSmall^, Game.BackgroundBuffer);
-  PrintFontTextRight(StatLabelsX, 99, 'Blocks:', FontSmall^, Game.BackgroundBuffer);
-  PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game.BackgroundBuffer);
+  DrawStaticHUD;
 
   { TODO: do this in the first TScreen.Show }
   Palette := Game.ResMan.GetPalette('default');
-  SetPalette(Palette^); 
+  SetPalette(Palette^);
 
   { Initalize buffers }
   CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
 
+  ResetGameState;
+
+  { Reset timing to prevent delta time jump }
+  Game.ResetTiming;
+end;
+
+procedure TGameScreen.ResetGameState;
+begin
   { Initialize game state }
   Score := 0;
   Level := 1;
@@ -164,10 +200,7 @@ begin
 
   { Render initial playfield state }
   RenderPlayfield;
-  FlushDirtyRects(Game.BackBuffer);  
-
-  { Reset timing to prevent delta time jump }
-  Game.ResetTiming;
+  FlushDirtyRects(Game.BackBuffer);
 end;
 
 procedure TGameScreen.CheckForMatches;
@@ -283,64 +316,49 @@ begin
 end;
 
 { Input handling }
-procedure TGameScreen.HandleStackInput;
+procedure TGameScreen.TryMoveStackHoriz(Direction: Integer);
 var
   NewX: Integer;
   GridY: Integer;
   PixelOffset: Integer;
   CanMove: Boolean;
 begin
-  if not CurrentStack.Active then Exit;
+  if not CurrentStack.Active then
+    Exit;
 
   GridY := Trunc(CurrentStack.PixelY) div TileSize;
-  
-  { Calculate how deep we are into the current tile }
   PixelOffset := Trunc(CurrentStack.PixelY) mod TileSize;
 
-  { --- Left Movement --- }
+  NewX := CurrentStack.GridX + Direction;
+
+  { Bounds check }
+  if (NewX < 0) or (NewX >= PlayfieldCols) then
+    Exit;
+
+  { 1. Check if the stack fits at the current row }
+  CanMove := not CheckStackCollision(NewX, GridY);
+
+  { 2. If we are in-between rows, also check one row lower }
+  if CanMove and (PixelOffset > 0) then
+    if CheckStackCollision(NewX, GridY + 1) then
+      CanMove := False;
+
+  if not CanMove then
+    Exit;
+
+  CurrentStack.GridX := NewX;
+  CurrentStack.PixelX := PlayfieldX + (NewX * TileSize);
+end;
+
+procedure TGameScreen.HandleStackInput;
+begin
+  if not CurrentStack.Active then Exit;
+
+  { Horizontal movement }
   if IsKeyPressed(Key_Left) then
-  begin
-    NewX := CurrentStack.GridX - 1;
-
-    { 1. Check if the stack fits in the new column at the current Grid Y }
-    CanMove := not CheckStackCollision(NewX, GridY);
-
-    { 2. If we are partially fallen into the next row, we must also check }
-    {    if the stack fits one row lower in the new column. }
-    if CanMove and (PixelOffset > 0) then
-    begin
-      if CheckStackCollision(NewX, GridY + 1) then
-        CanMove := False;
-    end;
-
-    if CanMove then
-    begin
-      CurrentStack.GridX := NewX;
-      CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
-    end;
-  end;
-
-  { --- Right Movement --- }
+    TryMoveStackHoriz(-1);
   if IsKeyPressed(Key_Right) then
-  begin
-    NewX := CurrentStack.GridX + 1;
-
-    { 1. Check main position }
-    CanMove := not CheckStackCollision(NewX, GridY);
-
-    { 2. Check 'dangling' position if not grid aligned }
-    if CanMove and (PixelOffset > 0) then
-    begin
-      if CheckStackCollision(NewX, GridY + 1) then
-        CanMove := False;
-    end;
-
-    if CanMove then
-    begin
-      CurrentStack.GridX := NewX;
-      CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
-    end;
-  end;
+    TryMoveStackHoriz(+1);
 
   { Rotation }
   if IsKeyPressed(Key_Space) then
