@@ -65,8 +65,10 @@ XICLONE.EXE
 ```
 
 **Controls:**
-- **E**: Play an explosion
-- **ESC**: Exit demo
+- **Left/Right**: Move the stack left and right
+- **Down**: Falling faster
+- **Space**: Rotate stack
+- **ESC**: Pause
 
 ## ✨ Features
 
