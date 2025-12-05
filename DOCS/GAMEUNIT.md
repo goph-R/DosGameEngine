@@ -36,7 +36,7 @@ Initialize all subsystems and prepare for game loop:
 
 1. Set up `CleanupOnExit` procedure (handles Ctrl+C/Break gracefully)
 2. Load config: `Config.LoadConfig(ConfigIniPath)`
-3. Initialize resource manager: `ResMan.Init(ResXmlPath)`
+3. Initialize resource manager: `ResMan.Init(True)` (lazy loading), then `ResMan.LoadFromXML(ResXmlPath)`
 4. Initialize RTCTimer: `InitRTC(1024)` (1024 Hz for millisecond precision)
 5. Initialize keyboard: `InitKeyboard`
 6. Initialize Sound Blaster: `ResetDSP(Config.SBPort, Config.SBIRQ, Config.SBDMA, 0)` if `Config.SoundCard = SoundCard_SoundBlaster` (2)
@@ -45,18 +45,34 @@ Initialize all subsystems and prepare for game loop:
    - `BackgroundBuffer := CreateFrameBuffer` (cleared once, used for static backgrounds)
    - `BackBuffer := CreateFrameBuffer` (working buffer)
    - `ScreenBuffer := GetScreenBuffer` (VGA display buffer)
-9. Clear buffers: `ClearFrameBuffer(BackgroundBuffer)`, `ClearFrameBuffer(BackBuffer)`
+
+**Note:** VGA initialization (`InitVGA`) is deferred until `Run` is called. This allows screens to be created and registered before VGA mode is set.
 
 ```pascal
 procedure Run;
 ```
 
-Main game loop - reads RTC timer, calculates delta time, calls `Update`, handles rendering:
+Main game loop - initializes VGA, calls `PostInit` on all screens, then runs the main loop:
 
 ```pascal
 procedure TGame.Run;
 begin
+  InitVGA;  { VGA initialized here, not in Start }
+  VGAInitialized := True;
   Running := True;
+
+  { PostInit all screens - called once for ALL registered screens }
+  for I := 0 to StrMap.MAX_ENTRIES - 1 do
+  begin
+    Entry := ScreenMap.Entries[I];
+    if (Entry <> nil) and Entry^.Used then
+    begin
+      ScreenPtr := PScreen(Entry^.Value);
+      if ScreenPtr <> nil then
+        ScreenPtr^.PostInit;  { Load VGA-dependent resources here }
+    end;
+  end;
+
   LastTime := GetTimeSeconds;
 
   while Running do
@@ -72,7 +88,10 @@ begin
 end;
 ```
 
-**Note:** Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer`.
+**Note:**
+- VGA is initialized at the start of `Run`, not in `Start`. This allows screens to be created and registered before VGA mode is set.
+- All screens' `PostInit` methods are called once before the main loop starts. Use this to load graphics resources that require VGA mode.
+- Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer`.
 
 ```pascal
 destructor Done;
@@ -82,12 +101,13 @@ Shutdown all subsystems (reverse order of `Start`):
 
 1. Free framebuffers: `FreeFrameBuffer(BackgroundBuffer)`, `FreeFrameBuffer(BackBuffer)`
 2. Free screens: iterate screen map and call `Dispose(Screen, Done)`
-3. Free screen map: `ScreenMap.Free`
+3. Free screen map: `MapFree(ScreenMap)`
 4. Uninitialize mouse: `DoneMouse` (if initialized)
 5. Uninitialize Sound Blaster: `UninstallHandler` (if initialized)
 6. Uninitialize keyboard: `DoneKeyboard`
 7. Uninitialize RTC timer: `DoneRTC`
 8. Free resource manager: `ResMan.Done`
+9. Close VGA: `CloseVGA` (if initialized)
 
 ```pascal
 procedure CleanupOnExit;
@@ -158,6 +178,18 @@ procedure AddScreen(Name: String; AScreen: PScreen); virtual;
 Register a screen in the screen map: `MapPut(ScreenMap, Name, AScreen)`
 
 ```pascal
+procedure Stop;
+```
+
+Stop the game loop by setting `Running := False`. The current frame will complete, then `Run` will exit.
+
+```pascal
+procedure ResetTiming;
+```
+
+Reset the timing system by setting `LastTime := GetTimeSeconds`. Useful when resuming from a pause or after a long blocking operation to prevent a large delta time spike.
+
+```pascal
 procedure Update(DeltaTime: Real); virtual;
 ```
 
@@ -202,6 +234,7 @@ type
     ScreenBuffer: PFrameBuffer;      { VGA display buffer (from GetScreenBuffer) }
 
     { Internal state }
+    VGAInitialized: Boolean;         { VGA mode 13h initialized }
     MouseInitialized: Boolean;       { Mouse driver initialized }
     SoundInitialized: Boolean;       { Sound Blaster initialized }
   end;
@@ -228,6 +261,17 @@ destructor Done; virtual;
 ```
 
 Cleanup screen resources. **Virtual** - override to free screen-specific resources.
+
+```pascal
+procedure PostInit; virtual;
+```
+
+Called once after VGA initialization, before the main loop starts. **Virtual** - override to:
+- Load VGA-dependent resources (images, fonts, sprites)
+- Perform one-time graphics setup
+- Initialize render buffers
+
+**Note:** This is called for ALL screens during `Game.Run`, before the main loop starts. At this point VGA is initialized and framebuffers are available.
 
 ```pascal
 procedure Update(DeltaTime: Real); virtual;
@@ -274,6 +318,7 @@ uses
 type
   PMenuScreen = ^TMenuScreen;
   TMenuScreen = object(TScreen)
+    procedure PostInit; virtual;
     procedure Update(DeltaTime: Real); virtual;
     procedure Show; virtual;
     procedure Hide; virtual;
@@ -281,6 +326,7 @@ type
 
   PGameplayScreen = ^TGameplayScreen;
   TGameplayScreen = object(TScreen)
+    procedure PostInit; virtual;
     procedure Update(DeltaTime: Real); virtual;
     procedure Show; virtual;
     procedure Hide; virtual;
@@ -291,6 +337,12 @@ var
   GameplayScreen: PGameplayScreen;
 
 { MenuScreen implementation }
+procedure TMenuScreen.PostInit;
+begin
+  { Load graphics resources that require VGA mode }
+  { Called once before main loop, after InitVGA }
+end;
+
 procedure TMenuScreen.Update(DeltaTime: Real);
 begin
   { Handle menu input - queue screen switch }
@@ -300,15 +352,21 @@ end;
 
 procedure TMenuScreen.Show;
 begin
-  { Load menu assets, show cursor, etc. }
+  { Screen activated - show cursor, play music, etc. }
 end;
 
 procedure TMenuScreen.Hide;
 begin
-  { Hide cursor, etc. }
+  { Screen deactivated - hide cursor, pause music, etc. }
 end;
 
 { GameplayScreen implementation }
+procedure TGameplayScreen.PostInit;
+begin
+  { Load graphics resources that require VGA mode }
+  { Called once before main loop, after InitVGA }
+end;
+
 procedure TGameplayScreen.Update(DeltaTime: Real);
 begin
   { Game logic here }
@@ -318,12 +376,12 @@ end;
 
 procedure TGameplayScreen.Show;
 begin
-  { Load level assets }
+  { Screen activated - load level, reset state, etc. }
 end;
 
 procedure TGameplayScreen.Hide;
 begin
-  { Pause game, etc. }
+  { Screen deactivated - pause game, save state, etc. }
 end;
 
 begin
@@ -361,7 +419,9 @@ end.
 ## Notes
 
 - **Global instance**: `Game` is a global variable in `GameUnit`. Use this instead of creating your own instance.
-- **Virtual methods**: All `TScreen` methods are virtual. Override `Update`, `Show`, `Hide` as needed.
+- **Virtual methods**: All `TScreen` methods are virtual. Override `PostInit`, `Update`, `Show`, `Hide` as needed.
+- **VGA initialization timing**: VGA is initialized in `Run`, not `Start`. This allows screens to be created and registered before VGA mode is set.
+- **PostInit lifecycle**: Called once for ALL screens during `Run`, before the main loop starts. Use this to load graphics resources (images, fonts, sprites) that require VGA mode.
 - **Deferred screen switching**: Use `SetNextScreen('name')` to queue screen switches. The switch happens in the next `Update` call. This prevents issues with switching screens mid-frame.
 - **ExitProc**: `CleanupOnExit` is automatically installed by `Start` to ensure cleanup on abnormal exit (Ctrl+C, Runtime Error).
 - **DeltaTime convention**: Real (seconds), calculated as `CurrentTime - LastTime` via `GetTimeSeconds`.

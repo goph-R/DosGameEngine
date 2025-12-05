@@ -58,17 +58,7 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
 
 ### First Run
 ```bash
-# 1. Compile & run setup utility to configure sound card
-cd SETUP
-CSETUP.BAT
-SETUP.EXE
-
-# 2. Compile & try the advanced VGA demo with music and sound
-cd ..\TESTS
-CIMGTEST.BAT
-IMGTEST.EXE
-
-# 3. Compile & try the example game (WIP)
+# Compile & try the example game (WIP)
 cd ..\XICLONE
 CXICLONE.BAT
 XICLONE.EXE
