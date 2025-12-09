@@ -5,7 +5,7 @@
 
   Usage:
     var HS: THighScore;
-    InitHighScore(HS);
+    InitHighScore(HS, 'MY_GAME_SALT_V1');
     LoadHighScore('SCORES.XML', HS);
     if IsHighScore(HS, PlayerScore) then
       SaveHighScore('SCORES.XML', PlayerName, PlayerScore, HS);
@@ -20,17 +20,17 @@ uses
 
 const
   MaxHighScores = 10;
-  HighScoreSalt = 'XICLONE_HIGHSCORE_V1';  { Salt to prevent tampering }
 
 type
   THighScore = record
     Names: array[0..MaxHighScores - 1] of String;
     Scores: array[0..MaxHighScores - 1] of LongInt;
     Count: Integer;  { Number of valid entries (0-10) }
+    Salt: String;     { Salt for tamper protection }
   end;
 
-{ Initialize empty high score table }
-procedure InitHighScore(var HS: THighScore);
+{ Initialize empty high score table with salt }
+procedure InitHighScore(var HS: THighScore; const SaltValue: String);
 
 { Load high scores from XML file with hash verification }
 { Returns True on success, False if file missing or hash invalid }
@@ -48,7 +48,7 @@ function ComputeHighScoreHash(const HS: THighScore): String;
 
 implementation
 
-procedure InitHighScore(var HS: THighScore);
+procedure InitHighScore(var HS: THighScore; const SaltValue: String);
 var
   i: Integer;
 begin
@@ -58,34 +58,52 @@ begin
     HS.Scores[i] := 0;
   end;
   HS.Count := 0;
+  HS.Salt := SaltValue;
 end;
 
 function ComputeHighScoreHash(const HS: THighScore): String;
 var
   i: Integer;
-  DataToHash: String;
+  Ctx: TMD5Context;
+  Digest: TMD5Digest;
+  ScoreStr: String;
 begin
-  { Build string: salt + name[0] + score[0] + name[1] + score[1] + ... }
-  DataToHash := HighScoreSalt;
+  { Use incremental hashing to avoid 255-char String limit }
+  MD5Init(Ctx);
 
+  { Hash salt }
+  if Length(HS.Salt) > 0 then
+    MD5Update(Ctx, @HS.Salt[1], Length(HS.Salt));
+
+  { Hash each name and score }
   for i := 0 to HS.Count - 1 do
   begin
-    DataToHash := DataToHash + HS.Names[i];
-    DataToHash := DataToHash + IntToStr(HS.Scores[i]);
+    { Hash name }
+    if Length(HS.Names[i]) > 0 then
+      MD5Update(Ctx, @HS.Names[i][1], Length(HS.Names[i]));
+
+    { Hash score as string }
+    ScoreStr := IntToStr(HS.Scores[i]);
+    MD5Update(Ctx, @ScoreStr[1], Length(ScoreStr));
   end;
 
-  ComputeHighScoreHash := MD5String(DataToHash);
+  { Finalize and convert to hex string }
+  MD5Final(Digest, Ctx);
+  ComputeHighScoreHash := MD5DigestToHex(Digest);
 end;
 
 function LoadHighScore(const FileName: String; var HS: THighScore): Boolean;
 var
   Root, Node: PXMLNode;
-  StoredHash, ComputedHash: String;
+  StoredHash, ComputedHash, SavedSalt: String;
   i: Integer;
   Name, ScoreStr: String;
 begin
   LoadHighScore := False;
-  InitHighScore(HS);
+
+  { Preserve salt and reinitialize }
+  SavedSalt := HS.Salt;
+  InitHighScore(HS, SavedSalt);
 
   { Load XML file }
   if not XMLLoadFile(FileName, Root) then

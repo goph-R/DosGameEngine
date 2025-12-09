@@ -103,6 +103,7 @@ XICLONE.EXE
 - String hash map (O(1) lookup)
 - Linked list utilities
 - MD5 cryptographic hash (RFC 1321, asset verification)
+- High score system with tamper protection
 
 ### 🛠 Tools
 - Sound card setup utility
@@ -154,6 +155,7 @@ XICLONE.EXE
 - **[STRMAP.PAS](DOCS/STRMAP.md)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](DOCS/LINKLIST.md)** - Doubly-linked list
 - **[MD5.PAS](DOCS/MD5.md)** - MD5 cryptographic hash (RFC 1321)
+- **[HISCORE.PAS](DOCS/HISCORE.md)** - High score management with tamper protection
 - **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
 
 ### Game Framework

@@ -7,6 +7,7 @@ uses
 
 const
   TileSize = 16;
+  HighScoreSalt = 'XICLONE_HIGHSCORE_V1';  { Salt for high score tamper protection }
 
 type
   TCustomUIStyle = object(TUIStyle)
