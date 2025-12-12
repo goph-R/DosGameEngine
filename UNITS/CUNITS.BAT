@@ -42,6 +42,10 @@ echo Compiling MINIXML.PAS...
 tpc MINIXML.PAS
 if errorlevel 1 goto error
 
+echo Compiling HISCORE.PAS...
+tpc HISCORE.PAS
+if errorlevel 1 goto error
+
 echo Compiling VGAFONT.PAS...
 tpc VGAFONT.PAS
 if errorlevel 1 goto error

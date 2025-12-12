@@ -142,7 +142,7 @@ begin
   if ComputedHash <> StoredHash then
   begin
     { Hash mismatch - file tampered or corrupted, reject all scores }
-    InitHighScore(HS);
+    InitHighScore(HS, SavedSalt);
     XMLFreeTree(Root);
     Exit;
   end;
@@ -225,7 +225,7 @@ begin
 
   { Build XML tree }
   New(Root);
-  XMLInitNode(Root);
+  XMLInitNode(Root^);
   Root^.Name := 'highscores';
   XMLSetAttr(Root, 'hash', Hash);
 
