@@ -541,15 +541,11 @@ var
 begin
   SpawnCol := PlayfieldCols div 2;  { Middle column }
 
-  { Check if spawn position is blocked (top 3 rows) }
-  for i := 0 to 2 do
+  { Check if spawn position is blocked (top row only) }
+  if Playfield.Tiles[SpawnCol, 0] <> Gem_Empty then
   begin
-    if (i < PlayfieldRows) and
-       (Playfield.Tiles[SpawnCol, i] <> Gem_Empty) then
-    begin
-      SpawnStack := False;  { Game Over - can't spawn }
-      Exit;
-    end;
+    SpawnStack := False;  { Game Over - can't spawn }
+    Exit;
   end;
 
   { Spawn position is clear - create new stack }
