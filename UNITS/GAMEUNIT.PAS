@@ -6,7 +6,7 @@ unit GameUnit;
 interface
 
 uses
-  VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP, ResMan;
+  VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP, ResMan, PlayHSC;
 
 type
   { Forward declarations }
@@ -311,14 +311,20 @@ begin
 end;
 
 procedure TGame.PlayMusic(const Name: String);
+var
+  Music: PHSC_Obj;
 begin
   { Exit if no sound card }
   if Config.SoundCard = SoundCard_None then
     Exit;
 
-  { TODO: Implement music loading via ResMan }
-  { ResMan.LoadMusic(Name); }
-  { Music.Play; }
+  { Get music from resource manager }
+  Music := ResMan.GetMusic(Name);
+  if Music = nil then
+    Exit;
+
+  { Start playing (IRQ mode, no manual polling needed) }
+  Music^.Start;
 end;
 
 procedure TGame.PauseMusic;

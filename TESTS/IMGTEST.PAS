@@ -7,7 +7,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard;
+  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard, Logger, StrUtil;
 
 type
   TTestSprite = record
@@ -32,6 +32,7 @@ type
 
     constructor Init;
     destructor Done; virtual;
+    procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
     procedure Render;
     procedure Show; virtual;
@@ -46,7 +47,6 @@ var
 constructor TTestScreen.Init;
 var
   i: Integer;
-  TestPalette: PPalette;
 begin
   inherited Init;
 
@@ -70,11 +70,6 @@ begin
     Halt(1);
   end;
 
-  { Set palette }
-  TestPalette := Game.ResMan.GetPalette('test');
-  if TestPalette <> nil then
-    SetPalette(TestPalette^);
-
   { Render background to background buffer }
   PutImage(BackgroundImage^, 0, 0, False, Game.BackgroundBuffer);
 
@@ -91,24 +86,24 @@ begin
   TestSprites[1].FlipY := False;
 
   { Sprite 2: Top-right, moving down-left, FlipX }
-  TestSprites[2].X := 320 shl 10;
-  TestSprites[2].Y := -16 shl 10;
+  TestSprites[2].X := LongInt(320) shl 10;
+  TestSprites[2].Y := LongInt(-16) shl 10;
   TestSprites[2].VX := -45;
   TestSprites[2].VY := 35;
   TestSprites[2].FlipX := True;
   TestSprites[2].FlipY := False;
 
   { Sprite 3: Bottom-left, moving up-right, FlipY }
-  TestSprites[3].X := -16 shl 10;
-  TestSprites[3].Y := 200 shl 10;
+  TestSprites[3].X := LongInt(-16) shl 10;
+  TestSprites[3].Y := LongInt(200) shl 10;
   TestSprites[3].VX := 55;
   TestSprites[3].VY := -45;
   TestSprites[3].FlipX := False;
   TestSprites[3].FlipY := True;
 
   { Sprite 4: Bottom-right, moving up-left, FlipX+FlipY }
-  TestSprites[4].X := 320 shl 10;
-  TestSprites[4].Y := 200 shl 10;
+  TestSprites[4].X := LongInt(320) shl 10;
+  TestSprites[4].Y := LongInt(200) shl 10;
   TestSprites[4].VX := -60;
   TestSprites[4].VY := -50;
   TestSprites[4].FlipX := True;
@@ -146,14 +141,38 @@ begin
   inherited Done;
 end;
 
+{ Set the palette only when VGA is initalized }
+procedure TTestScreen.PostInit;
+var
+  TestPalette: PPalette;
+  i: Integer;
+begin
+  { Debug: Log sprite positions before palette }
+  LogInfo('Before SetPalette:');
+  for i := 1 to 4 do
+    LogInfo('Sprite ' + IntToStr(i) + ': X=' + IntToStr(TestSprites[i].X) +
+            ' Y=' + IntToStr(TestSprites[i].Y) +
+            ' VX=' + IntToStr(TestSprites[i].VX) + ' VY=' + IntToStr(TestSprites[i].VY));
+
+  { Set palette }
+  TestPalette := Game.ResMan.GetPalette('test');
+  if TestPalette <> nil then
+    SetPalette(TestPalette^);
+
+  { Debug: Log sprite positions after palette }
+  LogInfo('After SetPalette:');
+  for i := 1 to 4 do
+    LogInfo('Sprite ' + IntToStr(i) + ': X=' + IntToStr(TestSprites[i].X) +
+            ' Y=' + IntToStr(TestSprites[i].Y) +
+            ' VX=' + IntToStr(TestSprites[i].VX) + ' VY=' + IntToStr(TestSprites[i].VY));
+end;
+
 procedure TTestScreen.Update(DT: Real);
 var
   i: Integer;
   DeltaTimeMS: LongInt;
 begin
-  { Poll HSC music if active }
-  if (Music <> nil) and UseMusic then
-    Music^.Poll;
+  { Music plays automatically via IRQ, no polling needed }
 
   { Render }
   Render;
@@ -175,9 +194,9 @@ begin
     TestSprites[i].Y := TestSprites[i].Y + TestSprites[i].VY * DeltaTimeMS;
 
     { Bounce off edges - allow sprites to go partially off-screen for clipping test }
-    if (TestSprites[i].X <= -32 shl 10) or (TestSprites[i].X >= 320 shl 10) then
+    if (TestSprites[i].X <= LongInt(-32) shl 10) or (TestSprites[i].X >= LongInt(320) shl 10) then
       TestSprites[i].VX := -TestSprites[i].VX;
-    if (TestSprites[i].Y <= -32 shl 10) or (TestSprites[i].Y >= 200 shl 10) then
+    if (TestSprites[i].Y <= LongInt(-32) shl 10) or (TestSprites[i].Y >= LongInt(200) shl 10) then
       TestSprites[i].VY := -TestSprites[i].VY;
   end;
 
@@ -239,6 +258,9 @@ begin
   WriteLn('===========================================');
   WriteLn;
 
+  { Initialize logger }
+  InitLogger('IMGTEST.LOG', LogLevelInfo);
+
   { Initialize game }
   Game.Init('..\SETUP\CONFIG.INI', 'DATA\RES.XML');
   Game.Start;
@@ -253,6 +275,7 @@ begin
 
   { Cleanup }
   Game.Done;
+  CloseLogger;
 
   WriteLn;
   WriteLn('Image test completed!');

@@ -133,7 +133,7 @@ begin
       'Press any key to stop'
     );
     
-    { Music needs polling }
+    { Wait for keypress (music plays automatically via IRQ) }
     Waiting := True;
     ClearAllKeyStates;
     while Waiting do
@@ -143,7 +143,6 @@ begin
         begin
           Waiting := False;
         end;
-        Music.Poll;
     end;
     ClearAllKeyStates;
 

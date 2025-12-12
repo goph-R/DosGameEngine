@@ -286,7 +286,7 @@ PROCEDURE HSC_obj.Start;
 BEGIN
   IF NOT Music_Run THEN BEGIN
     IF Address <> NIL THEN BEGIN
-      StartMusic (Address,TRUE,TRUE);  { Polling=TRUE for manual polling mode }
+      StartMusic (Address,FALSE,TRUE);  { Polling=FALSE for IRQ mode, OldIRQ=TRUE for compatibility }
       Music_Run := TRUE;
     END;
   END;

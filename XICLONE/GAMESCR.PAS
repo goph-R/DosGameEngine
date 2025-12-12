@@ -165,6 +165,9 @@ begin
   Palette := Game.ResMan.GetPalette('default');
   SetPalette(Palette^);
 
+  { Play game music }
+  Game.PlayMusic('normal');
+
   { Initalize buffers }
   CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
