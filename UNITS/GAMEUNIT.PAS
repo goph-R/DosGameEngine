@@ -318,6 +318,13 @@ begin
   if Config.SoundCard = SoundCard_None then
     Exit;
 
+  { Check if the same music is already loaded and playing }
+  if (ResMan.CurrentMusicName <> nil) and
+     (ResMan.CurrentMusicName^ = Name) and
+     (ResMan.CurrentMusic <> nil) and
+     ResMan.CurrentMusic^.Music.Music_Run then
+    Exit;  { Same music already playing, don't restart }
+
   { Get music from resource manager }
   Music := ResMan.GetMusic(Name);
   if Music = nil then

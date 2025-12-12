@@ -7,7 +7,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard, Logger, StrUtil;
+  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard;
 
 type
   TTestSprite = record
@@ -145,26 +145,11 @@ end;
 procedure TTestScreen.PostInit;
 var
   TestPalette: PPalette;
-  i: Integer;
 begin
-  { Debug: Log sprite positions before palette }
-  LogInfo('Before SetPalette:');
-  for i := 1 to 4 do
-    LogInfo('Sprite ' + IntToStr(i) + ': X=' + IntToStr(TestSprites[i].X) +
-            ' Y=' + IntToStr(TestSprites[i].Y) +
-            ' VX=' + IntToStr(TestSprites[i].VX) + ' VY=' + IntToStr(TestSprites[i].VY));
-
   { Set palette }
   TestPalette := Game.ResMan.GetPalette('test');
   if TestPalette <> nil then
     SetPalette(TestPalette^);
-
-  { Debug: Log sprite positions after palette }
-  LogInfo('After SetPalette:');
-  for i := 1 to 4 do
-    LogInfo('Sprite ' + IntToStr(i) + ': X=' + IntToStr(TestSprites[i].X) +
-            ' Y=' + IntToStr(TestSprites[i].Y) +
-            ' VX=' + IntToStr(TestSprites[i].VX) + ' VY=' + IntToStr(TestSprites[i].VY));
 end;
 
 procedure TTestScreen.Update(DT: Real);
@@ -258,9 +243,6 @@ begin
   WriteLn('===========================================');
   WriteLn;
 
-  { Initialize logger }
-  InitLogger('IMGTEST.LOG', LogLevelInfo);
-
   { Initialize game }
   Game.Init('..\SETUP\CONFIG.INI', 'DATA\RES.XML');
   Game.Start;
@@ -275,7 +257,6 @@ begin
 
   { Cleanup }
   Game.Done;
-  CloseLogger;
 
   WriteLn;
   WriteLn('Image test completed!');
