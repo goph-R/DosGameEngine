@@ -24,6 +24,7 @@ function GetMouseButtons: Byte;                 { Bitwise button flags }
 function IsMouseButtonDown(Button: Byte): Boolean;
 procedure SetMouseRangeX(MinX, MaxX: Word);
 procedure SetMouseRangeY(MinY, MaxY: Word);
+procedure UseDefaultMouseCursor(Use: Boolean);  { Enable/disable default cursor }
 procedure DoneMouse;
 ```
 
@@ -117,7 +118,9 @@ begin
   BackBuffer := CreateFrameBuffer;
 
   LoadPCX('CURSOR.PCX', CursorImage);
-  HideMouse;  { Hide hardware cursor }
+
+  { Disable default cursor - prevents ShowMouse/HideMouse from affecting hardware cursor }
+  UseDefaultMouseCursor(False);
 
   while Running do
   begin
@@ -151,6 +154,6 @@ end.
 ## Notes
 
 - Hardware cursor rendered by BIOS (not in framebuffer)
-- HideMouse for custom cursor rendering
+- UseDefaultMouseCursor(False) disables ShowMouse/HideMouse (useful for custom cursors or UI systems that manage cursor visibility)
 - SetMouseRangeX/Y to confine cursor to specific area
 - Compatible with DOSBox (mouse enabled by default)

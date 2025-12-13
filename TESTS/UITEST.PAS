@@ -1,6 +1,6 @@
 program UITest;
 
-uses VGA, VGAFont, VGAUI, Keyboard, PCX, RTCTimer, GenTypes, Crt;
+uses VGA, VGAFont, VGAUI, Keyboard, Mouse, PCX, RTCTimer, GenTypes, Crt;
 
 var
   BackBuffer, BackgroundBuffer: PFrameBuffer;
@@ -147,6 +147,8 @@ begin
   ClearFrameBuffer(BackBuffer);
 
   InitKeyboard;
+  InitMouse;
+  ShowMouse;  { Make mouse cursor visible }
   InitRTC(1024);
   CreateUI;
 
@@ -156,6 +158,8 @@ begin
   { Cleanup }
   DestroyUI;
   DoneRTC;
+  HideMouse;  { Hide mouse cursor before cleanup }
+  DoneMouse;
   DoneKeyboard;
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(BackgroundBuffer);

@@ -18,7 +18,7 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard, DRect, RTCTimer;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Mouse, DRect, RTCTimer;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -28,6 +28,9 @@ type
   TEventType = (
     Event_None,
     Event_KeyPress,    { Key was pressed }
+    Event_MouseDown,   { Mouse button pressed }
+    Event_MouseUp,     { Mouse button released }
+    Event_MouseMove,   { Mouse moved }
     Event_FocusGain,   { Widget gained focus }
     Event_FocusLost    { Widget lost focus }
   );
@@ -35,6 +38,9 @@ type
   TEvent = record
     EventType: TEventType;
     KeyCode: Byte;       { Scancode from KEYBOARD.PAS }
+    MouseX: Integer;     { Mouse X position }
+    MouseY: Integer;     { Mouse Y position }
+    MouseButton: Byte;   { Mouse button (MouseButton_Left, MouseButton_Right, etc.) }
     Handled: Boolean;    { Set to True if widget handled the event }
   end;
 
@@ -171,9 +177,10 @@ type
     BackBuffer: PFrameBuffer;
     BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
     FirstRender: Boolean;            { Force full redraw on first frame }
-    Style: PUIStyle;    
+    Style: PUIStyle;
     Running: Boolean;
     Tag: LongInt;                    { Metadata }
+    LastMouseButtons: Byte;          { Previous frame's mouse button state }
 
     procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);
@@ -181,6 +188,7 @@ type
     procedure SetFocus(Widget: PWidget);
     procedure FocusInDirection(DX, DY: Integer);  { Focus closest widget in direction }
     procedure DispatchKeyboardEvents;  { Check all keyboard keys and dispatch events }
+    procedure DispatchMouseEvents;     { Check mouse state and dispatch events }
     procedure HandleEvent(var Event: TEvent);
     procedure Update(DeltaTime: Real);  { Update all widgets (DeltaTime in seconds) }
     procedure RenderAll;
@@ -387,11 +395,32 @@ end;
 procedure TButton.HandleEvent(var Event: TEvent);
 var
   OldPressed: Boolean;
+  InBounds: Boolean;
 begin
   if Event.EventType = Event_KeyPress then
   begin
     { Enter or Space triggers the button }
     if (Event.KeyCode = $1C) or (Event.KeyCode = $39) then  { Enter=$1C, Space=$39 }
+    begin
+      OldPressed := Pressed;
+      Pressed := True;
+      if Pressed <> OldPressed then
+        MarkDirty;  { Visual state changed }
+
+      Event.Handled := True;
+      if EventHandler <> nil then
+        TEventHandler(EventHandler)(Self, Event);
+    end;
+  end
+  else if Event.EventType = Event_MouseDown then
+  begin
+    { Check if mouse click is within button bounds }
+    InBounds := (Event.MouseX >= Rectangle.X) and
+                (Event.MouseX < Rectangle.X + Rectangle.Width) and
+                (Event.MouseY >= Rectangle.Y) and
+                (Event.MouseY < Rectangle.Y + Rectangle.Height);
+
+    if InBounds and Enabled then
     begin
       OldPressed := Pressed;
       Pressed := True;
@@ -478,11 +507,30 @@ begin
 end;
 
 procedure TCheckbox.HandleEvent(var Event: TEvent);
+var
+  InBounds: Boolean;
 begin
   if Event.EventType = Event_KeyPress then
   begin
     { Space toggles checkbox }
     if (Event.KeyCode = $1C) or (Event.KeyCode = $39) then  { Enter=$1C, Space=$39 }
+    begin
+      Checked := not Checked;
+      MarkDirty;  { Checkbox state changed }
+      Event.Handled := True;
+      if EventHandler <> nil then
+        TEventHandler(EventHandler)(Self, Event);
+    end;
+  end
+  else if Event.EventType = Event_MouseDown then
+  begin
+    { Check if mouse click is within checkbox bounds }
+    InBounds := (Event.MouseX >= Rectangle.X) and
+                (Event.MouseX < Rectangle.X + Rectangle.Width) and
+                (Event.MouseY >= Rectangle.Y) and
+                (Event.MouseY < Rectangle.Y + Rectangle.Height);
+
+    if InBounds and Enabled then
     begin
       Checked := not Checked;
       MarkDirty;  { Checkbox state changed }
@@ -602,6 +650,7 @@ procedure TLineEdit.HandleEvent(var Event: TEvent);
 var
   Ch: Char;
   OldText: string;
+  InBounds: Boolean;
 begin
   if Event.EventType = Event_KeyPress then
   begin
@@ -636,6 +685,20 @@ begin
           MarkDirty;  { Text changed }
         Event.Handled := True;
       end;
+    end;
+  end
+  else if Event.EventType = Event_MouseDown then
+  begin
+    { Check if mouse click is within lineedit bounds }
+    InBounds := (Event.MouseX >= Rectangle.X) and
+                (Event.MouseX < Rectangle.X + Rectangle.Width) and
+                (Event.MouseY >= Rectangle.Y) and
+                (Event.MouseY < Rectangle.Y + Rectangle.Height);
+
+    if InBounds and Enabled then
+    begin
+      { Mouse click just gives focus, doesn't trigger handler }
+      Event.Handled := True;
     end;
   end;
 end;
@@ -722,6 +785,7 @@ begin
   BackBuffer := FrameBuffer;
   BackgroundBuffer := Background;
   FirstRender := True;
+  LastMouseButtons := 0;
 
   { Point to default style (user can override with SetStyle) }
   Style := @DefaultStyle;
@@ -851,19 +915,50 @@ begin
 end;
 
 procedure TUIManager.HandleEvent(var Event: TEvent);
+var
+  Node: PListEntry;
+  Widget: PWidget;
+  InBounds: Boolean;
 begin
-  { Let the focused widget handle the event first }
-  if FocusedWidget <> nil then
-    FocusedWidget^.HandleEvent(Event);
-
-  { If the event was not handled and it's a cursor key, do directional focus }
-  if (not Event.Handled) and (Event.EventType = Event_KeyPress) then
+  { For mouse events, find the widget under the cursor and give it focus }
+  if Event.EventType = Event_MouseDown then
   begin
-    case Event.KeyCode of
-      Key_Up:    FocusInDirection(0, -1);
-      Key_Down:  FocusInDirection(0, 1);
-      Key_Left:  FocusInDirection(-1, 0);
-      Key_Right: FocusInDirection(1, 0);
+    Node := Widgets.First;
+    while Node <> nil do
+    begin
+      Widget := PWidget(Node^.Value);
+      if Widget^.Visible and Widget^.Enabled then
+      begin
+        InBounds := (Event.MouseX >= Widget^.Rectangle.X) and
+                    (Event.MouseX < Widget^.Rectangle.X + Widget^.Rectangle.Width) and
+                    (Event.MouseY >= Widget^.Rectangle.Y) and
+                    (Event.MouseY < Widget^.Rectangle.Y + Widget^.Rectangle.Height);
+
+        if InBounds then
+        begin
+          SetFocus(Widget);
+          Widget^.HandleEvent(Event);
+          Exit;  { Event handled by this widget }
+        end;
+      end;
+      Node := Node^.Next;
+    end;
+  end
+  else
+  begin
+    { Let the focused widget handle keyboard events }
+    if FocusedWidget <> nil then
+      FocusedWidget^.HandleEvent(Event);
+
+    { If the event was not handled and it's a cursor key, do directional focus }
+    if (not Event.Handled) and (Event.EventType = Event_KeyPress) then
+    begin
+      case Event.KeyCode of
+        Key_Up:    FocusInDirection(0, -1);
+        Key_Down:  FocusInDirection(0, 1);
+        Key_Left:  FocusInDirection(-1, 0);
+        Key_Right: FocusInDirection(1, 0);
+      end;
     end;
   end;
 end;
@@ -887,6 +982,40 @@ begin
   end;
 end;
 
+procedure TUIManager.DispatchMouseEvents;
+{ Checks mouse state and dispatches events to the UI system }
+var
+  Event: TEvent;
+  Buttons: Byte;
+begin
+  { Update mouse state from INT 33h driver }
+  UpdateMouse;
+
+  Event.MouseX := GetMouseX;
+  Event.MouseY := GetMouseY;
+  Buttons := GetMouseButtons;
+  Event.Handled := False;
+
+  { Detect button press transitions (0 -> non-zero) }
+  if (Buttons <> 0) and (LastMouseButtons = 0) then
+  begin
+    Event.EventType := Event_MouseDown;
+    Event.MouseButton := Buttons;
+    HandleEvent(Event);
+  end;
+
+  { Detect button release transitions (non-zero -> 0) }
+  if (Buttons = 0) and (LastMouseButtons <> 0) then
+  begin
+    Event.EventType := Event_MouseUp;
+    Event.MouseButton := LastMouseButtons;
+    HandleEvent(Event);
+  end;
+
+  { Store current state for next frame }
+  LastMouseButtons := Buttons;
+end;
+
 procedure TUIManager.Update(DeltaTime: Real);
 { Update all widgets (for animations, timers, etc.) }
 { DeltaTime is in seconds }
@@ -894,8 +1023,9 @@ var
   Node: PListEntry;
   Widget: PWidget;
 begin
-  { Dispatch all keyboard events to UI system }
+  { Dispatch all keyboard and mouse events to UI system }
   DispatchKeyboardEvents;
+  DispatchMouseEvents;
 
   Node := Widgets.First;
   while Node <> nil do
@@ -911,6 +1041,9 @@ var
   Node: PListEntry;
   Widget: PWidget;
 begin
+  { Hide mouse cursor during rendering to prevent glitches }
+  HideMouse;
+
   Node := Widgets.First;
   while Node <> nil do
   begin
@@ -919,6 +1052,9 @@ begin
       Widget^.Render(Self.BackBuffer, Self.Style);
     Node := Node^.Next;
   end;
+
+  { Show mouse cursor after rendering }
+  ShowMouse;
 end;
 
 { Helper: Expand rectangle by 1px for focus border, clamp to screen }
@@ -980,6 +1116,9 @@ begin
   if not HasDirtyWidgets then
     Exit;
 
+  { Hide mouse cursor during rendering to prevent glitches }
+  HideMouse;
+
   { Step 3: Render dirty widgets to backbuffer }
   if FirstRender then
   begin
@@ -1029,6 +1168,9 @@ begin
 
   { Step 4: Flush dirty rectangles to VGA memory (slow part) }
   FlushDirtyRects(BackBuffer);
+
+  { Show mouse cursor after rendering }
+  ShowMouse;
 end;
 
 procedure TUIManager.SetStyle(NewStyle: PUIStyle);

@@ -37,6 +37,9 @@ procedure SetMouseRangeX(MinX, MaxX: Word);
 { Set vertical cursor range }
 procedure SetMouseRangeY(MinY, MaxY: Word);
 
+{ Enable/disable default mouse cursor }
+procedure UseDefaultMouseCursor(Use: Boolean);
+
 implementation
 
 var
@@ -46,6 +49,7 @@ var
   MouseButtons: Byte;
   CursorVisible: Boolean;
   CursorCount: Integer;
+  UseDefaultCursor: Boolean;
 
 { Helper: Detect mouse driver }
 function DetectMouse: Boolean; assembler;
@@ -73,18 +77,34 @@ begin
   end;
 end;
 
-{ Show mouse cursor }
-procedure ShowMouse; assembler;
+{ Helper: Show mouse cursor via INT 33h }
+procedure ShowMouseInt33h; assembler;
 asm
   mov ax, 1            { AX = 1: Show cursor }
   int 33h
 end;
 
-{ Hide mouse cursor }
-procedure HideMouse; assembler;
+{ Helper: Hide mouse cursor via INT 33h }
+procedure HideMouseInt33h; assembler;
 asm
   mov ax, 2            { AX = 2: Hide cursor }
   int 33h
+end;
+
+{ Show mouse cursor }
+procedure ShowMouse;
+begin
+  if not UseDefaultCursor then
+    Exit;
+  ShowMouseInt33h;
+end;
+
+{ Hide mouse cursor }
+procedure HideMouse;
+begin
+  if not UseDefaultCursor then
+    Exit;
+  HideMouseInt33h;
 end;
 
 { Set horizontal cursor range }
@@ -174,6 +194,12 @@ begin
   end;
 end;
 
+{ Enable/disable default mouse cursor }
+procedure UseDefaultMouseCursor(Use: Boolean);
+begin
+  UseDefaultCursor := Use;
+end;
+
 { Unit initialization }
 begin
   MouseInstalled := False;
@@ -182,4 +208,5 @@ begin
   MouseButtons := 0;
   CursorVisible := False;
   CursorCount := 0;
+  UseDefaultCursor := True;
 end.

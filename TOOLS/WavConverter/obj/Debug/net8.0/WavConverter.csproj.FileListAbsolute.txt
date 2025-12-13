@@ -1,0 +1,15 @@
+D:\ENGINE\XICLONE\DATA\WavConverter\bin\Debug\net8.0\WavConverter.exe
+D:\ENGINE\XICLONE\DATA\WavConverter\bin\Debug\net8.0\WavConverter.deps.json
+D:\ENGINE\XICLONE\DATA\WavConverter\bin\Debug\net8.0\WavConverter.runtimeconfig.json
+D:\ENGINE\XICLONE\DATA\WavConverter\bin\Debug\net8.0\WavConverter.dll
+D:\ENGINE\XICLONE\DATA\WavConverter\bin\Debug\net8.0\WavConverter.pdb
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.GeneratedMSBuildEditorConfig.editorconfig
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.AssemblyInfoInputs.cache
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.AssemblyInfo.cs
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.csproj.CoreCompileInputs.cache
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.sourcelink.json
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.dll
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\refint\WavConverter.dll
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.pdb
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\WavConverter.genruntimeconfig.cache
+D:\ENGINE\XICLONE\DATA\WavConverter\obj\Debug\net8.0\ref\WavConverter.dll
