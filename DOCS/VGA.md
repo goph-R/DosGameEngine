@@ -51,11 +51,14 @@ procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
 
 ```pascal
 procedure SetPalette(const Palette: TPalette);
+procedure SetPartialPalette(const Palette: TPalette; From, To: Byte);
 procedure SetRGB(Index: Byte; R, G, B: Byte);
 procedure GetRGB(Index: Byte; var R, G, B: Byte);
 procedure RotatePalette(var Palette: TPalette; StartColor, Count: Byte; Direction: ShortInt);
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 ```
+
+**SetPartialPalette** - Sets a range of palette colors (From..To inclusive) without affecting other colors. Useful for palette animation of specific color ranges or loading UI colors separately from game graphics.
 
 ### Clipping
 
@@ -138,6 +141,32 @@ begin
   begin
     RotatePalette(Pal, 16, 16, 1);  { Rotate right }
     SetPalette(Pal);
+    Delay(50);
+  end;
+end;
+```
+
+## Partial Palette Updates
+
+```pascal
+var
+  GamePal, UIPal: TPalette;
+begin
+  { Load game palette (colors 0-239) }
+  LoadPalette('GAME.PAL', GamePal);
+  SetPalette(GamePal);
+
+  { Load UI palette separately }
+  LoadPalette('UI.PAL', UIPal);
+
+  { Set only UI colors (240-255) without affecting game colors }
+  SetPartialPalette(UIPal, 240, 255);
+
+  { Or animate water colors only (16-31) }
+  while Running do
+  begin
+    RotatePalette(GamePal, 16, 16, 1);
+    SetPartialPalette(GamePal, 16, 31);  { Update only water colors }
     Delay(50);
   end;
 end;

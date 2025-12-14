@@ -6,7 +6,7 @@ uses
   VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals;
 
 const
-  MaxDialogButtons = 2;
+  MaxDialogButtons = 5;
 
 type
   PBaseScreen = ^TBaseScreen;
@@ -18,7 +18,7 @@ type
     procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
 
-    procedure InitDialog(Title: String);
+    procedure InitDialog(Title: String; Height: Word);
     procedure AddDialogButton(Text: String; EventHandler: TEventHandler);
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
   end;
@@ -30,6 +30,7 @@ var
   DialogImage: PImage;
   DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
   DialogButtonIndex: ShortInt;
+  DialogHeight: Word;
 
 procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly checkerboard dither for 286 }
@@ -116,17 +117,49 @@ procedure TBaseScreen.Update(DT: Real);
 begin
 end;
 
-procedure TBaseScreen.InitDialog(Title: String);
+function GetDialogX: Integer;
+begin
+  GetDialogX := 160 - DialogImage^.Width div 2;
+end;
+
+function GetDialogY: Integer;
+begin
+  GetDialogY := 100 - DialogHeight div 2;
+end;
+
+procedure TBaseScreen.InitDialog(Title: String; Height: Word);
+var
+  DialogSourceRect: TRectangle;
+  DialogX: Integer;
+  DialogTopHeight: Word;
+  DialogBottomHeight: Word;
 begin
   DialogUI.Init(Game.BackBuffer, DialogBackgroundBuffer);
   DialogUI.SetStyle(@UIStyle);
 
+  DialogHeight := Height;
   DialogButtonIndex := -1;
+  DialogBottomHeight := 2;
+  DialogTopHeight := DialogHeight - DialogBottomHeight;
 
   { Render the background }
   RenderDialogBackground(Game.BackBuffer);
-  PutImage(DialogImage^, 160 - DialogImage^.Width div 2, 100 - DialogImage^.Height div 2, False, Game.BackBuffer);
-  PrintFontTextCentered(160, 67, Title, FontLarge^, Game.BackBuffer);
+
+  { Render the top part of the dialog background }
+  DialogSourceRect.X := 0;
+  DialogSourceRect.Y := 0;
+  DialogSourceRect.Width := DialogImage^.Width;
+  DialogSourceRect.Height := DialogTopHeight;
+  PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY, False, Game.BackBuffer);
+
+  { Render the bottom part of the dialog background }
+  DialogSourceRect.X := 0;
+  DialogSourceRect.Y := DialogImage^.Height - DialogBottomHeight;
+  DialogSourceRect.Width := DialogImage^.Width;
+  DialogSourceRect.Height := DialogBottomHeight;
+  PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY + DialogTopHeight, False, Game.BackBuffer);
+
+  PrintFontTextCentered(160, GetDialogY + 8, Title, FontLarge^, Game.BackBuffer);
 
   { Save the UI background }
   CopyFrameBuffer(Game.BackBuffer, DialogBackgroundBuffer);
@@ -146,7 +179,7 @@ begin
 
   Inc(DialogButtonIndex);
 
-  New(Button, Init(100, 97 + DialogButtonIndex * 18, 120, 14, Text, FontSmall));
+  New(Button, Init(GetDialogX + 20, GetDialogY + 32 + DialogButtonIndex * 20, 120, 16, Text, FontSmall));
   Button^.SetEventHandler(@EventHandler);
   DialogUI.AddWidget(Button);
 

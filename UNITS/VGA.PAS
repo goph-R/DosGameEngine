@@ -46,6 +46,7 @@ procedure RenderFrameBuffer(FrameBuffer: PFrameBuffer);
 { Palette }
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 procedure SetPalette(const Palette: TPalette);
+procedure SetPartialPalette(const Palette: TPalette; FromColor, ToColor: Byte);
 procedure SetRGB(Index: Byte; const RGB: TRGBColor);
 procedure GetRGB(Index: Byte; var RGB: TRGBColor);
 procedure RotatePalette(StartColor: Byte; Count: Byte; Direction: ShortInt);
@@ -298,6 +299,46 @@ procedure SetPalette(const Palette: TPalette); assembler;
   inc si
   out dx, al
   inc bx
+  loop @Loop
+  pop ds
+end;
+
+procedure SetPartialPalette(const Palette: TPalette; FromColor, ToColor: Byte); assembler;
+ asm
+  push ds
+  lds si, Palette
+
+  { Calculate starting offset in palette array: From * 3 }
+  xor ah, ah
+  mov al, FromColor
+  mov bx, 3
+  mul bx              { AX = From * 3 }
+  add si, ax          { DS:SI points to Palette[From] }
+
+  { Calculate count: To - From + 1 }
+  mov al, ToColor
+  sub al, FromColor
+  inc al
+  mov cx, ax          { CX = count }
+
+  { BL = current palette index }
+  mov bl, FromColor
+
+@Loop:
+  mov dx, 03c8h
+  mov al, bl
+  out dx, al
+  mov dx, 03c9h
+  mov al, [ds:si]
+  inc si
+  out dx, al
+  mov al, [ds:si]
+  inc si
+  out dx, al
+  mov al, [ds:si]
+  inc si
+  out dx, al
+  inc bl
   loop @Loop
   pop ds
 end;

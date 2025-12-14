@@ -60,30 +60,6 @@ begin
   end;
 end;
 
-procedure MergeRectangles(R1, R2: TRectangle; var Result: TRectangle);
-{ Merge two rectangles into one that encompasses both }
-var
-  MinX, MinY, MaxX, MaxY: Integer;
-begin
-  if R1.X < R2.X then MinX := R1.X else MinX := R2.X;
-  if R1.Y < R2.Y then MinY := R1.Y else MinY := R2.Y;
-
-  if R1.X + R1.Width > R2.X + R2.Width then
-    MaxX := R1.X + R1.Width
-  else
-    MaxX := R2.X + R2.Width;
-
-  if R1.Y + R1.Height > R2.Y + R2.Height then
-    MaxY := R1.Y + R1.Height
-  else
-    MaxY := R2.Y + R2.Height;
-
-  Result.X := MinX;
-  Result.Y := MinY;
-  Result.Width := MaxX - MinX;
-  Result.Height := MaxY - MinY;
-end;
-
 procedure DrawFPS;
 var
   R: TRectangle;

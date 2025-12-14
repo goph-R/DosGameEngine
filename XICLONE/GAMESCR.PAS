@@ -442,7 +442,7 @@ begin
   ScoreText := 'Final Score: ' + IntToStr(Score);
 
   { Create game over dialog }
-  InitDialog('GAME OVER');
+  InitDialog('GAME OVER', 78);
   AddDialogButton('Restart', GameOverRestartButtonEvent);
   AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
 
@@ -472,7 +472,7 @@ begin
   if IsKeyPressed(Key_Escape) then
   begin
     { Create dialog }
-    InitDialog('PAUSED');
+    InitDialog('PAUSED', 78);
     AddDialogButton('Continue Game', PauseContinueButtonEvent);
     AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
 
