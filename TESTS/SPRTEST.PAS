@@ -43,6 +43,9 @@ var
 
   { Sprite rectangles }
   PlayerRect, EnemyRect: TRectangle;
+  OldPlayerRect, OldEnemyRect: TRectangle;
+  OldPlayerX, OldPlayerY: Integer;
+  OldEnemyX, OldEnemyY: Integer;
 
 procedure ClearRect(Buffer: PFrameBuffer; var Rect: TRectangle);
 { Clear a rectangular region in the framebuffer }
@@ -55,6 +58,30 @@ begin
     Offset := (Rect.Y + Row) * 320 + Rect.X;
     FillChar(Buffer^[Offset], Rect.Width, 0);
   end;
+end;
+
+procedure MergeRectangles(R1, R2: TRectangle; var Result: TRectangle);
+{ Merge two rectangles into one that encompasses both }
+var
+  MinX, MinY, MaxX, MaxY: Integer;
+begin
+  if R1.X < R2.X then MinX := R1.X else MinX := R2.X;
+  if R1.Y < R2.Y then MinY := R1.Y else MinY := R2.Y;
+
+  if R1.X + R1.Width > R2.X + R2.Width then
+    MaxX := R1.X + R1.Width
+  else
+    MaxX := R2.X + R2.Width;
+
+  if R1.Y + R1.Height > R2.Y + R2.Height then
+    MaxY := R1.Y + R1.Height
+  else
+    MaxY := R2.Y + R2.Height;
+
+  Result.X := MinX;
+  Result.Y := MinY;
+  Result.Width := MaxX - MinX;
+  Result.Height := MaxY - MinY;
 end;
 
 procedure DrawFPS;
@@ -211,6 +238,12 @@ begin
   EnemyElapsedTime := 0.0;
   EnemyMoveXDirection := 1; { 1 = right, -1 = left }
 
+  { Initialize old positions }
+  OldPlayerX := Player.X;
+  OldPlayerY := Player.Y;
+  OldEnemyX := Enemy.X;
+  OldEnemyY := Enemy.Y;
+
   { Initialize state }
   Running := True;
   CurrentAnimation := 0;
@@ -280,6 +313,12 @@ begin
       DrawVsyncText;
     end;
 
+    { Save old positions before movement }
+    OldPlayerX := Player.X;
+    OldPlayerY := Player.Y;
+    OldEnemyX := Enemy.X;
+    OldEnemyY := Enemy.Y;
+
     { Update enemy movement }
     EnemyElapsedTime := EnemyElapsedTime + DeltaTime;
     if EnemyElapsedTime > 2.6667 then
@@ -303,18 +342,32 @@ begin
     IsColliding := CheckSpriteCollision(@Player, @Enemy);
     DrawCollisionText;
 
-    { Create screen rectangles for sprites }
+    { Create rectangles for old and new positions }
+    OldPlayerRect.X := OldPlayerX;
+    OldPlayerRect.Y := OldPlayerY;
+    OldPlayerRect.Width := 32;
+    OldPlayerRect.Height := 32;
+
     PlayerRect.X := Player.X;
     PlayerRect.Y := Player.Y;
     PlayerRect.Width := 32;
     PlayerRect.Height := 32;
+
+    OldEnemyRect.X := OldEnemyX;
+    OldEnemyRect.Y := OldEnemyY;
+    OldEnemyRect.Width := 32;
+    OldEnemyRect.Height := 32;
 
     EnemyRect.X := Enemy.X;
     EnemyRect.Y := Enemy.Y;
     EnemyRect.Width := 32;
     EnemyRect.Height := 32;
 
-    { Clear sprite areas }
+    { Merge old and new positions for each sprite }
+    MergeRectangles(OldPlayerRect, PlayerRect, PlayerRect);
+    MergeRectangles(OldEnemyRect, EnemyRect, EnemyRect);
+
+    { Clear merged sprite areas }
     ClearRect(FrameBuffer, PlayerRect);
     ClearRect(FrameBuffer, EnemyRect);
 
@@ -322,7 +375,7 @@ begin
     DrawSprite(Player, FrameBuffer);
     DrawSprite(Enemy, FrameBuffer);
 
-    { Add dirty rectangles }
+    { Add merged dirty rectangles }
     AddDirtyRect(PlayerRect);
     AddDirtyRect(EnemyRect);
 

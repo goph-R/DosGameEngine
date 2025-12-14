@@ -423,6 +423,7 @@ MD5Final(digest, ctx);
 16. **DeltaTime convention**: Use Real for DeltaTime in seconds. CurrentTime/LastTime should be Real (from GetTimeSeconds). Calculate DeltaTime as `CurrentTime - LastTime`. InitRTC(1024) provides millisecond precision via RTC_Ticks for accurate sub-second timing
 17. **ReadKey conflict**: NEVER use ReadKey or other CRT input functions when KEYBOARD.PAS unit is active - it hooks INT 9h and manages keyboard state. Use IsKeyPressed/IsKeyDown instead. For debugging, use LOGGER.PAS instead of WriteLn/ReadKey
 18. **Shift overflow**: Integer literals are 16-bit by default. Large shifts like `320 shl 10` overflow to 0. Cast to LongInt first: `LongInt(320) shl 10` for fixed-point math
+19. **Record return types**: NEVER use records as function return types - Turbo Pascal 7.0 copies the entire structure on return. Use a procedure with `var` parameter (usually last) instead. Example: `procedure MergeRects(R1, R2: TRect; var Result: TRect)` instead of `function MergeRects(R1, R2: TRect): TRect`
 
 ## Technical Constraints
 
