@@ -77,9 +77,11 @@ type
     FlashMessageText: String;
     FlashMessageTimer: Real;
     FlashMessageActive: Boolean;
+    FlashMessageNeedsClear: Boolean;
 
     { High scores }
     HighScoreTable: THighScore;
+    HighScoreReached: Boolean;
 
     Paused: Boolean;
 
@@ -146,6 +148,10 @@ begin
   FlashMessageActive := False;
   FlashMessageTimer := 0.0;
   FlashMessageText := '';
+  FlashMessageNeedsClear := False;
+
+  { Initialize high score state }
+  HighScoreReached := False;
 end;
 
 destructor TGameScreen.Done;
@@ -209,6 +215,9 @@ begin
   FlashTimer := 0.0;
   GameOver := False;
 
+  { Reset high score flag for new game session }
+  HighScoreReached := False;
+
   { Initialize HUD tracking (force initial render) }
   LastScore := -1;
   LastLevel := -1;
@@ -236,6 +245,7 @@ begin
   FlashMessageText := Text;
   FlashMessageActive := True;
   FlashMessageTimer := 0.0;
+  FlashMessageNeedsClear := False;
 
   { Play sound if specified }
   if SoundName <> '' then
@@ -262,9 +272,12 @@ begin
     { Update score }
     Inc(Score, GemsRemoved * 10);
 
-    { Check for high score }
-    if IsHighScore(HighScoreTable, Score) then
+    { Check for high score (only show message once per session) }
+    if (not HighScoreReached) and IsHighScore(HighScoreTable, Score) then
+    begin
+      HighScoreReached := True;
       ShowFlashMessage('High Score!', '');
+    end;
   end;
 end;
 
@@ -552,9 +565,12 @@ begin
   begin
     FlashMessageTimer := FlashMessageTimer + DT;
 
-    { After 0.5 seconds of flashing, hide message }
+    { After 0.5 seconds of flashing, hide message and mark for clear }
     if FlashMessageTimer >= 0.5 then
+    begin
       FlashMessageActive := False;
+      FlashMessageNeedsClear := True;
+    end;
   end;
 
   { Render frame }
@@ -1028,6 +1044,25 @@ var
   TextX, TextY: Integer;
   R: TRectangle;
 begin
+  { Handle final clear after flash ends }
+  if FlashMessageNeedsClear then
+  begin
+    TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
+    TextX := 160 - (TextWidth div 2);
+    TextY := 100 - (FontLarge^.Height div 2);
+
+    { Clear the message area }
+    R.X := TextX;
+    R.Y := TextY;
+    R.Width := TextWidth;
+    R.Height := FontLarge^.Height;
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+    AddDirtyRect(R);
+
+    FlashMessageNeedsClear := False;
+    Exit;
+  end;
+
   if not FlashMessageActive then Exit;
 
   { Calculate flash state (blink every 100ms, same as gem flash) }
