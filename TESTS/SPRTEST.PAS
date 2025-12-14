@@ -1,7 +1,7 @@
 program SpriteTest;
 
 uses
-  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCX, ResMan;
+  VGA, VGAPrint, Sprite, Keyboard, RTCTimer, PCX, ResMan, DRect;
 
 var
   ResMgr: TResourceManager;
@@ -15,6 +15,14 @@ var
 
   { Sprite instances }
   Player: TSpriteInstance;
+  Enemy: TSpriteInstance;
+
+  { Enemy movement }
+  EnemyElapsedTime: Real;
+  EnemyMoveXDirection: ShortInt;
+
+  { Collision }
+  IsColliding: Boolean;
 
   { Timing }
   CurrentTime: Real;
@@ -33,8 +41,8 @@ var
   StatusText: String;
   I: Integer;
 
-  { Sprite draw rectangle }
-  SpriteRect: TRectangle;
+  { Sprite rectangles }
+  PlayerRect, EnemyRect: TRectangle;
 
 procedure ClearRect(Buffer: PFrameBuffer; var Rect: TRectangle);
 { Clear a rectangular region in the framebuffer }
@@ -64,7 +72,7 @@ begin
   StatusText := 'FPS: ' + StatusText;
   PrintText(5, 15, StatusText, 15, FrameBuffer);
 
-  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
+  AddDirtyRect(R);
 end;
 
 procedure UpdateFPS;
@@ -96,7 +104,7 @@ begin
     PrintText(5, 5, 'Animation: IDLE', 15, FrameBuffer)
   else
     PrintText(5, 5, 'Animation: RUN', 15, FrameBuffer);
-  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
+  AddDirtyRect(R);
 end;
 
 procedure DrawVsyncText;
@@ -112,28 +120,42 @@ begin
     PrintText(210, 5, 'VSync: ON', 15, FrameBuffer)
   else
     PrintText(210, 5, 'VSync: OFF', 15, FrameBuffer);
-  CopyFrameBufferRect(FrameBuffer, R, ScreenBuffer, R.X, R.Y);
+  AddDirtyRect(R);
+end;
+
+procedure DrawCollisionText;
+var
+  R: TRectangle;
+begin
+  R.X := 5;
+  R.Y := 25;
+  R.Width := 130;
+  R.Height := 8;
+  ClearRect(FrameBuffer, R);
+  if IsColliding then
+    PrintText(5, 25, 'COLLISION!', 12, FrameBuffer)
+  else
+    PrintText(5, 25, 'No collision', 10, FrameBuffer);
+  AddDirtyRect(R);
 end;
 
 procedure DrawUI;
 var
-  FreeMem: LongInt;
+  R: TRectangle;
 begin
   DrawAnimationText;
   DrawVsyncText;
   DrawFPS;
-
-  { Display free memory }
-  FreeMem := MemAvail;
-  Str(FreeMem, StatusText);
-  StatusText := 'Free: ' + StatusText + ' bytes';
-  PrintText(5, 25, StatusText, 15, FrameBuffer);
+  DrawCollisionText;
 
   { Instructions }
+  R.X := 5;
+  R.Y := 180;
+  R.Width := 270;
+  R.Height := 18;
   PrintText(5, 180, '1: Idle  2: Run  F: Flip  V: VSync', 14, FrameBuffer);
   PrintText(5, 190, 'ESC: Exit', 14, FrameBuffer);
-
-  RenderFrameBuffer(FrameBuffer);
+  AddDirtyRect(R);
 end;
 
 begin
@@ -175,10 +197,19 @@ begin
   Player.CurrentTime := 0.0;
   Player.PlayBackward := False;
 
-  SpriteRect.X := Player.X;
-  SpriteRect.Y := Player.Y;
-  SpriteRect.Width := 32;
-  SpriteRect.Height := 32;
+  { Initialize enemy sprite instance }
+  Enemy.Sprite := SpriteRun;
+  Enemy.Hidden := False;
+  Enemy.X := 80;   { Start at left boundary }
+  Enemy.Y := 84;   { Same Y as player }
+  Enemy.FlipX := False;
+  Enemy.FlipY := False;
+  Enemy.CurrentTime := 0.0;
+  Enemy.PlayBackward := False;
+
+  { Initialize enemy movement }
+  EnemyElapsedTime := 0.0;
+  EnemyMoveXDirection := 1; { 1 = right, -1 = left }
 
   { Initialize state }
   Running := True;
@@ -186,6 +217,7 @@ begin
   VsyncEnabled := False;
   FPS := 0.0;
   FrameCount := 0;
+  IsColliding := False;
 
   WriteLn('Press any key to start...');
   ReadLn;
@@ -248,17 +280,55 @@ begin
       DrawVsyncText;
     end;
 
-    { Update sprite animation }
+    { Update enemy movement }
+    EnemyElapsedTime := EnemyElapsedTime + DeltaTime;
+    if EnemyElapsedTime > 2.6667 then
+    begin
+      EnemyElapsedTime := EnemyElapsedTime - 2.6667;
+      EnemyMoveXDirection := -EnemyMoveXDirection;
+      Enemy.FlipX := EnemyMoveXDirection < 0;
+    end;
+
+    { Calculate enemy position based on elapsed time }
+    if EnemyMoveXDirection = 1 then
+      Enemy.X := 80 + Trunc(EnemyElapsedTime * 60.0)
+    else
+      Enemy.X := 240 - Trunc(EnemyElapsedTime * 60.0);
+
+    { Update sprite animations }
     UpdateSprite(Player, DeltaTime);
+    UpdateSprite(Enemy, DeltaTime);
 
-    { Clear only the sprite area }
-    ClearRect(FrameBuffer, SpriteRect);
+    { Check collision }
+    IsColliding := CheckSpriteCollision(@Player, @Enemy);
+    DrawCollisionText;
 
-    { Render only the sprite }
+    { Create screen rectangles for sprites }
+    PlayerRect.X := Player.X;
+    PlayerRect.Y := Player.Y;
+    PlayerRect.Width := 32;
+    PlayerRect.Height := 32;
+
+    EnemyRect.X := Enemy.X;
+    EnemyRect.Y := Enemy.Y;
+    EnemyRect.Width := 32;
+    EnemyRect.Height := 32;
+
+    { Clear sprite areas }
+    ClearRect(FrameBuffer, PlayerRect);
+    ClearRect(FrameBuffer, EnemyRect);
+
+    { Draw sprites }
     DrawSprite(Player, FrameBuffer);
+    DrawSprite(Enemy, FrameBuffer);
 
-    { Copy only sprite region to screen }
-    CopyFrameBufferRect(FrameBuffer, SpriteRect, ScreenBuffer, SpriteRect.X, SpriteRect.Y);
+    { Add dirty rectangles }
+    AddDirtyRect(PlayerRect);
+    AddDirtyRect(EnemyRect);
+
+    { Flush dirty rectangles to screen }
+    FlushDirtyRects(FrameBuffer);
+    ClearDirtyRects;
 
     { Wait for vertical blank if VSync enabled (caps at ~60-70 FPS) }
     if VsyncEnabled then
