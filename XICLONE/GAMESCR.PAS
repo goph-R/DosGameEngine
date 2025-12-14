@@ -461,12 +461,6 @@ begin
   end;
 end;
 
-procedure GameOverDialogUpdate;
-begin
-  if IsKeyPressed(Key_Escape) then
-    DialogUI.Stop;
-end;
-
 procedure GameOverSubmitScoreButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
@@ -521,7 +515,7 @@ begin
   AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
 
   { Run dialog event loop }
-  ShowDialog(GameOverDialogUpdate);
+  ShowDialog(nil);
 
   { Check which button was pressed }
   if Game.Running then
