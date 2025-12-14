@@ -42,7 +42,21 @@ const
 ```pascal
 procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: Real);
 procedure DrawSprite(var SpriteInstance: TSpriteInstance; FrameBuffer: PFrameBuffer);
+function SpriteGetCurrentFrame(var SpriteInstance: TSpriteInstance): Byte;
+function CheckSpriteCollision(SpriteA, SpriteB: PSpriteInstance): Boolean;
 ```
+
+### UpdateSprite
+Updates the sprite animation state based on elapsed time. Call once per frame with delta time.
+
+### DrawSprite
+Renders the current frame to the framebuffer with transparency (color 0).
+
+### SpriteGetCurrentFrame
+Returns the current frame index (0..FrameCount-1) based on CurrentTime and PlayType. Useful for manual frame access or debugging.
+
+### CheckSpriteCollision
+Performs pixel-perfect collision detection between two sprite instances. Returns `True` if any non-transparent pixels overlap. Optimized with bounding box check and early exit. Accounts for FlipX/FlipY transformations.
 
 ## Example
 
@@ -200,6 +214,39 @@ for i := 0 to 9 do
 for i := 0 to 9 do
   Enemies[i].CurrentTime := Random(1000) / 1000.0 * Sprite.Duration;
 ```
+
+## Collision Detection
+
+```pascal
+var
+  Player, Enemy: TSpriteInstance;
+  Hit: Boolean;
+
+begin
+  { Update both sprites }
+  UpdateSprite(Player, DeltaTime);
+  UpdateSprite(Enemy, DeltaTime);
+
+  { Check pixel-perfect collision }
+  Hit := CheckSpriteCollision(@Player, @Enemy);
+  if Hit then
+  begin
+    { Handle collision }
+    WriteLn('COLLISION DETECTED!');
+  end;
+
+  { Alternative: Check current frame manually }
+  if SpriteGetCurrentFrame(Player) = 3 then
+    WriteLn('Player is on attack frame');
+end;
+```
+
+**Collision features:**
+- Pixel-perfect (ignores transparent pixels, color 0)
+- Bounding box optimization (early exit if boxes don't overlap)
+- Flip-aware (handles FlipX/FlipY correctly)
+- Hidden-aware (returns False if either sprite is hidden)
+- Fast early exit (returns True on first pixel collision)
 
 ## Notes
 

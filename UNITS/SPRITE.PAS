@@ -37,11 +37,12 @@ type
 
 procedure UpdateSprite(var SpriteInstance: TSpriteInstance; DeltaTime: Real);
 procedure DrawSprite(var SpriteInstance: TSpriteInstance; FrameBuffer: PFrameBuffer);
+function SpriteGetCurrentFrame(var SpriteInstance: TSpriteInstance): Byte;
 function CheckSpriteCollision(SpriteA, SpriteB: PSpriteInstance): Boolean;
 
 implementation
 
-function GetCurrentFrame(var SpriteInstance: TSpriteInstance): Byte;
+function SpriteGetCurrentFrame(var SpriteInstance: TSpriteInstance): Byte;
 var
   Progress: Real;
   FrameNumber: Byte;
@@ -70,7 +71,7 @@ begin
       FrameNumber := 0;
     end;
   end;
-  GetCurrentFrame := FrameNumber;
+  SpriteGetCurrentFrame := FrameNumber;
 end;
 
 function CheckSpriteCollision(SpriteA, SpriteB: PSpriteInstance): Boolean;
@@ -90,8 +91,8 @@ begin
     Exit;
 
   { Get current frames }
-  FrameA := GetCurrentFrame(SpriteA^);
-  FrameB := GetCurrentFrame(SpriteB^);
+  FrameA := SpriteGetCurrentFrame(SpriteA^);
+  FrameB := SpriteGetCurrentFrame(SpriteB^);
   RectA := SpriteA^.Sprite^.Frames[FrameA];
   RectB := SpriteB^.Sprite^.Frames[FrameB];
 
@@ -202,7 +203,7 @@ begin
     Exit;
 
   { Get current frame }
-  FrameNumber := GetCurrentFrame(SpriteInstance);
+  FrameNumber := SpriteGetCurrentFrame(SpriteInstance);
 
   { Get the frame rectangle }
   FrameRect := SpriteInstance.Sprite^.Frames[FrameNumber];
