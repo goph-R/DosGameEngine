@@ -566,7 +566,7 @@ begin
     FlashMessageTimer := FlashMessageTimer + DT;
 
     { After 0.5 seconds of flashing, hide message and mark for clear }
-    if FlashMessageTimer >= 0.5 then
+    if FlashMessageTimer >= 1.0 then
     begin
       FlashMessageActive := False;
       FlashMessageNeedsClear := True;
@@ -1065,8 +1065,8 @@ begin
 
   if not FlashMessageActive then Exit;
 
-  { Calculate flash state (blink every 100ms, same as gem flash) }
-  FlashOn := Trunc(FlashMessageTimer * 10) mod 2 = 0;
+  { Calculate flash state (blink every 200ms) }
+  FlashOn := Trunc(FlashMessageTimer * 5) mod 2 = 0;
 
   { Calculate centered position }
   TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
