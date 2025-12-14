@@ -4,7 +4,7 @@ interface
 
 uses
   VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
-  Globals, BaseScr, HiScore, SndBank;
+  Globals, BaseScr, HiScore;
 
 const
   { Playfield dimensions }
@@ -240,9 +240,9 @@ begin
   { Play sound if specified }
   if SoundName <> '' then
   begin
-    SoundID := Game.SoundBank.GetSoundID(SoundName);
+    SoundID := Game.ResMan.GetSound(SoundName);
     if SoundID >= 0 then
-      Game.SoundBank.PlaySound(SoundID);
+      Game.ResMan.SoundBank.PlaySound(SoundID);
   end;
 end;
 
