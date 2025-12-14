@@ -4,7 +4,7 @@ interface
 
 uses
   VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
-  Globals, BaseScr;
+  Globals, BaseScr, HiScore, SndBank;
 
 const
   { Playfield dimensions }
@@ -73,6 +73,14 @@ type
     { Next stack preview gems }
     NextStackGems: array [0..2] of TGemColor;
 
+    { Flash message }
+    FlashMessageText: String;
+    FlashMessageTimer: Real;
+    FlashMessageActive: Boolean;
+
+    { High scores }
+    HighScoreTable: THighScore;
+
     Paused: Boolean;
 
     constructor Init;
@@ -104,9 +112,12 @@ type
     procedure RenderPlayfield;
     procedure RenderStack;
     procedure RenderNextStack;
-    procedure RenderHUD;    
+    procedure RenderHUD;
+    procedure RenderFlashMessage;
     procedure RenderFrame;
     procedure FullRender;
+
+    procedure ShowFlashMessage(Text: String; SoundName: String);
   end;
 
   TStatLabelInfo = record
@@ -126,6 +137,15 @@ implementation
 constructor TGameScreen.Init;
 begin
   inherited Init;
+
+  { Initialize high score system }
+  InitHighScore(HighScoreTable, HighScoreSalt);
+  LoadHighScore('SCORES.XML', HighScoreTable);
+
+  { Initialize flash message state }
+  FlashMessageActive := False;
+  FlashMessageTimer := 0.0;
+  FlashMessageText := '';
 end;
 
 destructor TGameScreen.Done;
@@ -209,6 +229,23 @@ begin
   FlushDirtyRects(Game.BackBuffer);
 end;
 
+procedure TGameScreen.ShowFlashMessage(Text: String; SoundName: String);
+var
+  SoundID: Integer;
+begin
+  FlashMessageText := Text;
+  FlashMessageActive := True;
+  FlashMessageTimer := 0.0;
+
+  { Play sound if specified }
+  if SoundName <> '' then
+  begin
+    SoundID := Game.SoundBank.GetSoundID(SoundName);
+    if SoundID >= 0 then
+      Game.SoundBank.PlaySound(SoundID);
+  end;
+end;
+
 procedure TGameScreen.CheckForMatches;
 var
   GemsRemoved: Integer;
@@ -224,6 +261,10 @@ begin
 
     { Update score }
     Inc(Score, GemsRemoved * 10);
+
+    { Check for high score }
+    if IsHighScore(HighScoreTable, Score) then
+      ShowFlashMessage('High Score!', '');
   end;
 end;
 
@@ -506,8 +547,18 @@ begin
     UpdateFallingStack(DT);
   end;
 
+  { Update flash message timer }
+  if FlashMessageActive then
+  begin
+    FlashMessageTimer := FlashMessageTimer + DT;
+
+    { After 0.5 seconds of flashing, hide message }
+    if FlashMessageTimer >= 0.5 then
+      FlashMessageActive := False;
+  end;
+
   { Render frame }
-  RenderFrame;  
+  RenderFrame;
 end;
 
 { Initialization }
@@ -970,6 +1021,43 @@ begin
   PadZero := S;
 end;
 
+procedure TGameScreen.RenderFlashMessage;
+var
+  FlashOn: Boolean;
+  TextWidth: Integer;
+  TextX, TextY: Integer;
+  R: TRectangle;
+begin
+  if not FlashMessageActive then Exit;
+
+  { Calculate flash state (blink every 100ms, same as gem flash) }
+  FlashOn := Trunc(FlashMessageTimer * 10) mod 2 = 0;
+
+  { Calculate centered position }
+  TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
+  TextX := 160 - (TextWidth div 2);
+  TextY := 100 - (FontLarge^.Height div 2);
+
+  { Setup dirty rectangle }
+  R.X := TextX;
+  R.Y := TextY;
+  R.Width := TextWidth;
+  R.Height := FontLarge^.Height;
+
+  if FlashOn then
+  begin
+    { Render centered text when flash is on }
+    PrintFontText(TextX, TextY, FlashMessageText, FontLarge^, Game.BackBuffer);
+  end
+  else
+  begin
+    { Clear area when flash is off (restore background) }
+    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+  end;
+
+  AddDirtyRect(R);
+end;
+
 procedure TGameScreen.RenderHUD;
 var
   {
@@ -1077,6 +1165,7 @@ begin
   RenderPlayfield;
   RenderStack;
   RenderHUD;
+  RenderFlashMessage;  { Render on top of everything }
 
   { Copy dirty regions to screen }
   FlushDirtyRects(Game.BackBuffer);
