@@ -467,6 +467,14 @@ begin
     DialogUI.Stop;
 end;
 
+procedure GameOverSubmitScoreButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if DialogUI.IsEnter(Event) then
+  begin
+    { TODO: Implement score submission }
+  end;
+end;
+
 procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
@@ -491,12 +499,24 @@ end;
 procedure TGameScreen.ShowGameOver;
 var
   ScoreText: String;
+  DialogHeight: Word;
 begin
   { Display final score }
   ScoreText := 'Final Score: ' + IntToStr(Score);
 
+  { Determine dialog height based on high score }
+  if HighScoreReached then
+    DialogHeight := 98  { 78 + 20 for extra button }
+  else
+    DialogHeight := 78;
+
   { Create game over dialog }
-  InitDialog('GAME OVER', 78);
+  InitDialog('GAME OVER', DialogHeight);
+
+  { Add Submit Score button if high score was reached }
+  if HighScoreReached then
+    AddDialogButton('Submit Score', GameOverSubmitScoreButtonEvent);
+
   AddDialogButton('Restart', GameOverRestartButtonEvent);
   AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
 
