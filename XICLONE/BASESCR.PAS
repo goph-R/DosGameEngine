@@ -32,6 +32,8 @@ var
   DialogButtonIndex: ShortInt;
   DialogHeight: Word;
 
+  Palette: PPalette;
+
 procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly checkerboard dither for 286 }
 { Odd rows (1,3,5...): black at even X positions (0,2,4...) }
@@ -101,6 +103,8 @@ begin
 
     { Initialize high score system }
     InitHighScore(HighScoreTable, HighScoreSalt);
+    { Load high score table }
+    LoadHighScore('SCORES.XML', HighScoreTable);
   end;
 end;
 
@@ -113,7 +117,15 @@ begin
 end;
 
 procedure TBaseScreen.PostInit;
-begin  
+begin
+  inherited PostInit;
+
+  { Set the palette only once }
+  if Palette = nil then
+  begin
+    Palette := Game.ResMan.GetPalette('default');
+    SetPalette(Palette^);
+  end;
 end;
 
 procedure TBaseScreen.Update(DT: Real);
@@ -214,5 +226,6 @@ begin
 end;
 
 begin
+  Palette := nil;
   DialogBackgroundBuffer := nil;
 end.

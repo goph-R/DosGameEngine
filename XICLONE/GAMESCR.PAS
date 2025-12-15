@@ -87,7 +87,6 @@ type
     constructor Init;
     destructor Done; virtual;
 
-    procedure PostInit; virtual;
     procedure Show; virtual;
     procedure InitPlayfield;
     procedure ResetGameState;
@@ -139,9 +138,6 @@ constructor TGameScreen.Init;
 begin
   inherited Init;
 
-  { Load high score table }
-  LoadHighScore('SCORES.XML', HighScoreTable);
-
   { Initialize flash message state }
   FlashMessageActive := False;
   FlashMessageTimer := 0.0;
@@ -173,8 +169,6 @@ begin
 end;
 
 procedure TGameScreen.Show;
-var
-  Palette: PPalette;
 begin
   { Show loading message while decompressing PCX (takes ~2-3s on 8MHz) }
   ClearFrameBuffer(Game.ScreenBuffer);
@@ -184,10 +178,6 @@ begin
   LoadPCXToFrameBuffer('DATA\BG1.PCX', Game.BackgroundBuffer);
 
   DrawStaticHUD;
-
-  { TODO: do this in the first TScreen.Show }
-  Palette := Game.ResMan.GetPalette('default');
-  SetPalette(Palette^);
 
   { Play game music }
   Game.PlayMusic('normal');
@@ -483,10 +473,6 @@ begin
 end;
 
 {$F-}
-
-procedure TGameScreen.PostInit;
-begin
-end;
 
 procedure TGameScreen.ShowGameOver;
 var
