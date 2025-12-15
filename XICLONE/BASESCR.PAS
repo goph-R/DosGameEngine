@@ -3,7 +3,7 @@ unit BaseScr;
 interface
 
 uses
-  VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals;
+  VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals, HiScore;
 
 const
   MaxDialogButtons = 5;
