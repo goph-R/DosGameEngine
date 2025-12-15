@@ -80,7 +80,6 @@ type
     FlashMessageNeedsClear: Boolean;
 
     { High scores }
-    HighScoreTable: THighScore;
     HighScoreReached: Boolean;
 
     Paused: Boolean;
@@ -140,8 +139,7 @@ constructor TGameScreen.Init;
 begin
   inherited Init;
 
-  { Initialize high score system }
-  InitHighScore(HighScoreTable, HighScoreSalt);
+  { Load high score table }
   LoadHighScore('SCORES.XML', HighScoreTable);
 
   { Initialize flash message state }

@@ -3,7 +3,7 @@ unit Globals;
 interface
 
 uses
-  VGA, VGAUI, VGAFont;
+  VGA, VGAUI, VGAFont, HiScore;
 
 const
   TileSize = 16;
@@ -34,6 +34,8 @@ var
   UIStyle: TCustomUIStyle;
 
   DialogUI: TUIManager;
+
+  HighScoreTable: THighScore;
 
 procedure DrawGem(GemColor: TGemColor; X, Y: Integer);  
 

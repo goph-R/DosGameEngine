@@ -93,11 +93,14 @@ begin
 
     FontLarge := Game.ResMan.GetFont('large');
     FontSmall := Game.ResMan.GetFont('small');
-  
-    DialogImage := Game.ResMan.GetImage('dialog');  
-    DialogBackgroundBuffer := CreateFrameBuffer;  
+
+    DialogImage := Game.ResMan.GetImage('dialog');
+    DialogBackgroundBuffer := CreateFrameBuffer;
 
     UIStyle.Init(186, 188, 189, 15);
+
+    { Initialize high score system }
+    InitHighScore(HighScoreTable, HighScoreSalt);
   end;
 end;
 
