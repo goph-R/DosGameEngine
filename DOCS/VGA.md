@@ -51,14 +51,16 @@ procedure FreeFrameBuffer(var FrameBuffer: PFrameBuffer);
 
 ```pascal
 procedure SetPalette(const Palette: TPalette);
-procedure SetPartialPalette(const Palette: TPalette; From, To: Byte);
-procedure SetRGB(Index: Byte; R, G, B: Byte);
-procedure GetRGB(Index: Byte; var R, G, B: Byte);
-procedure RotatePalette(var Palette: TPalette; StartColor, Count: Byte; Direction: ShortInt);
+procedure SetPartialPalette(const Palette: TPalette; FromColor, ToColor: Byte);
+procedure SetRGB(Index: Byte; const RGB: TRGBColor);
+procedure GetRGB(Index: Byte; var RGB: TRGBColor);
+procedure RotatePalette(StartColor: Byte; Count: Byte; Direction: ShortInt);
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 ```
 
-**SetPartialPalette** - Sets a range of palette colors (From..To inclusive) without affecting other colors. Useful for palette animation of specific color ranges or loading UI colors separately from game graphics.
+**SetPartialPalette** - Sets a range of palette colors (FromColor..ToColor inclusive) without affecting other colors. Useful for palette animation of specific color ranges or loading UI colors separately from game graphics.
+
+**RotatePalette** - Rotates a range of colors in the VGA DAC palette. Directly modifies hardware palette (no need to call SetPalette afterward). Direction: 1 = rotate right, -1 = rotate left.
 
 ### Clipping
 
@@ -139,12 +141,13 @@ begin
   { Animate water (rotate colors 16-31) }
   while Running do
   begin
-    RotatePalette(Pal, 16, 16, 1);  { Rotate right }
-    SetPalette(Pal);
+    RotatePalette(16, 16, 1);  { Start at color 16, rotate 16 colors, direction right }
     Delay(50);
   end;
 end;
 ```
+
+**Note:** `RotatePalette` directly modifies the VGA DAC palette, so no need to call `SetPalette` again.
 
 ## Partial Palette Updates
 
@@ -162,11 +165,10 @@ begin
   { Set only UI colors (240-255) without affecting game colors }
   SetPartialPalette(UIPal, 240, 255);
 
-  { Or animate water colors only (16-31) }
+  { Animate water colors only (colors 16-31) }
   while Running do
   begin
-    RotatePalette(GamePal, 16, 16, 1);
-    SetPartialPalette(GamePal, 16, 31);  { Update only water colors }
+    RotatePalette(16, 16, 1);  { Rotate water colors without affecting UI }
     Delay(50);
   end;
 end;
