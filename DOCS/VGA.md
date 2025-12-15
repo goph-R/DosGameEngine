@@ -58,9 +58,9 @@ procedure RotatePalette(StartColor: Byte; Count: Byte; Direction: ShortInt);
 function LoadPalette(const FileName: string; var Palette: TPalette): Boolean;
 ```
 
-**SetPartialPalette** - Sets a range of palette colors (FromColor..ToColor inclusive) without affecting other colors. Useful for palette animation of specific color ranges or loading UI colors separately from game graphics.
+**SetPartialPalette** - Sets a range of palette colors (FromColor..ToColor inclusive) without affecting other colors. Useful for reserving palette ranges (e.g., colors 0-223 for game graphics, 224-255 for UI/HUD), allowing you to change game palettes without affecting UI.
 
-**RotatePalette** - Rotates a range of colors in the VGA DAC palette. Directly modifies hardware palette (no need to call SetPalette afterward). Direction: 1 = rotate right, -1 = rotate left.
+**RotatePalette** - Rotates a range of colors in the VGA DAC palette for animation effects (water, fire, etc.). Directly modifies hardware palette (no need to call SetPalette afterward). Direction: 1 = rotate right, -1 = rotate left.
 
 ### Clipping
 
@@ -151,28 +151,32 @@ end;
 
 ## Partial Palette Updates
 
+Use `SetPartialPalette` to reserve palette ranges for different purposes (e.g., game graphics vs UI):
+
 ```pascal
 var
-  GamePal, UIPal: TPalette;
+  Level1Pal, Level2Pal, UIPal: TPalette;
 begin
-  { Load game palette (colors 0-239) }
-  LoadPalette('GAME.PAL', GamePal);
-  SetPalette(GamePal);
-
-  { Load UI palette separately }
+  { Load UI palette (colors 224-255, fixed across all levels) }
   LoadPalette('UI.PAL', UIPal);
 
-  { Set only UI colors (240-255) without affecting game colors }
-  SetPartialPalette(UIPal, 240, 255);
+  { --- Level 1 --- }
+  LoadPalette('LEVEL1.PAL', Level1Pal);
+  SetPartialPalette(Level1Pal, 0, 223);  { Game graphics: colors 0-223 }
+  SetPartialPalette(UIPal, 224, 255);     { UI/HUD: colors 224-255 }
 
-  { Animate water colors only (colors 16-31) }
-  while Running do
-  begin
-    RotatePalette(16, 16, 1);  { Rotate water colors without affecting UI }
-    Delay(50);
-  end;
+  { ... gameplay ... }
+
+  { --- Level 2 (different graphics, same UI) --- }
+  LoadPalette('LEVEL2.PAL', Level2Pal);
+  SetPartialPalette(Level2Pal, 0, 223);  { New game palette }
+  { UI palette at 224-255 remains unchanged }
 end;
 ```
+
+**Common palette splits:**
+- **0-223** (224 colors): Game graphics/sprites
+- **224-255** (32 colors): UI/HUD/text (stays consistent across levels)
 
 ## Sprite Sheets
 
