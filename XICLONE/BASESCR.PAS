@@ -3,7 +3,7 @@ unit BaseScr;
 interface
 
 uses
-  VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals, HiScore;
+  VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals, HiScore, StrUtil;
 
 const
   MaxDialogButtons = 5;
@@ -19,20 +19,25 @@ type
     procedure Update(DT: Real); virtual;
 
     procedure InitDialog(Title: String; Height: Word);
+    procedure AddDialogLabel(Text: String);
     procedure AddDialogButton(Text: String; EventHandler: TEventHandler);
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
+    function ShowConfirm(Message: String; UpdateProcedure: TUpdateProcedure): Boolean;
   end;
 
 implementation
 
 var
-  DialogBackgroundBuffer: PFrameBuffer;  
+  DialogBackgroundBuffer: PFrameBuffer;
   DialogImage: PImage;
+  DialogLabel: PLabel;
   DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
   DialogButtonIndex: ShortInt;
   DialogHeight: Word;
 
   Palette: PPalette;
+
+  DialogHasTitle: Boolean;
 
 procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly checkerboard dither for 286 }
@@ -154,6 +159,7 @@ begin
 
   DialogHeight := Height;
   DialogButtonIndex := -1;
+  DialogLabel := nil;
   DialogBottomHeight := 2;
   DialogTopHeight := DialogHeight - DialogBottomHeight;
 
@@ -174,7 +180,13 @@ begin
   DialogSourceRect.Height := DialogBottomHeight;
   PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY + DialogTopHeight, False, Game.BackBuffer);
 
-  PrintFontTextCentered(160, GetDialogY + 8, Title, FontLarge^, Game.BackBuffer);
+  if Title <> '' then 
+  begin
+    DialogHasTitle := True;
+    PrintFontTextCentered(160, GetDialogY + 10, Title, FontLarge^, Game.BackBuffer);    
+  end
+  else
+    DialogHasTitle := False;
 
   { Save the UI background }
   CopyFrameBuffer(Game.BackBuffer, DialogBackgroundBuffer);
@@ -185,16 +197,45 @@ begin
   ClearAllKeyStates; 
 end;
 
+procedure TBaseScreen.AddDialogLabel(Text: String);
+var
+  L: PLabel;
+  H: Integer;
+  MessageLines: TMultiLineText;
+  MessageLineCount: Byte;
+  StartY: Integer;
+begin
+  SplitLines(Text, MessageLines, MessageLineCount);
+  H := MessageLineCount * FontSmall^.Height;
+
+  StartY := GetDialogY + 10;
+  if DialogHasTitle then
+    StartY := StartY + FontLarge^.Height + 10;
+
+  New(L, Init(GetDialogX + 8, StartY, DialogImage^.Width - 16, H, Text, FontSmall));
+  L^.TextAlign := Align_Center + Align_Top;
+  DialogUI.AddWidget(L);
+  
+  DialogLabel := L;
+end;
+
 procedure TBaseScreen.AddDialogButton(Text: String; EventHandler: TEventHandler);
 var
   Button: PButton;
+  StartY: Integer;
 begin
   if DialogButtonIndex = MaxDialogButtons then
     Exit;
 
+  StartY := GetDialogY + 10;
+  if DialogHasTitle then
+    StartY := StartY + FontLarge^.Height + 10;
+  if DialogLabel <> nil then
+    StartY := StartY + DialogLabel^.Rectangle.Height + 10;
+
   Inc(DialogButtonIndex);
 
-  New(Button, Init(GetDialogX + 20, GetDialogY + 32 + DialogButtonIndex * 20, 120, 16, Text, FontSmall));
+  New(Button, Init(GetDialogX + 20, StartY + DialogButtonIndex * 20, 120, 16, Text, FontSmall));
   Button^.SetEventHandler(@EventHandler);
   DialogUI.AddWidget(Button);
 
@@ -211,7 +252,16 @@ begin
   DialogUI.SetFocus(DialogButtons[0]);
   DialogUI.Run(@UpdateProcedure, True);
 
-  for i := 0 to DialogButtonIndex - 1 do
+  { Cleanup label if exists }
+  if DialogLabel <> nil then
+  begin
+    DialogUI.RemoveWidget(DialogLabel);
+    Dispose(DialogLabel, Done);
+    DialogLabel := nil;
+  end;
+
+  { Cleanup buttons }
+  for i := 0 to DialogButtonIndex do
   begin
     DialogUI.RemoveWidget(DialogButtons[i]);
     Dispose(DialogButtons[i], Done);
@@ -223,6 +273,56 @@ begin
   ClearAllKeyStates;
 
   Game.ResetTiming;
+end;
+
+{$F+}
+procedure OkEvent(var Widget: TWidget; var Event: TEvent); far;
+begin
+  if DialogUI.IsEnter(Event) then
+  begin
+    ConfirmDialogAnswer := True;
+    DialogUI.Stop;
+  end;
+end;
+
+procedure CancelEvent(var Widget: TWidget; var Event: TEvent); far;
+begin
+  if DialogUI.IsEnter(Event) then
+  begin
+    ConfirmDialogAnswer := False;
+    DialogUI.Stop;
+  end;
+end;
+{$F-}
+
+
+function TBaseScreen.ShowConfirm(Message: String; UpdateProcedure: TUpdateProcedure): Boolean;
+var
+  MessageLines: TMultiLineText;
+  MessageLineCount: Byte;
+  i: Byte;
+  H: Integer;
+  DialogHeightCalc: Word;
+begin
+  { Calculate message dimensions }
+  SplitLines(Message, MessageLines, MessageLineCount);
+  H := MessageLineCount * FontSmall^.Height;
+
+  { Calculate dialog height: spacing (10) + message height + spacing (10) + 2 buttons (40) + bottom spacing (10) }
+  DialogHeightCalc := 10 + H + 10 + 40 + 10;
+
+  { Initialize dialog without title }
+  InitDialog('', DialogHeightCalc);
+
+  { Add message label }
+  AddDialogLabel(Message);
+
+  AddDialogButton('Cancel', CancelEvent);
+  AddDialogButton('OK', OkEvent);
+
+  ShowDialog(UpdateProcedure);
+
+  ShowConfirm := ConfirmDialogAnswer;
 end;
 
 begin

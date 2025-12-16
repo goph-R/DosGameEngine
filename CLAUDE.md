@@ -69,6 +69,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - LoadFont(xml,font), FreeFont(font), GetLoadFontError
 - PrintFontText(x,y,text,font,fb), PrintFontTextCentered(x,y,text,font,fb), PrintFontTextRight(x,y,text,font,fb)
 - GetTextWidth(text,font)
+- **IMPORTANT**: Font.Padding is only for horizontal character spacing, NOT for vertical line spacing. Use Font.Height for vertical spacing between lines
 
 **PCX.PAS** - PCX image loading and saving (ZSoft PCX v5, Aseprite/GIMP-compatible)
 - Types: TPCXHeader

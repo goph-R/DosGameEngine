@@ -18,7 +18,22 @@ unit VGAUI;
 
 interface
 
-uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Mouse, DRect, RTCTimer;
+uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Mouse, DRect, RTCTimer, StrUtil;
+
+{ ========================================================================== }
+{ Text Alignment Constants                                                   }
+{ ========================================================================== }
+
+const
+  { Horizontal alignment }
+  Align_Left   = 1;
+  Align_Center = 2;
+  Align_Right  = 4;
+
+  { Vertical alignment }
+  Align_Top    = 8;
+  Align_Middle = 16;
+  Align_Bottom = 32;
 
 { ========================================================================== }
 { Event System                                                               }
@@ -102,8 +117,10 @@ type
 type
   { Non-interactive text label }
   TLabel = object(TWidget)
-    Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
+    TextAlign: Byte;
 
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
@@ -115,8 +132,10 @@ type
 
   { Interactive button with 3D panel }
   TButton = object(TWidget)
-    Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
+    TextAlign: Byte;
     Pressed: Boolean;  { Visual state for rendering }
 
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
@@ -130,9 +149,12 @@ type
 
   { Interactive checkbox with image sprite }
   TCheckbox = object(TWidget)
-    Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
+    TextAlign: Byte;
     Image: PImage;
+    ImageAlign: Byte;  { Vertical alignment only (Align_Top, Align_Middle, Align_Bottom) }
     Checked: Boolean;
 
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
@@ -208,6 +230,38 @@ implementation
 
 var
   DefaultStyle: TUIStyle;  { Module-level default style }
+
+{ ========================================================================== }
+{ Alignment Helper Functions                                                 }
+{ ========================================================================== }
+
+{ Calculate aligned X position based on horizontal alignment flags }
+function CalculateAlignedX(StartX, AvailableWidth, ContentWidth: Integer; Align: Byte; DefaultAlign: Byte): Integer;
+begin
+  if (Align and Align_Left) <> 0 then
+    CalculateAlignedX := StartX
+  else if (Align and Align_Center) <> 0 then
+    CalculateAlignedX := StartX + (AvailableWidth - ContentWidth) div 2
+  else if (Align and Align_Right) <> 0 then
+    CalculateAlignedX := StartX + AvailableWidth - ContentWidth
+  else
+    { Use default alignment }
+    CalculateAlignedX := CalculateAlignedX(StartX, AvailableWidth, ContentWidth, DefaultAlign, Align_Left);
+end;
+
+{ Calculate aligned Y position based on vertical alignment flags }
+function CalculateAlignedY(StartY, AvailableHeight, ContentHeight: Integer; Align: Byte; DefaultAlign: Byte): Integer;
+begin
+  if (Align and Align_Top) <> 0 then
+    CalculateAlignedY := StartY
+  else if (Align and Align_Middle) <> 0 then
+    CalculateAlignedY := StartY + (AvailableHeight - ContentHeight) div 2
+  else if (Align and Align_Bottom) <> 0 then
+    CalculateAlignedY := StartY + AvailableHeight - ContentHeight
+  else
+    { Use default alignment }
+    CalculateAlignedY := CalculateAlignedY(StartY, AvailableHeight, ContentHeight, DefaultAlign, Align_Top);
+end;
 
 { ========================================================================== }
 { TUIStyle Implementation                                                    }
@@ -336,39 +390,50 @@ begin
   inherited Init(X, Y, W, H);
   Enabled := False;  { Labels cannot receive focus }
 
-  { Allocate and copy text }
-  New(Text);
-  Text^ := TextStr;
+  { Split text into lines }
+  SplitLines(TextStr, Lines, LineCount);
   Font := FontPtr;
+  TextAlign := Align_Left + Align_Top;
 end;
 
 procedure TLabel.SetText(const NewText: string);
+var
+  i: Byte;
+  MaxWidth: Integer;
+  LineWidth: Integer;
 begin
-  if Text <> nil then
-  begin
-    if Text^ <> NewText then
-    begin
-      Text^ := NewText;
-      { Update width based on new text }
-      Rectangle.Width := GetTextWidth(NewText, Font^);
-      MarkDirty;  { Label text changed }
-    end;
-  end;
+  SplitLines(NewText, Lines, LineCount);
+  MarkDirty;
 end;
 
 procedure TLabel.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
+var
+  i: Byte;
+  X, Y: Integer;
+  LineWidth: Integer;
+  TotalHeight: Integer;
 begin
   if not Visible then Exit;
-  PrintFontText(Rectangle.X, Rectangle.Y, Text^, Font^, FrameBuffer);
+
+  { Calculate total height of all lines }
+  TotalHeight := LineCount * Font^.Height;
+
+  { Calculate starting Y position using helper }
+  Y := CalculateAlignedY(Rectangle.Y, Rectangle.Height, TotalHeight, TextAlign, Align_Top);
+
+  { Render each line }
+  for i := 0 to LineCount - 1 do
+  begin
+    LineWidth := GetTextWidth(Lines[i], Font^);
+    X := CalculateAlignedX(Rectangle.X, Rectangle.Width, LineWidth, TextAlign, Align_Left);
+    PrintFontText(X, Y, Lines[i], Font^, FrameBuffer);
+    Inc(Y, Font^.Height);
+  end;
 end;
 
 destructor TLabel.Done;
 begin
-  if Text <> nil then
-  begin
-    Dispose(Text);
-    Text := nil;
-  end;
+  { No dynamic memory to free - Lines is a static array }
 end;
 
 { ========================================================================== }
@@ -379,17 +444,18 @@ constructor TButton.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontP
 begin
   inherited Init(X, Y, W, H);
 
-  { Allocate and copy text }
-  New(Text);
-  Text^ := TextStr;
+  { Split text into lines }
+  SplitLines(TextStr, Lines, LineCount);
   Font := FontPtr;
+  TextAlign := Align_Center + Align_Middle;
   Pressed := False;
 end;
 
 procedure TButton.SetText(const NewText: string);
 begin
-  if Text <> nil then
-    Text^ := NewText;
+  { Split text into lines }
+  SplitLines(NewText, Lines, LineCount);
+  MarkDirty;  { Text changed }
 end;
 
 procedure TButton.HandleEvent(var Event: TEvent);
@@ -440,21 +506,33 @@ end;
 
 procedure TButton.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
-  TextWidth: Integer;
+  i: Byte;
+  LineWidth: Integer;
   TextX, TextY: Integer;
+  TotalHeight: Integer;
 begin
   if not Visible then Exit;
 
   { Render 3D panel border using shared style instance }
   Style^.RenderPanel(Rectangle, Pressed, FrameBuffer);
 
-  { Render centered text }
-  if (Text <> nil) and (Font <> nil) then
+  { Render text (all lines) with alignment }
+  if (LineCount > 0) and (Font <> nil) then
   begin
-    TextWidth := GetTextWidth(Text^, Font^);
-    TextX := Rectangle.X + (Rectangle.Width - TextWidth) div 2;
-    TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
-    PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
+    { Calculate total height of all lines }
+    TotalHeight := LineCount * Font^.Height;
+
+    { Calculate starting Y position using helper (default to middle) }
+    TextY := CalculateAlignedY(Rectangle.Y, Rectangle.Height, TotalHeight, TextAlign, Align_Middle);
+
+    { Render each line }
+    for i := 0 to LineCount - 1 do
+    begin
+      LineWidth := GetTextWidth(Lines[i], Font^);
+      TextX := CalculateAlignedX(Rectangle.X, Rectangle.Width, LineWidth, TextAlign, Align_Center);
+      PrintFontText(TextX, TextY, Lines[i], Font^, FrameBuffer);
+      Inc(TextY, Font^.Height);
+    end;
   end;
 
   RenderFocusRectangle(FrameBuffer, Style);
@@ -462,11 +540,7 @@ end;
 
 destructor TButton.Done;
 begin
-  if Text <> nil then
-  begin
-    Dispose(Text);
-    Text := nil;
-  end;
+  { No dynamic memory to free - Lines is a static array }
 end;
 
 { ========================================================================== }
@@ -479,17 +553,19 @@ begin
 
   Image := CheckboxImage;
 
-  { Allocate and copy text }
-  New(Text);
-  Text^ := TextStr;
+  { Split text into lines }
+  SplitLines(TextStr, Lines, LineCount);
   Font := FontPtr;
+  TextAlign := Align_Left + Align_Middle;
+  ImageAlign := Align_Middle;
   Checked := False;
 end;
 
 procedure TCheckbox.SetText(const NewText: string);
 begin
-  if Text <> nil then
-    Text^ := NewText;
+  { Split text into lines }
+  SplitLines(NewText, Lines, LineCount);
+  MarkDirty;  { Text changed }
 end;
 
 procedure TCheckbox.SetChecked(Value: Boolean);
@@ -543,13 +619,22 @@ end;
 
 procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
 var
+  i: Byte;
   SrcRect: TRectangle;
+  ImageX, ImageY: Integer;
   TextX, TextY: Integer;
   ImageHeight: Word;
+  TextTotalHeight: Integer;
+  TextAreaX: Integer;
+  TextAreaWidth: Integer;
+  LineWidth: Integer;
 begin
   if not Visible then Exit;
 
   ImageHeight := Image^.Height shr 1;
+
+  { Calculate checkbox image Y position using helper (vertical only, default to middle) }
+  ImageY := CalculateAlignedY(Rectangle.Y, Rectangle.Height, ImageHeight, ImageAlign, Align_Middle);
 
   { Render checkbox image (row 0=unchecked, row 1=checked) }
   SrcRect.X := 0;
@@ -559,24 +644,39 @@ begin
     SrcRect.Y := 0;
   SrcRect.Width := Image^.Width;
   SrcRect.Height := ImageHeight;
-  
-  PutImageRect(Image^, SrcRect, Rectangle.X, Rectangle.Y + (Rectangle.Height - ImageHeight) shr 1, True, FrameBuffer);
 
-  { Render text vertically centered }
-  TextX := Rectangle.X + Image^.Width + 4;
-  TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) shr 1;
-  PrintFontText(TextX, TextY, Text^, Font^, FrameBuffer);
+  ImageX := Rectangle.X;
+  PutImageRect(Image^, SrcRect, ImageX, ImageY, True, FrameBuffer);
+
+  { Calculate text area (subtract checkbox image width from available space) }
+  TextAreaX := Rectangle.X + Image^.Width + 4;
+  TextAreaWidth := Integer(Rectangle.Width) - Image^.Width - 4;
+
+  { Render text (all lines) with alignment }
+  if LineCount > 0 then
+  begin
+    { Calculate total height of all lines }
+    TextTotalHeight := LineCount * Font^.Height;
+
+    { Calculate starting Y position using helper (default to top) }
+    TextY := CalculateAlignedY(Rectangle.Y, Rectangle.Height, TextTotalHeight, TextAlign, Align_Top);
+
+    { Render each line }
+    for i := 0 to LineCount - 1 do
+    begin
+      LineWidth := GetTextWidth(Lines[i], Font^);
+      TextX := CalculateAlignedX(TextAreaX, TextAreaWidth, LineWidth, TextAlign, Align_Left);
+      PrintFontText(TextX, TextY, Lines[i], Font^, FrameBuffer);
+      Inc(TextY, Font^.Height);
+    end;
+  end;
 
   RenderFocusRectangle(FrameBuffer, Style);
 end;
 
 destructor TCheckbox.Done;
 begin
-  if Text <> nil then
-  begin
-    Dispose(Text);
-    Text := nil;
-  end;
+  { No dynamic memory to free - Lines is a static array }
 end;
 
 { ========================================================================== }

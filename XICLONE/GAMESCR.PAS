@@ -60,10 +60,10 @@ type
     Level: Integer;
     Blocks: Integer;
     NeedMatchCheck: Boolean;
+    NeedSpawnRetry: Boolean;  { Retry spawn after matches clear }
     FlashTimer: Real;
     FlashActive: Boolean;
     FlashTiles: array[0..PlayfieldCols * PlayfieldRows - 1] of Boolean;
-    GameOver: Boolean;
 
     { HUD tracking - for dirty rectangle optimization }
     LastScore: LongInt;
@@ -76,8 +76,12 @@ type
     { Flash message }
     FlashMessageText: String;
     FlashMessageTimer: Real;
-    FlashMessageActive: Boolean;
     FlashMessageNeedsClear: Boolean;
+    FlashMessageActive: Boolean;
+    FlashMessageBackground: TImage;  { Saved area under flash message }
+    FlashMessageBackgroundX: Integer;
+    FlashMessageBackgroundY: Integer;
+    FlashMessageWasOn: Boolean;
 
     { High scores }
     HighScoreReached: Boolean;
@@ -134,6 +138,19 @@ const
 
 implementation
 
+type
+  TGameDialog = (
+    Dialog_None,
+    Dialog_Paused,
+    Dialog_GameOver,
+    Dialog_ConfirmRestart,
+    Dialog_ConfirmQuit
+  );
+
+var
+  NextGameDialog: TGameDialog;
+  BackGameDialog: TGameDialog;
+
 constructor TGameScreen.Init;
 begin
   inherited Init;
@@ -143,6 +160,7 @@ begin
   FlashMessageTimer := 0.0;
   FlashMessageText := '';
   FlashMessageNeedsClear := False;
+  FlashMessageBackground.Data := nil;  { Initialize to prevent freeing garbage }
 
   { Initialize high score state }
   HighScoreReached := False;
@@ -150,6 +168,7 @@ end;
 
 destructor TGameScreen.Done;
 begin
+  FreeImage(FlashMessageBackground);
 end;
 
 procedure TGameScreen.DrawStaticHUD;
@@ -199,9 +218,11 @@ begin
   Level := 1;
   Blocks := 0;
   NeedMatchCheck := False;
+  NeedSpawnRetry := False;
   FlashActive := False;
   FlashTimer := 0.0;
-  GameOver := False;
+  NextGameDialog := Dialog_None;
+  BackGameDialog := Dialog_None;
 
   { Reset high score flag for new game session }
   HighScoreReached := False;
@@ -229,11 +250,16 @@ end;
 procedure TGameScreen.ShowFlashMessage(Text: String; SoundName: String);
 var
   SoundID: Integer;
+  TextWidth: Integer;
+  TextX, TextY: Integer;
 begin
   FlashMessageText := Text;
   FlashMessageActive := True;
+  FlashMessageWasOn := False;
   FlashMessageTimer := 0.0;
   FlashMessageNeedsClear := False;
+
+  FreeImage(FlashMessageBackground);
 
   { Play sound if specified }
   if SoundName <> '' then
@@ -306,8 +332,24 @@ begin
 
   if not SpawnStack(False) then
   begin
-    { Game Over - couldn't spawn new stack }
-    GameOver := True;
+    { Check if there are any matches that could clear space }
+    { If no matches, it's truly game over }
+    if not FlashActive then  { Don't check if already flashing }
+    begin
+      if FindAndRemoveMatches = 0 then
+      begin
+        { Game Over - couldn't spawn and no matches to clear }
+        NextGameDialog := Dialog_GameOver;
+      end
+      else
+      begin
+        { Matches found - start flash effect and retry spawn after clear }
+        FlashActive := True;
+        FlashTimer := 0.0;
+        NeedSpawnRetry := True;
+        { Note: Don't set NeedMatchCheck - we already handled the match }
+      end;
+    end;
   end
   else
   begin
@@ -431,21 +473,28 @@ end;
 procedure PauseDialogUpdate;
 begin
   if IsKeyPressed(Key_Escape) then
+  begin
+    NextGameDialog := Dialog_None;
     DialogUI.Stop;
+  end;
 end;
 
 procedure PauseContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
+  begin
+    NextGameDialog := Dialog_None;
     DialogUI.Stop;
+  end;
 end;
 
 procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
   begin
+    NextGameDialog := Dialog_ConfirmQuit;
+    BackGameDialog := Dialog_Paused;
     DialogUI.Stop;
-    Game.Stop;
   end;
 end;
 
@@ -460,15 +509,30 @@ end;
 procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
+  begin
+    NextGameDialog := Dialog_ConfirmRestart;
+    BackGameDialog := Dialog_GameOver;
     DialogUI.Stop;
+  end;
 end;
 
 procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
   begin
+    NextGameDialog := Dialog_ConfirmQuit;
+    BackGameDialog := Dialog_GameOver;
     DialogUI.Stop;
-    Game.Stop;
+  end;
+end;
+
+procedure ConfirmDialogUpdate;
+begin
+  if IsKeyPressed(Key_Escape) then
+  begin
+    ConfirmDialogAnswer := False;  { Treat Escape as cancel }
+    NextGameDialog := BackGameDialog;
+    DialogUI.Stop;
   end;
 end;
 
@@ -484,12 +548,14 @@ begin
 
   { Determine dialog height based on high score }
   if HighScoreReached then
-    DialogHeight := 98  { 78 + 20 for extra button }
+    DialogHeight := 128  { 108 + 20 for extra button }
   else
-    DialogHeight := 78;
+    DialogHeight := 108;
 
   { Create game over dialog }
   InitDialog('GAME OVER', DialogHeight);
+
+  AddDialogLabel(ScoreText);
 
   { Add Submit Score button if high score was reached }
   if HighScoreReached then
@@ -501,78 +567,112 @@ begin
   { Run dialog event loop }
   ShowDialog(nil);
 
-  { Check which button was pressed }
-  if Game.Running then
-  begin
-    { Restart was selected - reset game state }
-    ResetGameState;
-    FullRender;
-  end;
-  { Otherwise, Quit was selected and Game.Stop was called }
+  FullRender;
 end;
+
 
 procedure TGameScreen.Update(DT: Real);
 begin
-  { Check for Game Over }
-  if GameOver then
-  begin
-    ShowGameOver;
-    Exit;  { ShowGameOver handles restart or quit }
-  end;
 
-  { Pause on ESC }
-  if IsKeyPressed(Key_Escape) then
+  if NextGameDialog = Dialog_GameOver then
+    ShowGameOver;
+
+  if NextGameDialog = Dialog_Paused then
   begin
-    { Create dialog }
-    InitDialog('PAUSED', 78);
+    InitDialog('PAUSED', 88);
     AddDialogButton('Continue Game', PauseContinueButtonEvent);
     AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
-
-    { Run dialog event loop }
     ShowDialog(PauseDialogUpdate);
 
-    { Re-render the game }
     FullRender;
   end;
 
-  { Update flash timer }
-  if FlashActive then
+  if NextGameDialog = Dialog_ConfirmRestart then
   begin
-    FlashTimer := FlashTimer + DT;
-
-    { After 0.5 seconds of flashing, remove gems and apply gravity }
-    if FlashTimer >= 0.5 then
+    if ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
     begin
-      FlashActive := False;
-      RemoveFlashedGems;
-      ApplyGravity;
+      ResetGameState;
+      NextGameDialog := Dialog_None;
+    end
+    else
+      NextGameDialog := BackGameDialog;
 
-      { Check for new matches after gravity }
-      NeedMatchCheck := True;
-    end;
-  end
-  else
-  begin
-    { Only allow stack movement when not flashing }
-    HandleStackInput;
-    UpdateFallingStack(DT);
+    FullRender;
   end;
 
-  { Update flash message timer }
-  if FlashMessageActive then
+  if NextGameDialog = Dialog_ConfirmQuit then
   begin
-    FlashMessageTimer := FlashMessageTimer + DT;
-
-    { After 0.5 seconds of flashing, hide message and mark for clear }
-    if FlashMessageTimer >= 1.0 then
+    if ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
     begin
-      FlashMessageActive := False;
-      FlashMessageNeedsClear := True;
+      Game.Stop;
+      Exit;
     end;
+
+    NextGameDialog := BackGameDialog;
+    FullRender;
   end;
 
-  { Render frame }
-  RenderFrame;
+  if NextGameDialog = Dialog_None then
+  begin
+    { Pause on ESC }
+    if IsKeyPressed(Key_Escape) then
+    begin
+      NextGameDialog := Dialog_Paused;
+      BackGameDialog := Dialog_None;
+    end;  
+
+    { Update flash timer }
+    if FlashActive then
+    begin
+      FlashTimer := FlashTimer + DT;
+
+      { After 0.5 seconds of flashing, remove gems and apply gravity }
+      if FlashTimer >= 0.5 then
+      begin
+        FlashActive := False;
+        RemoveFlashedGems;
+        ApplyGravity;
+
+        { Retry spawn if needed (from failed spawn at top) }
+        if NeedSpawnRetry then
+        begin
+          NeedSpawnRetry := False;
+          if not SpawnStack(False) then
+          begin
+            { Still can't spawn - game over }
+            NextGameDialog := Dialog_GameOver;
+          end
+          else
+          begin
+            RenderNextStack;
+          end;
+        end;
+
+        { Check for new matches after gravity }
+        NeedMatchCheck := True;
+      end;
+    end
+    else
+    begin
+      { Only allow stack movement when not flashing }
+      HandleStackInput;
+      UpdateFallingStack(DT);
+    end;
+
+    { Render frame }
+    RenderFrame;
+
+    { Update flash message timer, after render! }
+    if FlashMessageActive then
+    begin
+      FlashMessageTimer := FlashMessageTimer + DT;
+
+      { After 0.5 seconds of flashing, hide message and mark for clear }
+      if FlashMessageTimer >= 1.0 then
+        FlashMessageActive := False;
+    end;
+
+  end;
 end;
 
 { Initialization }
@@ -1042,53 +1142,50 @@ var
   TextX, TextY: Integer;
   R: TRectangle;
 begin
-  { Handle final clear after flash ends }
-  if FlashMessageNeedsClear then
-  begin
-    TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
-    TextX := 160 - (TextWidth div 2);
-    TextY := 100 - (FontLarge^.Height div 2);
-
-    { Clear the message area }
-    R.X := TextX;
-    R.Y := TextY;
-    R.Width := TextWidth;
-    R.Height := FontLarge^.Height;
-    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
-    AddDirtyRect(R);
-
-    FlashMessageNeedsClear := False;
-    Exit;
-  end;
-
-  if not FlashMessageActive then Exit;
-
-  { Calculate flash state (blink every 200ms) }
-  FlashOn := Trunc(FlashMessageTimer * 5) mod 2 = 0;
-
-  { Calculate centered position }
+  { Always calculate text position and rectangle }
   TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
   TextX := 160 - (TextWidth div 2);
   TextY := 100 - (FontLarge^.Height div 2);
 
-  { Setup dirty rectangle }
   R.X := TextX;
   R.Y := TextY;
   R.Width := TextWidth;
   R.Height := FontLarge^.Height;
 
-  if FlashOn then
+  { Handle final clear when flash message ends }
+  if not FlashMessageActive then
   begin
-    { Render centered text when flash is on }
-    PrintFontText(TextX, TextY, FlashMessageText, FontLarge^, Game.BackBuffer);
-  end
-  else
-  begin
-    { Clear area when flash is off (restore background) }
-    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
+    if FlashMessageNeedsClear then
+    begin
+      AddDirtyRect(R);
+      FlashMessageNeedsClear := False;
+    end;
+    Exit;
   end;
 
-  AddDirtyRect(R);
+  { Calculate flash state (blink every 200ms) }
+  FlashOn := Trunc(FlashMessageTimer * 5) mod 2 = 0;
+
+  { Only draw text when flash is on }
+  if FlashOn then
+  begin
+    { Save the background }
+    GetImage(FlashMessageBackground, TextX, TextY, TextWidth, FontLarge^.Height, Game.BackBuffer);
+    FlashMessageBackgroundX := TextX;
+    FlashMessageBackgroundY := TextY;
+
+    { Need to clear after dirty rectangles flushed }
+    FlashMessageNeedsClear := True;
+
+    { Draw the text }
+    PrintFontText(TextX, TextY, FlashMessageText, FontLarge^, Game.BackBuffer);
+  end;
+
+  { Add dirty rect when flash turns on or off }
+  if (FlashOn) or (not FlashOn and FlashMessageWasOn) then
+    AddDirtyRect(R);
+
+  FlashMessageWasOn := FlashOn;
 end;
 
 procedure TGameScreen.RenderHUD;
@@ -1203,6 +1300,10 @@ begin
   { Copy dirty regions to screen }
   FlushDirtyRects(Game.BackBuffer);
 
+  { Clear the flashing message if needed }
+  if FlashMessageNeedsClear then
+    PutImage(FlashMessageBackground, FlashMessageBackgroundX, FlashMessageBackgroundY, False, Game.BackBuffer);
+
   { Check for matches AFTER rendering (deferred from LandStack) }
   if NeedMatchCheck then
   begin
@@ -1235,4 +1336,7 @@ begin
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
 end;
 
+begin
+  NextGameDialog := Dialog_None;
+  BackGameDialog := Dialog_None;
 end.

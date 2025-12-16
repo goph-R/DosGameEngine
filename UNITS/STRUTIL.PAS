@@ -2,6 +2,12 @@ unit StrUtil;
 
 interface
 
+const
+  MaxMultiLines = 16;  { Maximum number of lines for multi-line text }
+
+type
+  TMultiLineText = array[0..MaxMultiLines - 1] of string;
+
 { Helper: Convert string to integer }
 function StrToInt(const S: string): Integer;
 
@@ -19,6 +25,10 @@ function HexStr(Value: Word; Digits: Byte): string;
 
 { Converts a hexadecimal string to a Word }
 function HexStrToWord(const S: string): Word;
+
+{ Splits a string into multiple lines, normalizing line endings }
+{ Returns the number of lines in the output }
+procedure SplitLines(const S: string; var Lines: TMultiLineText; var LineCount: Byte);
 
 implementation
 
@@ -124,6 +134,75 @@ begin
   end;
 
   HexStrToWord := Result;
+end;
+
+procedure SplitLines(const S: string; var Lines: TMultiLineText; var LineCount: Byte);
+var
+  Normalized: string;
+  i, Start: Integer;
+  Ch: Char;
+begin
+  { Initialize output }
+  LineCount := 0;
+  if Length(S) = 0 then
+    Exit;
+
+  { Step 1: Normalize line endings - replace \r\n with \n }
+  Normalized := '';
+  i := 1;
+  while i <= Length(S) do
+  begin
+    if (i < Length(S)) and (S[i] = #13) and (S[i + 1] = #10) then
+    begin
+      { \r\n -> \n }
+      Normalized := Normalized + #10;
+      Inc(i, 2);
+    end
+    else if S[i] = #13 then
+    begin
+      { \r -> \n }
+      Normalized := Normalized + #10;
+      Inc(i);
+    end
+    else
+    begin
+      { Regular character }
+      Normalized := Normalized + S[i];
+      Inc(i);
+    end;
+  end;
+
+  { Step 2: Split by \n }
+  Start := 1;
+  i := 1;
+  while (i <= Length(Normalized)) and (LineCount < MaxMultiLines) do
+  begin
+    if Normalized[i] = #10 then
+    begin
+      { Found newline - extract line }
+      if i > Start then
+        Lines[LineCount] := Copy(Normalized, Start, i - Start)
+      else
+        Lines[LineCount] := '';
+      Inc(LineCount);
+      Start := i + 1;
+    end;
+    Inc(i);
+  end;
+
+  { Add last line if there's remaining text and we haven't hit the limit }
+  if (Start <= Length(Normalized)) and (LineCount < MaxMultiLines) then
+  begin
+    Lines[LineCount] := Copy(Normalized, Start, Length(Normalized) - Start + 1);
+    Inc(LineCount);
+  end;
+
+  { If no newlines were found and we have text, add it as a single line }
+  if (LineCount = 0) and (Length(Normalized) > 0) then
+  begin
+    Lines[0] := Normalized;
+    LineCount := 1;
+  end;
 end;
 
 end.

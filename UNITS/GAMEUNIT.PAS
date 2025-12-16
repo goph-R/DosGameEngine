@@ -6,7 +6,7 @@ unit GameUnit;
 interface
 
 uses
-  VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP, ResMan, PlayHSC;
+  VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP, ResMan, PlayHSC, VGAUI;
 
 type
   { Forward declarations }
@@ -15,12 +15,15 @@ type
 
   { Screen object - abstract base for game states/screens }
   TScreen = object
+    DialogLabel: PLabel;
+
     constructor Init;
     destructor Done; virtual;
     procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
     procedure Show; virtual;
     procedure Hide; virtual;
+    procedure AddDialogLabel(ADialogLabel: PLabel);
   end;
 
   { Main game object }
@@ -84,6 +87,7 @@ implementation
 constructor TScreen.Init;
 begin
   { Base implementation - override in derived screens }
+  DialogLabel := nil;
 end;
 
 destructor TScreen.Done;
@@ -109,6 +113,11 @@ end;
 procedure TScreen.Hide;
 begin
   { Base implementation - override in derived screens }
+end;
+
+procedure TScreen.AddDialogLabel(ADialogLabel: PLabel);
+begin
+  DialogLabel := ADialogLabel;
 end;
 
 { ========== TGame Implementation ========== }

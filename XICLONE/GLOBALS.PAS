@@ -37,6 +37,9 @@ var
 
   HighScoreTable: THighScore;
 
+  ConfirmDialogAnswer: Boolean;
+
+
 procedure DrawGem(GemColor: TGemColor; X, Y: Integer);  
 
 implementation
