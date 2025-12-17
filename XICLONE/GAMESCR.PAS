@@ -65,6 +65,10 @@ type
     FlashActive: Boolean;
     FlashTiles: array[0..PlayfieldCols * PlayfieldRows - 1] of Boolean;
 
+    { Combo system }
+    ComboMultiplier: Integer;  { Current combo multiplier (1 = no combo, 2 = 2x, etc.) }
+    IsComboCheck: Boolean;     { True if current match check is part of gravity combo chain }
+
     { HUD tracking - for dirty rectangle optimization }
     LastScore: LongInt;
     LastLevel: Integer;
@@ -211,6 +215,10 @@ begin
   NextDialog := Dialog_None;
   BackDialog := Dialog_None;
 
+  { Reset combo system }
+  ComboMultiplier := 1;
+  IsComboCheck := False;
+
   { Reset high score flag for new game session }
   HighScoreReached := False;
 
@@ -260,6 +268,7 @@ end;
 procedure TGameScreen.CheckForMatches;
 var
   GemsRemoved: Integer;
+  ComboText: String;
 begin
   { Find matches and mark them for flashing }
   GemsRemoved := FindAndRemoveMatches;
@@ -270,8 +279,20 @@ begin
     FlashActive := True;
     FlashTimer := 0.0;
 
-    { Update score }
-    Inc(Score, GemsRemoved * 10);
+    { Handle combo system }
+    if IsComboCheck then
+    begin
+      { This is a match after gravity - increment combo }
+      Inc(ComboMultiplier);
+      if ComboMultiplier > 1 then
+      begin
+        ComboText := IntToStr(ComboMultiplier) + 'x combo!';
+        ShowFlashMessage(ComboText, '');
+      end;
+    end;
+
+    { Update score with combo multiplier }
+    Inc(Score, GemsRemoved * 10 * ComboMultiplier);
 
     { Check for high score (only show message once per session) }
     if (not HighScoreReached) and IsHighScore(HighScoreTable, Score) then
@@ -279,6 +300,11 @@ begin
       HighScoreReached := True;
       ShowFlashMessage('High Score!', '');
     end;
+  end
+  else
+  begin
+    { No matches found - reset combo }
+    ComboMultiplier := 1;
   end;
 end;
 
@@ -342,6 +368,9 @@ begin
   begin
     RenderNextStack;
     { Schedule match check for next frame (after render completes) }
+    { This is NOT a combo check - it's the first match after landing }
+    ComboMultiplier := 1;
+    IsComboCheck := False;
     NeedMatchCheck := True;
   end;
 end;
@@ -637,6 +666,8 @@ begin
         end;
 
         { Check for new matches after gravity }
+        { Any matches found now are part of a combo chain }
+        IsComboCheck := True;
         NeedMatchCheck := True;
       end;
     end
