@@ -800,6 +800,14 @@ begin
 end;
 
 function TGameScreen.FindAndRemoveMatches: Integer;
+const
+  { Direction vectors: DX, DY for horizontal, vertical, and two diagonals }
+  Directions: array[0..3, 0..1] of Integer = (
+    (1, 0),   { Horizontal right }
+    (0, 1),   { Vertical down }
+    (1, 1),   { Diagonal down-right }
+    (-1, 1)   { Diagonal down-left }
+  );
 var
   X, Y: Integer;
   Color: TGemColor;
@@ -808,6 +816,8 @@ var
   MarkForRemoval: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
   i, MarkX, MarkY: Integer;
   TileIndex: Integer;
+  Dir: Integer;
+  DX, DY: Integer;
 begin
   GemsRemoved := 0;
 
@@ -826,55 +836,23 @@ begin
       { Skip empty tiles }
       if Color = Gem_Empty then Continue;
 
-      { Check horizontal (right) }
-      MatchLen := CountMatchInDirection(X, Y, 1, 0, Color);
-      if MatchLen >= 3 then
+      { Check all four directions }
+      for Dir := 0 to 3 do
       begin
-        for i := 0 to MatchLen - 1 do
-        begin
-          MarkX := X + i;
-          if (MarkX >= 0) and (MarkX < PlayfieldCols) then
-            MarkForRemoval[MarkX, Y] := True;
-        end;
-      end;
+        DX := Directions[Dir, 0];
+        DY := Directions[Dir, 1];
 
-      { Check vertical (down) }
-      MatchLen := CountMatchInDirection(X, Y, 0, 1, Color);
-      if MatchLen >= 3 then
-      begin
-        for i := 0 to MatchLen - 1 do
+        MatchLen := CountMatchInDirection(X, Y, DX, DY, Color);
+        if MatchLen >= 3 then
         begin
-          MarkY := Y + i;
-          if (MarkY >= 0) and (MarkY < PlayfieldRows) then
-            MarkForRemoval[X, MarkY] := True;
-        end;
-      end;
-
-      { Check diagonal down-right }
-      MatchLen := CountMatchInDirection(X, Y, 1, 1, Color);
-      if MatchLen >= 3 then
-      begin
-        for i := 0 to MatchLen - 1 do
-        begin
-          MarkX := X + i;
-          MarkY := Y + i;
-          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
-             (MarkY >= 0) and (MarkY < PlayfieldRows) then
-            MarkForRemoval[MarkX, MarkY] := True;
-        end;
-      end;
-
-      { Check diagonal down-left }
-      MatchLen := CountMatchInDirection(X, Y, -1, 1, Color);
-      if MatchLen >= 3 then
-      begin
-        for i := 0 to MatchLen - 1 do
-        begin
-          MarkX := X - i;
-          MarkY := Y + i;
-          if (MarkX >= 0) and (MarkX < PlayfieldCols) and
-             (MarkY >= 0) and (MarkY < PlayfieldRows) then
-            MarkForRemoval[MarkX, MarkY] := True;
+          for i := 0 to MatchLen - 1 do
+          begin
+            MarkX := X + (i * DX);
+            MarkY := Y + (i * DY);
+            if (MarkX >= 0) and (MarkX < PlayfieldCols) and
+               (MarkY >= 0) and (MarkY < PlayfieldRows) then
+              MarkForRemoval[MarkX, MarkY] := True;
+          end;
         end;
       end;
     end;
