@@ -3,7 +3,7 @@
 
 program PCXTest;
 
-uses VGA, PCX, Crt;
+uses VGA, PCX, Keyboard;
 
 var
   FrameBuffer: PFrameBuffer;
@@ -11,7 +11,6 @@ var
   Palette: TPalette;
 
 begin
-  ClrScr;
   WriteLn('PCX Image Loader Test');
   WriteLn('=====================');
   WriteLn;
@@ -29,7 +28,9 @@ begin
   WriteLn('Dimensions: ', TestImage.Width, 'x', TestImage.Height);
   WriteLn;
   WriteLn('Press any key to save image...');
-  ReadKey;
+  InitKeyboard;
+  repeat until IsKeyPressed(Key_Space) or IsKeyPressed(Key_Enter) or IsKeyPressed(Key_Escape);
+  ClearKeyPressed;
 
   { Save PCX image with palette }
   WriteLn('Saving TEST-OUT.PCX...');
@@ -51,10 +52,12 @@ begin
   RenderFrameBuffer(FrameBuffer);
 
   { Wait for keypress }
-  ReadKey;
+  repeat until IsKeyPressed(Key_Space) or IsKeyPressed(Key_Enter) or IsKeyPressed(Key_Escape);
+  ClearKeyPressed;
 
   { Cleanup }
   CloseVGA;
+  DoneKeyboard;
   FreeFrameBuffer(FrameBuffer);
   FreeImage(TestImage);
 

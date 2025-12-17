@@ -1,6 +1,6 @@
 program Setup;
 
-uses Crt, TextUI, Keyboard, Config, PlayHSC, SBDSP, VocLoad, StrUtil;
+uses TextUI, Keyboard, Config, PlayHSC, SBDSP, VocLoad, StrUtil;
 
 const
   TestMusic = '..\TESTS\DATA\FANTASY.HSC';

@@ -7,7 +7,7 @@ program ImgTest;
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  GameUnit, VGA, VGAPrint, PCX, Crt, Dos, PlayHSC, Config, Keyboard;
+  GameUnit, VGA, VGAPrint, PCX, Dos, PlayHSC, Config, Keyboard;
 
 type
   TTestSprite = record
@@ -238,7 +238,6 @@ end;
 { ========== Main Program ========== }
 
 begin
-  ClrScr;
   WriteLn('IMGTEST - Image Operations Test (GameUnit)');
   WriteLn('===========================================');
   WriteLn;

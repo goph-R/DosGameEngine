@@ -1,7 +1,7 @@
 program XiClone;
 
 uses
-  Crt, GameUnit, GameScr;
+  GameUnit, GameScr;
 
 var
   GameScreen: PGameScreen;

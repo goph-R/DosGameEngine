@@ -135,6 +135,12 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - IRQ8 on slave PIC - no conflict with HSC (IRQ0)
 - **CRITICAL**: Call DoneRTC before exit. NEVER mask IRQ2 (cascade)
 
+**DELAY.PAS** - CRT-free delay routine (2025)
+- DelayMS(Milliseconds)
+- Uses BIOS timer tick at $0040:$006C (~18.2 Hz)
+- Fixes Runtime Error 200 (CRT unit bug on fast CPUs >200 MHz)
+- No initialization required, always available
+
 **KEYBOARD.PAS** - INT 9h keyboard handler
 - InitKeyboard, DoneKeyboard, IsKeyDown(scancode), IsKeyPressed(scancode), ClearKeyPressed
 - Constants: Key_A..Key_Z, Key_0..Key_9, Key_F1..Key_F12
@@ -408,23 +414,24 @@ MD5Final(digest, ctx);
 
 1. **Interrupts**: Always call Done/Unhook before exit (HSC_obj.Done, DoneKeyboard, DoneRTC, UninstallHandler) or system hangs
 2. **IRQ2**: NEVER mask IRQ2 (slave PIC cascade) - disables all IRQ8-15 (mouse, etc.)
-3. **ExitProc**: Install handler to unhook on Ctrl+C/Break
-4. **Sound buffers**: Don't free while `Playing=True` (DMA read errors)
-5. **HSC + Sound**: Don't `while Playing` loop with HSC active (freezes)
-6. **VGA cleanup**: Call CloseVGA before exit
-7. **Memory**: Match Create/Free pairs
-8. **Keyboard**: ClearKeyPressed at END of loop
-9. **DMA**: SBDSP handles 64KB boundaries automatically
-10. **Palette**: PCX palette values 0-255 auto-converted to 0-63 for VGA DAC
-11. **Paths**: DOS 8.3, backslashes
-12. **IRQ0 conflict**: Never read PIT Timer 0 or hook IRQ0 with HSC active. Use RTCTimer (IRQ8) - completely isolated
-13. **VMT initialization**: Objects with virtual methods MUST use `New(Ptr, Constructor)` syntax, not `New(Ptr); Ptr^.Init`
-14. **VGA clipping**: DrawFillRect includes clipping; widgets assume screen bounds (0-319, 0-199)
-15. **Logging**: LOGGER.PAS is for startup/shutdown only - file I/O in render loops causes Runtime Error 202 (stack overflow)
-16. **DeltaTime convention**: Use Real for DeltaTime in seconds. CurrentTime/LastTime should be Real (from GetTimeSeconds). Calculate DeltaTime as `CurrentTime - LastTime`. InitRTC(1024) provides millisecond precision via RTC_Ticks for accurate sub-second timing
-17. **ReadKey conflict**: NEVER use ReadKey or other CRT input functions when KEYBOARD.PAS unit is active - it hooks INT 9h and manages keyboard state. Use IsKeyPressed/IsKeyDown instead. For debugging, use LOGGER.PAS instead of WriteLn/ReadKey
-18. **Shift overflow**: Integer literals are 16-bit by default. Large shifts like `320 shl 10` overflow to 0. Cast to LongInt first: `LongInt(320) shl 10` for fixed-point math
-19. **Record return types**: NEVER use records as function return types - Turbo Pascal 7.0 copies the entire structure on return. Use a procedure with `var` parameter (usually last) instead. Example: `procedure MergeRects(R1, R2: TRect; var Result: TRect)` instead of `function MergeRects(R1, R2: TRect): TRect`
+3. **CRT Unit**: NEVER use Crt unit - causes Runtime Error 200 on fast CPUs (>200 MHz). Use Delay.DelayMS instead of Crt.Delay, Keyboard.IsKeyPressed instead of Crt.KeyPressed
+4. **ExitProc**: Install handler to unhook on Ctrl+C/Break
+5. **Sound buffers**: Don't free while `Playing=True` (DMA read errors)
+6. **HSC + Sound**: Don't `while Playing` loop with HSC active (freezes)
+7. **VGA cleanup**: Call CloseVGA before exit
+8. **Memory**: Match Create/Free pairs
+9. **Keyboard**: ClearKeyPressed at END of loop
+10. **DMA**: SBDSP handles 64KB boundaries automatically
+11. **Palette**: PCX palette values 0-255 auto-converted to 0-63 for VGA DAC
+12. **Paths**: DOS 8.3, backslashes
+13. **IRQ0 conflict**: Never read PIT Timer 0 or hook IRQ0 with HSC active. Use RTCTimer (IRQ8) - completely isolated
+14. **VMT initialization**: Objects with virtual methods MUST use `New(Ptr, Constructor)` syntax, not `New(Ptr); Ptr^.Init`
+15. **VGA clipping**: DrawFillRect includes clipping; widgets assume screen bounds (0-319, 0-199)
+16. **Logging**: LOGGER.PAS is for startup/shutdown only - file I/O in render loops causes Runtime Error 202 (stack overflow)
+17. **DeltaTime convention**: Use Real for DeltaTime in seconds. CurrentTime/LastTime should be Real (from GetTimeSeconds). Calculate DeltaTime as `CurrentTime - LastTime`. InitRTC(1024) provides millisecond precision via RTC_Ticks for accurate sub-second timing
+18. **ReadKey conflict**: NEVER use ReadKey or other CRT input functions when KEYBOARD.PAS unit is active - it hooks INT 9h and manages keyboard state. Use IsKeyPressed/IsKeyDown instead. For debugging, use LOGGER.PAS instead of WriteLn/ReadKey
+19. **Shift overflow**: Integer literals are 16-bit by default. Large shifts like `320 shl 10` overflow to 0. Cast to LongInt first: `LongInt(320) shl 10` for fixed-point math
+20. **Record return types**: NEVER use records as function return types - Turbo Pascal 7.0 copies the entire structure on return. Use a procedure with `var` parameter (usually last) instead. Example: `procedure MergeRects(R1, R2: TRect; var Result: TRect)` instead of `function MergeRects(R1, R2: TRect): TRect`
 
 ## Technical Constraints
 

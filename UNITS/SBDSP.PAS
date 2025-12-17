@@ -455,7 +455,7 @@ Procedure SetLineInVolume (Left, Right: ProVolumeType);
 Procedure SetInputSource (Filter: FilterType; TheInputs: InputSourceType);
 
 implementation
-Uses Crt, DOS, Memory;
+Uses Delay, DOS, Memory;
 
 const
   (************************************************************************)
@@ -885,9 +885,9 @@ Begin
   DMAMode      := DMAChannel + $48;
   (* Reset the DSP, and give some nice long delays just to be safe *)
   Port[DSP_RESET] := 1;
-  Delay(10);
+  DelayMS(10);
   Port[DSP_RESET] := 0;
-  Delay(10);
+  DelayMS(10);
   if (Port[DSP_DATA_AVAIL] and $80 = $80) and (Port[DSP_READ_DATA] = $AA) then
   begin
     ResetDSP := True;

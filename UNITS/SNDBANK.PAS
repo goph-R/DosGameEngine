@@ -6,7 +6,7 @@ unit SndBank;
 
 interface
 
-uses XMS, SBDSP, Crt, Dos, GenTypes;
+uses XMS, SBDSP, Delay, Dos, GenTypes;
 
 const
   MaxSounds = 32;  { Maximum sounds in bank }
@@ -366,7 +366,7 @@ begin
   if Playing then
   begin
     DMAStop;
-    Delay(50);    { Give DMA time to stop }
+    DelayMS(50);    { Give DMA time to stop }
     SpeakerOff;
     Playing := False;
   end;

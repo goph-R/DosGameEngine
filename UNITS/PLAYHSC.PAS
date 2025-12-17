@@ -201,7 +201,7 @@ TYPE
 
 IMPLEMENTATION
 
-USES CRT;
+USES Delay;
 
 
 
@@ -279,7 +279,7 @@ BEGIN
   Address    := NIL;
 
   Dummy := DetectAdlib (0);
-  Delay (30);
+  DelayMS (30);
 END;
 
 PROCEDURE HSC_obj.Start;

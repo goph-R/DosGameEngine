@@ -2,7 +2,7 @@ program SndTest;
 
 { Test program demonstrating XMS-based sound bank with SBDSP }
 
-uses Crt, SBDSP, SndBank, XMS;
+uses Keyboard, SBDSP, SndBank, XMS, Delay;
 
 var
   Bank: TSoundBank;
@@ -14,7 +14,6 @@ var
   DummyStr1, DummyStr2: String;
 
 begin
-  ClrScr;
   WriteLn('XMS Sound Bank Test with SBDSP');
   WriteLn('================================');
   WriteLn;
@@ -75,10 +74,16 @@ begin
   WriteLn('  [Q] - Quit');
   WriteLn;
 
+  InitKeyboard;
   repeat
-    if KeyPressed then
+    if IsKeyPressed(Key_1) or IsKeyPressed(Key_2) or IsKeyPressed(Key_Q) then
     begin
-      Choice := UpCase(ReadKey);
+      if IsKeyPressed(Key_1) then Choice := '1'
+      else if IsKeyPressed(Key_2) then Choice := '2'
+      else if IsKeyPressed(Key_Q) then Choice := 'Q'
+      else Choice := #0;
+
+      ClearKeyPressed;
 
       case Choice of
         '1':
@@ -105,9 +110,11 @@ begin
     end;
 
     { Allow sound to play in background }
-    Delay(10);
+    DelayMS(10);
 
   until False;
+
+  DoneKeyboard;
 
   { Cleanup }
   WriteLn;

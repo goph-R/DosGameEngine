@@ -1,6 +1,6 @@
 program UITest;
 
-uses VGA, VGAFont, VGAUI, Keyboard, Mouse, PCX, RTCTimer, GenTypes, Crt;
+uses VGA, VGAFont, VGAUI, Keyboard, Mouse, PCX, RTCTimer, GenTypes;
 
 var
   BackBuffer, BackgroundBuffer: PFrameBuffer;
