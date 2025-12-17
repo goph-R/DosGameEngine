@@ -30,6 +30,7 @@ implementation
 var
   DialogBackgroundBuffer: PFrameBuffer;
   DialogImage: PImage;
+  DialogSavedBgImage: TImage;
   DialogLabel: PLabel;
   DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
   DialogButtonIndex: ShortInt;
@@ -39,7 +40,7 @@ var
 
   DialogHasTitle: Boolean;
 
-procedure RenderDialogBackground(FrameBuffer: PFrameBuffer); assembler;
+procedure RenderDialogDitheredBackground(FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly checkerboard dither for 286 }
 { Odd rows (1,3,5...): black at even X positions (0,2,4...) }
 { Even rows (0,2,4...): black at odd X positions (1,3,5...) }
@@ -163,8 +164,11 @@ begin
   DialogBottomHeight := 2;
   DialogTopHeight := DialogHeight - DialogBottomHeight;
 
-  { Render the background }
-  RenderDialogBackground(Game.BackBuffer);
+  if PrevDialog = Dialog_None then
+    RenderDialogDitheredBackground(Game.BackBuffer);
+
+  { Save the background behind the dialog }
+  GetImage(DialogSavedBgImage, GetDialogX, GetDialogY, DialogImage^.Width, DialogHeight, Game.BackBuffer);
 
   { Render the top part of the dialog background }
   DialogSourceRect.X := 0;
@@ -188,11 +192,26 @@ begin
   else
     DialogHasTitle := False;
 
-  { Save the UI background }
-  CopyFrameBuffer(Game.BackBuffer, DialogBackgroundBuffer);
+  { Save the UI background, we just need the background of the dialog }
+  DialogSourceRect.X := GetDialogX;
+  DialogSourceRect.Y := GetDialogY;
+  DialogSourceRect.Width := DialogImage^.Width;
+  DialogSourceRect.Height := DialogHeight;
+  CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect,
+                      DialogBackgroundBuffer, DialogSourceRect.X, DialogSourceRect.Y);
 
-  { Show it on screen }
-  CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
+  
+  if PrevDialog = Dialog_None then
+    { Fullscreen render  }
+    RenderFrameBuffer(Game.BackBuffer)
+  else
+  begin
+    { Only the dialog column render }
+    DialogSourceRect.Y := 0;
+    DialogSourceRect.Height := 200;
+    CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect, 
+                        Game.ScreenBuffer, DialogSourceRect.X, DialogSourceRect.Y);
+  end;
   
   ClearAllKeyStates; 
 end;
@@ -269,7 +288,13 @@ begin
 
   DialogUI.Done;
 
-  CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+  { Restore background behind the dialog }
+  PutImage(DialogSavedBgImage, GetDialogX, GetDialogY, False, Game.BackBuffer);  
+  FreeImage(DialogSavedBgImage);
+
+  if NextDialog = Dialog_None then
+    CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+
   ClearAllKeyStates;
 
   Game.ResetTiming;

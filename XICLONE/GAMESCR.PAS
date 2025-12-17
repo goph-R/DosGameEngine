@@ -138,19 +138,6 @@ const
 
 implementation
 
-type
-  TGameDialog = (
-    Dialog_None,
-    Dialog_Paused,
-    Dialog_GameOver,
-    Dialog_ConfirmRestart,
-    Dialog_ConfirmQuit
-  );
-
-var
-  NextGameDialog: TGameDialog;
-  BackGameDialog: TGameDialog;
-
 constructor TGameScreen.Init;
 begin
   inherited Init;
@@ -221,8 +208,8 @@ begin
   NeedSpawnRetry := False;
   FlashActive := False;
   FlashTimer := 0.0;
-  NextGameDialog := Dialog_None;
-  BackGameDialog := Dialog_None;
+  NextDialog := Dialog_None;
+  BackDialog := Dialog_None;
 
   { Reset high score flag for new game session }
   HighScoreReached := False;
@@ -339,7 +326,7 @@ begin
       if FindAndRemoveMatches = 0 then
       begin
         { Game Over - couldn't spawn and no matches to clear }
-        NextGameDialog := Dialog_GameOver;
+        SetNextDialog(Dialog_GameOver);
       end
       else
       begin
@@ -470,30 +457,30 @@ end;
 
 {$F+}
 
+procedure PauseContinueAction;
+begin
+  SetNextDialog(Dialog_None);
+  DialogUI.Stop;
+end;
+
 procedure PauseDialogUpdate;
 begin
   if IsKeyPressed(Key_Escape) then
-  begin
-    NextGameDialog := Dialog_None;
-    DialogUI.Stop;
-  end;
+    PauseContinueAction;
 end;
 
 procedure PauseContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
-  begin
-    NextGameDialog := Dialog_None;
-    DialogUI.Stop;
-  end;
+    PauseContinueAction;
 end;
 
 procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
   begin
-    NextGameDialog := Dialog_ConfirmQuit;
-    BackGameDialog := Dialog_Paused;
+    SetNextDialog(Dialog_ConfirmQuit);
+    BackDialog := Dialog_Paused;
     DialogUI.Stop;
   end;
 end;
@@ -510,8 +497,8 @@ procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
   begin
-    NextGameDialog := Dialog_ConfirmRestart;
-    BackGameDialog := Dialog_GameOver;
+    SetNextDialog(Dialog_ConfirmRestart);
+    BackDialog := Dialog_GameOver;
     DialogUI.Stop;
   end;
 end;
@@ -520,8 +507,8 @@ procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if DialogUI.IsEnter(Event) then
   begin
-    NextGameDialog := Dialog_ConfirmQuit;
-    BackGameDialog := Dialog_GameOver;
+    SetNextDialog(Dialog_ConfirmQuit);
+    BackDialog := Dialog_GameOver;
     DialogUI.Stop;
   end;
 end;
@@ -531,7 +518,7 @@ begin
   if IsKeyPressed(Key_Escape) then
   begin
     ConfirmDialogAnswer := False;  { Treat Escape as cancel }
-    NextGameDialog := BackGameDialog;
+    SetNextDialog(BackDialog);
     DialogUI.Stop;
   end;
 end;
@@ -566,59 +553,60 @@ begin
 
   { Run dialog event loop }
   ShowDialog(nil);
-
-  FullRender;
 end;
 
 
 procedure TGameScreen.Update(DT: Real);
 begin
 
-  if NextGameDialog = Dialog_GameOver then
+  if NextDialog = Dialog_GameOver then
     ShowGameOver;
 
-  if NextGameDialog = Dialog_Paused then
+  if NextDialog = Dialog_Paused then
   begin
     InitDialog('PAUSED', 88);
     AddDialogButton('Continue Game', PauseContinueButtonEvent);
     AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
     ShowDialog(PauseDialogUpdate);
 
-    FullRender;
+    { Restore game screen after dialog closes }
+    if NextDialog = Dialog_None then
+    begin
+      CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+      FullRender;
+    end;
   end;
 
-  if NextGameDialog = Dialog_ConfirmRestart then
+  if NextDialog = Dialog_ConfirmRestart then
   begin
     if ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
     begin
       ResetGameState;
-      NextGameDialog := Dialog_None;
+      SetNextDialog(Dialog_None);
+      CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+      FullRender;
     end
     else
-      NextGameDialog := BackGameDialog;
-
-    FullRender;
+      SetNextDialog(BackDialog);
   end;
 
-  if NextGameDialog = Dialog_ConfirmQuit then
+  if NextDialog = Dialog_ConfirmQuit then
   begin
     if ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
     begin
       Game.Stop;
       Exit;
     end;
-
-    NextGameDialog := BackGameDialog;
-    FullRender;
+    SetNextDialog(BackDialog);
   end;
 
-  if NextGameDialog = Dialog_None then
+  if NextDialog = Dialog_None then
   begin
     { Pause on ESC }
     if IsKeyPressed(Key_Escape) then
     begin
-      NextGameDialog := Dialog_Paused;
-      BackGameDialog := Dialog_None;
+      SetNextDialog(Dialog_Paused);
+      BackDialog := Dialog_None;
     end;  
 
     { Update flash timer }
@@ -640,7 +628,7 @@ begin
           if not SpawnStack(False) then
           begin
             { Still can't spawn - game over }
-            NextGameDialog := Dialog_GameOver;
+            SetNextDialog(Dialog_GameOver);
           end
           else
           begin
@@ -1316,6 +1304,9 @@ procedure TGameScreen.FullRender;
 var
   X, Y: Integer;
 begin
+  { Clear any stale dirty rects from dialogs }
+  ClearDirtyRects;
+
   { Mark all playfield tiles as changed to force full redraw }
   for Y := 0 to PlayfieldRows - 1 do
     for X := 0 to PlayfieldCols - 1 do
@@ -1334,9 +1325,9 @@ begin
 
   { Display the restored screen }
   CopyFrameBuffer(Game.BackBuffer, Game.ScreenBuffer);
+
+  { Clear dirty rects since we did a full copy }
+  ClearDirtyRects;
 end;
 
-begin
-  NextGameDialog := Dialog_None;
-  BackGameDialog := Dialog_None;
 end.

@@ -25,6 +25,14 @@ type
     Gem_MagicJewel   { 7 - Special multi-colored gem }
   );
 
+  TDialogType = (
+    Dialog_None,
+    Dialog_Paused,
+    Dialog_GameOver,
+    Dialog_ConfirmRestart,
+    Dialog_ConfirmQuit
+  );
+
 var
   GemsImage: PImage;
 
@@ -39,13 +47,23 @@ var
 
   ConfirmDialogAnswer: Boolean;
 
+  NextDialog: TDialogType;
+  PrevDialog: TDialogType;
+  BackDialog: TDialogType;
 
-procedure DrawGem(GemColor: TGemColor; X, Y: Integer);  
+procedure DrawGem(GemColor: TGemColor; X, Y: Integer);
+procedure SetNextDialog(ND: TDialogType);
 
 implementation
 
 uses
   GameUnit;
+
+procedure SetNextDialog(ND: TDialogType);
+begin
+  PrevDialog := NextDialog;
+  NextDialog := ND;
+end;
 
 procedure DrawGem(GemColor: TGemColor; X, Y: Integer);
 var
@@ -106,4 +124,8 @@ begin
   DrawHLine(R.X + 1, R.Y + R.Height - 1, R.Width - 2, BC2, FrameBuffer);       
 end;
 
+begin
+  NextDialog := Dialog_None;
+  PrevDialog := Dialog_None;
+  BackDialog := Dialog_None;
 end.
