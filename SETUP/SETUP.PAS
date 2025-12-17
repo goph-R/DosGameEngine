@@ -6,10 +6,26 @@ const
   TestMusic = '..\TESTS\DATA\FANTASY.HSC';
   TestSound = '..\TESTS\DATA\EXPLODE.VOC';
 
+{ Custom text mode functions to replace CRT unit }
+function GetTextMode: Byte; assembler;
+asm
+  mov ah, 0Fh    { BIOS function: Get current video mode }
+  int 10h        { Call BIOS video services }
+  { AL contains the current video mode }
+end;
+
+procedure SetTextMode(Mode: Byte); assembler;
+asm
+  mov ah, 00h    { BIOS function: Set video mode }
+  mov al, Mode   { AL = desired mode }
+  int 10h        { Call BIOS video services }
+end;
+
 var
   GameConfig: TConfig;
   Music: HSC_obj;
   SBInitialized: Boolean;
+  InitialTextMode: Byte;
 
   MainMenu: TMenu;
   TestMusicItem: PMenuItem;
@@ -347,7 +363,8 @@ end;
 begin
   { Init }
 
-  TextMode(CO80);
+  InitialTextMode := GetTextMode;
+  SetTextMode(3);  { Mode 3 = 80x25 color text mode }
   HideTextCursor;
   LoadConfig(GameConfig, 'CONFIG.INI');
   InitKeyboard;
@@ -378,6 +395,6 @@ begin
 
   { Free any remaining VOC buffer }
   FreeVOCBuffer;
-  
-  TextMode(LastMode);
+
+  SetTextMode(InitialTextMode);
 end.
