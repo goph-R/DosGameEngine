@@ -87,7 +87,7 @@ procedure HideTextCursor; assembler;
 asm
   mov ah, 1
   mov ch, 32
-  mov cl, 0
+  mov cl, 32
   int 10h
 end;
 
