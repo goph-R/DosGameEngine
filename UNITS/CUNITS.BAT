@@ -18,6 +18,10 @@ echo Compiling LINKLIST.PAS...
 tpc LINKLIST.PAS
 if errorlevel 1 goto error
 
+echo Compiling DELAY.PAS...
+tpc DELAY.PAS
+if errorlevel 1 goto error
+
 echo Compiling MD5.PAS...
 tpc MD5.PAS
 if errorlevel 1 goto error
