@@ -1166,10 +1166,13 @@ begin
   { Only draw text when flash is on }
   if FlashOn then
   begin
-    { Save the background }
-    GetImage(FlashMessageBackground, TextX, TextY, TextWidth, FontLarge^.Height, Game.BackBuffer);
-    FlashMessageBackgroundX := TextX;
-    FlashMessageBackgroundY := TextY;
+    { Save the background only when flash turns ON (not every frame) }
+    if not FlashMessageWasOn then
+    begin
+      GetImage(FlashMessageBackground, TextX, TextY, TextWidth, FontLarge^.Height, Game.BackBuffer);
+      FlashMessageBackgroundX := TextX;
+      FlashMessageBackgroundY := TextY;
+    end;
 
     { Need to clear after dirty rectangles flushed }
     FlashMessageNeedsClear := True;
