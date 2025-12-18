@@ -77,9 +77,6 @@ type
     function GetScreen(const Name: String): PScreen;
   end;
 
-var
-  Game: TGame;  { Global instance }
-
 implementation
 
 { ========== TScreen Implementation ========== }

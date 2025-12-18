@@ -171,11 +171,11 @@ begin
       StatLabelsX,
       StatLabelInfos[i].Y,
       StatLabelInfos[i].Text,
-      FontSmall^,
+      Game.FontSmall^,
       Game.BackgroundBuffer
     );
 
-  PrintFontText(NextLabelX, NextLabelY, 'Next:', FontSmall^, Game.BackgroundBuffer);
+  PrintFontText(NextLabelX, NextLabelY, 'Next:', Game.FontSmall^, Game.BackgroundBuffer);
 end;
 
 procedure TGameScreen.Show;
@@ -212,8 +212,8 @@ begin
   NeedSpawnRetry := False;
   FlashActive := False;
   FlashTimer := 0.0;
-  NextDialog := Dialog_None;
-  BackDialog := Dialog_None;
+  Game.NextDialog := Dialog_None;
+  Game.BackDialog := Dialog_None;
 
   { Reset combo system }
   ComboMultiplier := 1;
@@ -295,7 +295,7 @@ begin
     Inc(Score, GemsRemoved * 10 * ComboMultiplier);
 
     { Check for high score (only show message once per session) }
-    if (not HighScoreReached) and IsHighScore(HighScoreTable, Score) then
+    if (not HighScoreReached) and IsHighScore(Game.HighScoreTable, Score) then
     begin
       HighScoreReached := True;
       ShowFlashMessage('High Score!', '');
@@ -352,7 +352,7 @@ begin
       if FindAndRemoveMatches = 0 then
       begin
         { Game Over - couldn't spawn and no matches to clear }
-        SetNextDialog(Dialog_GameOver);
+        Game.SetNextDialog(Dialog_GameOver);
       end
       else
       begin
@@ -488,8 +488,8 @@ end;
 
 procedure PauseContinueAction;
 begin
-  SetNextDialog(Dialog_None);
-  DialogUI.Stop;
+  Game.SetNextDialog(Dialog_None);
+  Game.DialogUI.Stop;
 end;
 
 procedure PauseDialogUpdate;
@@ -500,23 +500,23 @@ end;
 
 procedure PauseContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
     PauseContinueAction;
 end;
 
 procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
-    SetNextDialog(Dialog_ConfirmQuit);
-    BackDialog := Dialog_Paused;
-    DialogUI.Stop;
+    Game.SetNextDialog(Dialog_ConfirmQuit);
+    Game.BackDialog := Dialog_Paused;
+    Game.DialogUI.Stop;
   end;
 end;
 
 procedure GameOverSubmitScoreButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
     { TODO: Implement score submission }
   end;
@@ -524,21 +524,21 @@ end;
 
 procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
-    SetNextDialog(Dialog_ConfirmRestart);
-    BackDialog := Dialog_GameOver;
-    DialogUI.Stop;
+    Game.SetNextDialog(Dialog_ConfirmRestart);
+    Game.BackDialog := Dialog_GameOver;
+    Game.DialogUI.Stop;
   end;
 end;
 
 procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
-    SetNextDialog(Dialog_ConfirmQuit);
-    BackDialog := Dialog_GameOver;
-    DialogUI.Stop;
+    Game.SetNextDialog(Dialog_ConfirmQuit);
+    Game.BackDialog := Dialog_GameOver;
+    Game.DialogUI.Stop;
   end;
 end;
 
@@ -546,9 +546,9 @@ procedure ConfirmDialogUpdate;
 begin
   if IsKeyPressed(Key_Escape) then
   begin
-    ConfirmDialogAnswer := False;  { Treat Escape as cancel }
-    SetNextDialog(BackDialog);
-    DialogUI.Stop;
+    Game.ConfirmDialogAnswer := False;  { Treat Escape as cancel }
+    Game.SetNextDialog(Game.BackDialog);
+    Game.DialogUI.Stop;
   end;
 end;
 
@@ -588,10 +588,10 @@ end;
 procedure TGameScreen.Update(DT: Real);
 begin
 
-  if NextDialog = Dialog_GameOver then
+  if Game.NextDialog = Dialog_GameOver then
     ShowGameOver;
 
-  if NextDialog = Dialog_Paused then
+  if Game.NextDialog = Dialog_Paused then
   begin
     InitDialog('PAUSED', 88);
     AddDialogButton('Continue Game', PauseContinueButtonEvent);
@@ -599,43 +599,43 @@ begin
     ShowDialog(PauseDialogUpdate);
 
     { Restore game screen after dialog closes }
-    if NextDialog = Dialog_None then
+    if Game.NextDialog = Dialog_None then
     begin
       CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
       FullRender;
     end;
   end;
 
-  if NextDialog = Dialog_ConfirmRestart then
+  if Game.NextDialog = Dialog_ConfirmRestart then
   begin
     if ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
     begin
       ResetGameState;
-      SetNextDialog(Dialog_None);
+      Game.SetNextDialog(Dialog_None);
       CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
       FullRender;
     end
     else
-      SetNextDialog(BackDialog);
+      Game.SetNextDialog(Game.BackDialog);
   end;
 
-  if NextDialog = Dialog_ConfirmQuit then
+  if Game.NextDialog = Dialog_ConfirmQuit then
   begin
     if ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
     begin
       Game.Stop;
       Exit;
     end;
-    SetNextDialog(BackDialog);
+    Game.SetNextDialog(Game.BackDialog);
   end;
 
-  if NextDialog = Dialog_None then
+  if Game.NextDialog = Dialog_None then
   begin
     { Pause on ESC }
     if IsKeyPressed(Key_Escape) then
     begin
-      SetNextDialog(Dialog_Paused);
-      BackDialog := Dialog_None;
+      Game.SetNextDialog(Dialog_Paused);
+      Game.BackDialog := Dialog_None;
     end;  
 
     { Update flash timer }
@@ -657,7 +657,7 @@ begin
           if not SpawnStack(False) then
           begin
             { Still can't spawn - game over }
-            SetNextDialog(Dialog_GameOver);
+            Game.SetNextDialog(Dialog_GameOver);
           end
           else
           begin
@@ -975,7 +975,7 @@ begin
     GemRect.Y := 0;
     GemRect.Width := TileSize;
     GemRect.Height := TileSize;
-    PutImageRect(GemsImage^, GemRect, X, Y, True, Game.BackBuffer);
+    PutImageRect(Game.GemsImage^, GemRect, X, Y, True, Game.BackBuffer);
   end
   else
   begin
@@ -1018,7 +1018,7 @@ begin
         else
         begin
           { Draw the gem at this position }
-          DrawGem(Playfield.Tiles[X, Y], PixelX, PixelY);
+          Game.DrawGem(Playfield.Tiles[X, Y], PixelX, PixelY);
         end;
 
         { Mark this tile as dirty }
@@ -1073,7 +1073,7 @@ begin
   begin
     { Calculate Y relative to the stack top }
     GemY := Trunc(CurrentStack.PixelY) + (I * TileSize);
-    DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY);
+    Game.DrawGem(CurrentStack.Gems[I], CurrentStack.PixelX, GemY + PlayfieldY);
   end;
 
   { --- STEP 3: MARK DIRTY RECT FOR NEW POSITION --- }
@@ -1111,7 +1111,7 @@ var
 begin
   for i := 0 to 2 do
   begin
-    DrawGem(NextStackGems[i], NextStackX, NextStackY + i * TileSize);
+    Game.DrawGem(NextStackGems[i], NextStackX, NextStackY + i * TileSize);
   end;
 
   R.X := NextStackX;
@@ -1140,14 +1140,14 @@ var
   R: TRectangle;
 begin
   { Always calculate text position and rectangle }
-  TextWidth := GetTextWidth(FlashMessageText, FontLarge^);
+  TextWidth := GetTextWidth(FlashMessageText, Game.FontLarge^);
   TextX := 160 - (TextWidth div 2);
-  TextY := 100 - (FontLarge^.Height div 2);
+  TextY := 100 - (Game.FontLarge^.Height div 2);
 
   R.X := TextX;
   R.Y := TextY;
   R.Width := TextWidth;
-  R.Height := FontLarge^.Height;
+  R.Height := Game.FontLarge^.Height;
 
   { Handle final clear when flash message ends }
   if not FlashMessageActive then
@@ -1169,7 +1169,7 @@ begin
     { Save the background (free old one first to prevent memory leak) }
     { This must be done every frame to capture moving stack behind message }
     FreeImage(FlashMessageBackground);
-    GetImage(FlashMessageBackground, TextX, TextY, TextWidth, FontLarge^.Height, Game.BackBuffer);
+    GetImage(FlashMessageBackground, TextX, TextY, TextWidth, Game.FontLarge^.Height, Game.BackBuffer);
     FlashMessageBackgroundX := TextX;
     FlashMessageBackgroundY := TextY;
 
@@ -1177,7 +1177,7 @@ begin
     FlashMessageNeedsClear := True;
 
     { Draw the text }
-    PrintFontText(TextX, TextY, FlashMessageText, FontLarge^, Game.BackBuffer);
+    PrintFontText(TextX, TextY, FlashMessageText, Game.FontLarge^, Game.BackBuffer);
   end;
 
   { Add dirty rect when flash turns on or off }
@@ -1234,20 +1234,20 @@ begin
 
   R.X := 0;
   R.Width := StatLabelsX;
-  R.Height := FontLarge^.Height;
+  R.Height := Game.FontLarge^.Height;
 
   { Render Score number (only if changed) }
   if Score <> LastScore then
   begin
     ScoreText := PadZero(Score, 7);
-    TextWidth := GetTextWidth(ScoreText, FontLarge^);
+    TextWidth := GetTextWidth(ScoreText, Game.FontLarge^);
 
     { Clear area and redraw }
     R.Y := ScoreY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, ScoreY, ScoreText, FontLarge^, Game.BackBuffer);
+    PrintFontTextRight(StatLabelsX, ScoreY, ScoreText, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastScore := Score;
@@ -1257,14 +1257,14 @@ begin
   if Level <> LastLevel then
   begin
     LevelText := PadZero(Level, 2);
-    TextWidth := GetTextWidth(LevelText, FontLarge^);
+    TextWidth := GetTextWidth(LevelText, Game.FontLarge^);
 
     { Clear area and redraw }
     R.Y := LevelY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, LevelY, LevelText, FontLarge^, Game.BackBuffer);
+    PrintFontTextRight(StatLabelsX, LevelY, LevelText, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastLevel := Level;
@@ -1274,14 +1274,14 @@ begin
   if Blocks <> LastBlocks then
   begin
     BlocksText := PadZero(Blocks, 3);
-    TextWidth := GetTextWidth(BlocksText, FontLarge^);
+    TextWidth := GetTextWidth(BlocksText, Game.FontLarge^);
 
     { Clear area and redraw }
     R.Y := BlocksY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, BlocksY, BlocksText, FontLarge^, Game.BackBuffer);
+    PrintFontTextRight(StatLabelsX, BlocksY, BlocksText, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastBlocks := Blocks;

@@ -94,23 +94,11 @@ constructor TBaseScreen.Init;
 begin
   inherited Init;
 
-  { Load globally used resources only once }
+  { Load dialog-specific resources only once }
   if DialogBackgroundBuffer = nil then
   begin
-    GemsImage := Game.ResMan.GetImage('gems1');
-
-    FontLarge := Game.ResMan.GetFont('large');
-    FontSmall := Game.ResMan.GetFont('small');
-
     DialogImage := Game.ResMan.GetImage('dialog');
     DialogBackgroundBuffer := CreateFrameBuffer;
-
-    UIStyle.Init(186, 188, 189, 15);
-
-    { Initialize high score system }
-    InitHighScore(HighScoreTable, HighScoreSalt);
-    { Load high score table }
-    LoadHighScore('SCORES.XML', HighScoreTable);
   end;
 end;
 
@@ -155,8 +143,8 @@ var
   DialogTopHeight: Word;
   DialogBottomHeight: Word;
 begin
-  DialogUI.Init(Game.BackBuffer, DialogBackgroundBuffer);
-  DialogUI.SetStyle(@UIStyle);
+  Game.DialogUI.Init(Game.BackBuffer, DialogBackgroundBuffer);
+  Game.DialogUI.SetStyle(@Game.UIStyle);
 
   DialogHeight := Height;
   DialogButtonIndex := -1;
@@ -164,7 +152,7 @@ begin
   DialogBottomHeight := 2;
   DialogTopHeight := DialogHeight - DialogBottomHeight;
 
-  if PrevDialog = Dialog_None then
+  if Game.PrevDialog = Dialog_None then
     RenderDialogDitheredBackground(Game.BackBuffer);
 
   { Save the background behind the dialog }
@@ -187,7 +175,7 @@ begin
   if Title <> '' then 
   begin
     DialogHasTitle := True;
-    PrintFontTextCentered(160, GetDialogY + 10, Title, FontLarge^, Game.BackBuffer);    
+    PrintFontTextCentered(160, GetDialogY + 10, Title, Game.FontLarge^, Game.BackBuffer);    
   end
   else
     DialogHasTitle := False;
@@ -200,8 +188,8 @@ begin
   CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect,
                       DialogBackgroundBuffer, DialogSourceRect.X, DialogSourceRect.Y);
 
-  
-  if PrevDialog = Dialog_None then
+
+  if Game.PrevDialog = Dialog_None then
     { Fullscreen render  }
     RenderFrameBuffer(Game.BackBuffer)
   else
@@ -225,15 +213,15 @@ var
   StartY: Integer;
 begin
   SplitLines(Text, MessageLines, MessageLineCount);
-  H := MessageLineCount * FontSmall^.Height;
+  H := MessageLineCount * Game.FontSmall^.Height;
 
   StartY := GetDialogY + 10;
   if DialogHasTitle then
-    StartY := StartY + FontLarge^.Height + 10;
+    StartY := StartY + Game.FontLarge^.Height + 10;
 
-  New(L, Init(GetDialogX + 8, StartY, DialogImage^.Width - 16, H, Text, FontSmall));
+  New(L, Init(GetDialogX + 8, StartY, DialogImage^.Width - 16, H, Text, Game.FontSmall));
   L^.TextAlign := Align_Center + Align_Top;
-  DialogUI.AddWidget(L);
+  Game.DialogUI.AddWidget(L);
   
   DialogLabel := L;
 end;
@@ -248,15 +236,15 @@ begin
 
   StartY := GetDialogY + 10;
   if DialogHasTitle then
-    StartY := StartY + FontLarge^.Height + 10;
+    StartY := StartY + Game.FontLarge^.Height + 10;
   if DialogLabel <> nil then
     StartY := StartY + DialogLabel^.Rectangle.Height + 10;
 
   Inc(DialogButtonIndex);
 
-  New(Button, Init(GetDialogX + 20, StartY + DialogButtonIndex * 20, 120, 16, Text, FontSmall));
+  New(Button, Init(GetDialogX + 20, StartY + DialogButtonIndex * 20, 120, 16, Text, Game.FontSmall));
   Button^.SetEventHandler(@EventHandler);
-  DialogUI.AddWidget(Button);
+  Game.DialogUI.AddWidget(Button);
 
   DialogButtons[DialogButtonIndex] := Button;
 end;
@@ -268,13 +256,13 @@ begin
   if DialogButtonIndex < 0 then
     Exit;
 
-  DialogUI.SetFocus(DialogButtons[0]);
-  DialogUI.Run(@UpdateProcedure, True);
+  Game.DialogUI.SetFocus(DialogButtons[0]);
+  Game.DialogUI.Run(@UpdateProcedure, True);
 
   { Cleanup label if exists }
   if DialogLabel <> nil then
   begin
-    DialogUI.RemoveWidget(DialogLabel);
+    Game.DialogUI.RemoveWidget(DialogLabel);
     Dispose(DialogLabel, Done);
     DialogLabel := nil;
   end;
@@ -282,17 +270,17 @@ begin
   { Cleanup buttons }
   for i := 0 to DialogButtonIndex do
   begin
-    DialogUI.RemoveWidget(DialogButtons[i]);
+    Game.DialogUI.RemoveWidget(DialogButtons[i]);
     Dispose(DialogButtons[i], Done);
   end;
 
-  DialogUI.Done;
+  Game.DialogUI.Done;
 
   { Restore background behind the dialog }
-  PutImage(DialogSavedBgImage, GetDialogX, GetDialogY, False, Game.BackBuffer);  
+  PutImage(DialogSavedBgImage, GetDialogX, GetDialogY, False, Game.BackBuffer);
   FreeImage(DialogSavedBgImage);
 
-  if NextDialog = Dialog_None then
+  if Game.NextDialog = Dialog_None then
     CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
 
   ClearAllKeyStates;
@@ -303,19 +291,19 @@ end;
 {$F+}
 procedure OkEvent(var Widget: TWidget; var Event: TEvent); far;
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
-    ConfirmDialogAnswer := True;
-    DialogUI.Stop;
+    Game.ConfirmDialogAnswer := True;
+    Game.DialogUI.Stop;
   end;
 end;
 
 procedure CancelEvent(var Widget: TWidget; var Event: TEvent); far;
 begin
-  if DialogUI.IsEnter(Event) then
+  if Game.DialogUI.IsEnter(Event) then
   begin
-    ConfirmDialogAnswer := False;
-    DialogUI.Stop;
+    Game.ConfirmDialogAnswer := False;
+    Game.DialogUI.Stop;
   end;
 end;
 {$F-}
@@ -331,7 +319,7 @@ var
 begin
   { Calculate message dimensions }
   SplitLines(Message, MessageLines, MessageLineCount);
-  H := MessageLineCount * FontSmall^.Height;
+  H := MessageLineCount * Game.FontSmall^.Height;
 
   { Calculate dialog height: spacing (10) + message height + spacing (10) + 2 buttons (40) + bottom spacing (10) }
   DialogHeightCalc := 10 + H + 10 + 40 + 10;
@@ -347,7 +335,7 @@ begin
 
   ShowDialog(UpdateProcedure);
 
-  ShowConfirm := ConfirmDialogAnswer;
+  ShowConfirm := Game.ConfirmDialogAnswer;
 end;
 
 begin
