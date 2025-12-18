@@ -94,6 +94,7 @@ type
 
     constructor Init;
     destructor Done; virtual;
+    procedure PostInit; virtual;
 
     procedure Show; virtual;
     procedure InitPlayfield;
@@ -160,6 +161,14 @@ end;
 destructor TGameScreen.Done;
 begin
   FreeImage(FlashMessageBackground);
+end;
+
+procedure TGameScreen.PostInit;
+begin
+  inherited PostInit;
+
+  { Set the palette (loaded in TXiCloneGame.Start) }
+  SetPalette(Game.Palette^);
 end;
 
 procedure TGameScreen.DrawStaticHUD;

@@ -170,9 +170,6 @@ begin
   FontSmall := ResMan.GetFont('small');
   Palette := ResMan.GetPalette('default');
 
-  { Set the palette }
-  SetPalette(Palette^);
-
   { Load dialog resources }
   DialogImage := ResMan.GetImage('dialog');
   DialogBackgroundBuffer := CreateFrameBuffer;
