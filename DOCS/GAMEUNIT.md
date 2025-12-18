@@ -2,14 +2,22 @@
 
 Central game loop framework with screen management, resource loading, and subsystem initialization.
 
-## Global Instance
+## Architecture Overview
 
-```pascal
-var
-  Game: TGame;  { Global game instance }
-```
+**GAMEUNIT** provides a reusable framework with no game-specific dependencies. Games extend `TGame` to create their own game object with game-specific resources and state.
 
-The `Game` variable is a global instance of `TGame` provided by `GameUnit`. Use this instance in your program instead of creating your own.
+### Framework (GAMEUNIT.PAS)
+- Defines `TGame` base object (reusable framework)
+- Defines `TScreen` base object (screen/state pattern)
+- **No global Game variable** (games provide their own)
+
+### Game-Specific Implementation
+Games extend `TGame` to add:
+- Game-specific resources (sprites, fonts, etc.)
+- Game-specific state (UI systems, dialog state, etc.)
+- Game-specific initialization
+
+**Example:** XiClone extends `TGame` as `TXiCloneGame` in `GLOBALS.PAS`
 
 ## TGame Object
 
@@ -26,10 +34,12 @@ constructor Init(ConfigIniPath: String; ResXmlPath: String);
 - `ConfigIniPath`: Path to CONFIG.INI file
 - `ResXmlPath`: Path to resources XML file (for TResourceManager)
 
+**Note:** Sets internal `CurrentGame` pointer for exit handler.
+
 ### Methods
 
 ```pascal
-procedure Start;
+procedure Start; virtual;
 ```
 
 Initialize all subsystems and prepare for game loop:
@@ -45,6 +55,8 @@ Initialize all subsystems and prepare for game loop:
    - `BackgroundBuffer := CreateFrameBuffer` (cleared once, used for static backgrounds)
    - `BackBuffer := CreateFrameBuffer` (working buffer)
    - `ScreenBuffer := GetScreenBuffer` (VGA display buffer)
+
+**Virtual:** Override in derived game objects to add game-specific initialization (e.g., load fonts, sprites).
 
 **Note:** VGA initialization (`InitVGA`) is deferred until `Run` is called. This allows screens to be created and registered before VGA mode is set.
 
@@ -94,7 +106,7 @@ end;
 - Screens are responsible for their own rendering. The default `Update` calls `Screen^.Update(DeltaTime)`, which should handle drawing to `Game.BackBuffer` and calling `RenderFrameBuffer` or `FlushDirtyRects`.
 
 ```pascal
-destructor Done;
+destructor Done; virtual;
 ```
 
 Shutdown all subsystems (reverse order of `Start`):
@@ -108,6 +120,9 @@ Shutdown all subsystems (reverse order of `Start`):
 7. Uninitialize RTC timer: `DoneRTC`
 8. Free resource manager: `ResMan.Done`
 9. Close VGA: `CloseVGA` (if initialized)
+10. Clear `CurrentGame` pointer
+
+**Virtual:** Override in derived game objects to cleanup game-specific resources (call inherited at end).
 
 ```pascal
 procedure CleanupOnExit;
@@ -115,8 +130,10 @@ procedure CleanupOnExit;
 
 ExitProc handler - ensures `Done` is called on abnormal termination (Ctrl+C, Runtime Error, etc.)
 
+Uses module-level `CurrentGame` pointer to avoid dependency on global Game variable.
+
 ```pascal
-procedure PlayMusic(Name: String);
+procedure PlayMusic(Name: String); virtual;
 ```
 
 - Load and play music track by resource name
@@ -124,14 +141,14 @@ procedure PlayMusic(Name: String);
 - Uses ResMan to load music file
 
 ```pascal
-procedure PauseMusic;
+procedure PauseMusic; virtual;
 ```
 
 - Pause current music playback
 - `Exit` if `Config.SoundCard = SoundCard_None`
 
 ```pascal
-procedure StopMusic;
+procedure StopMusic; virtual;
 ```
 
 - Stop current music playback
@@ -305,13 +322,79 @@ type
   end;
 ```
 
+## Extending TGame for Your Game
+
+Create a game-specific object that extends `TGame`:
+
+```pascal
+unit MyGlobals;
+
+interface
+
+uses
+  VGA, VGAFont, GameUnit;
+
+type
+  TMyGame = object(TGame)
+    { Game-specific resources }
+    PlayerSprite: PImage;
+    TitleFont: PFont;
+
+    { Game-specific state }
+    HighScore: LongInt;
+
+    { Override initialization }
+    constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
+    destructor Done; virtual;
+    procedure Start; virtual;
+
+    { Game-specific methods }
+    procedure SaveHighScore;
+  end;
+
+var
+  Game: TMyGame;  { Global game instance }
+
+implementation
+
+constructor TMyGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
+begin
+  inherited Init(ConfigIniPath, ResXmlPath);
+
+  { Initialize game-specific state }
+  HighScore := 0;
+end;
+
+destructor TMyGame.Done;
+begin
+  { Parent handles cleanup }
+  inherited Done;
+end;
+
+procedure TMyGame.Start;
+begin
+  { Call parent Start (initializes framework) }
+  inherited Start;
+
+  { Load game-specific resources (after VGA init in Run) }
+  { For resources that need VGA, load them here after inherited Start }
+end;
+
+procedure TMyGame.SaveHighScore;
+begin
+  { Game-specific logic }
+end;
+
+end.
+```
+
 ## Usage Example
 
 ```pascal
 program MyGame;
 
 uses
-  GameUnit, Keyboard;
+  MyGlobals, Keyboard;  { MyGlobals provides Game: TMyGame }
 
 type
   PMenuScreen = ^TMenuScreen;
@@ -383,7 +466,7 @@ begin
 end;
 
 begin
-  { Initialize game (uses global Game instance) }
+  { Initialize game (uses Game: TMyGame from MyGlobals) }
   Game.Init('CONFIG.INI', 'DATA\RES.XML');
 
   { Create and register screens }
@@ -406,7 +489,7 @@ end.
 ## Dependencies
 
 - **CONFIG**: TConfig, LoadConfig, SoundCard constants
-- **RESMAN**: TResourceManager (future)
+- **RESMAN**: TResourceManager
 - **RTCTIMER**: InitRTC, DoneRTC, GetTimeSeconds
 - **KEYBOARD**: InitKeyboard, DoneKeyboard, IsKeyPressed, ClearKeyPressed
 - **SBDSP**: ResetDSP, UninstallHandler
@@ -416,12 +499,14 @@ end.
 
 ## Notes
 
-- **Global instance**: `Game` is a global variable in `GameUnit`. Use this instead of creating your own instance.
+- **No global in framework**: `GAMEUNIT.PAS` does not declare a global `Game` variable. Games provide their own by extending `TGame`.
+- **Extend TGame**: Create a game-specific object (e.g., `TMyGame = object(TGame)`) with game resources and state.
+- **Override Start**: Load game-specific resources in your overridden `Start` method (call inherited first).
 - **Virtual methods**: All `TScreen` methods are virtual. Override `PostInit`, `Update`, `Show`, `Hide` as needed.
 - **VGA initialization timing**: VGA is initialized in `Run`, not `Start`. This allows screens to be created and registered before VGA mode is set.
 - **PostInit lifecycle**: Called once for ALL screens during `Run`, before the main loop starts.
 - **Deferred screen switching**: Use `SetNextScreen('name')` to queue screen switches. The switch happens in the next `Update` call. This prevents issues with switching screens mid-frame.
-- **ExitProc**: `CleanupOnExit` is automatically installed by `Start` to ensure cleanup on abnormal exit (Ctrl+C, Runtime Error).
+- **ExitProc**: `CleanupOnExit` is automatically installed by `Start` to ensure cleanup on abnormal exit (Ctrl+C, Runtime Error). Uses module-level `CurrentGame` pointer.
 - **DeltaTime convention**: Real (seconds), calculated as `CurrentTime - LastTime` via `GetTimeSeconds`.
 - **Exit shortcut**: `Alt+Q` stops the game (Mortal Kombat style). TODO: Make this optional.
 - **Sound card checks**: Music functions exit early if `Config.SoundCard = SoundCard_None` to avoid unnecessary work.
@@ -433,7 +518,6 @@ end.
 
 ## Future Enhancements
 
-- **TResourceManager**: Load music/sound/graphics by name from RES.XML
 - **Screen transitions**: Fade in/out, wipes, etc.
 - **Screen stack**: Push/pop screens for pause menus, dialogs
 - **Fixed timestep**: Decouple update rate from render rate for deterministic physics

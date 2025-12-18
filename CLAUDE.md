@@ -178,8 +178,10 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide, PostInit)
 - Auto-initializes: VGA, Config, ResMan, RTC, Keyboard, Mouse, SBDSP, framebuffers
 - Screen management via ScreenMap, deferred screen switching, delta-time game loop
-- Global var: Game (global TGame instance)
+- **No global Game variable** - games extend TGame and provide their own global instance
 - **PostInit**: Called AFTER VGA initialized - use for SetPalette, RenderFrameBuffer, etc. NOT for loading resources
+- **Resource loading**: Load game-specific resources in TGame.Start override, NOT in TScreen.PostInit
+- Exit handler: Uses module-level CurrentGame pointer (set in Init, cleared in Done)
 - See DOCS\GAMEUNIT.md for architecture
 
 **DRECT.PAS** - Dirty rectangle system (2025)
@@ -367,21 +369,67 @@ ResMan.Done; { Cleanup all resources }
 
 **Game Framework (GAMEUNIT)**:
 ```pascal
-{ Define game screen }
-type PMenuScreen = ^TMenuScreen;
-     TMenuScreen = object(TScreen)
-       procedure Update(DT: Real); virtual;
-       procedure Show; virtual;
-     end;
+{ GLOBALS.PAS - Extend TGame with game-specific resources }
+unit Globals;
+interface
+uses GameUnit, VGA, VGAFont;
 
-{ Main program - uses global Game instance }
+type
+  TMyGame = object(TGame)
+    { Game-specific resources }
+    PlayerSprite: PImage;
+    TitleFont: PFont;
+
+    constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
+    destructor Done; virtual;
+    procedure Start; virtual;
+  end;
+
+var
+  Game: TMyGame;  { Global game instance }
+
+implementation
+
+constructor TMyGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
+begin
+  inherited Init(ConfigIniPath, ResXmlPath);
+end;
+
+destructor TMyGame.Done;
+begin
+  inherited Done;
+end;
+
+procedure TMyGame.Start;
+begin
+  inherited Start;  { Initialize framework }
+  { Load game-specific resources here }
+  PlayerSprite := ResMan.GetImage('player');
+  TitleFont := ResMan.GetFont('title');
+end;
+
+end.
+
+{ MAIN.PAS - Define screens and run game }
+program Main;
+uses Globals;
+
+type
+  PMenuScreen = ^TMenuScreen;
+  TMenuScreen = object(TScreen)
+    procedure Update(DT: Real); virtual;
+  end;
+
 var Menu: PMenuScreen;
-Game.Init('CONFIG.INI', 'DATA\RES.XML');
-New(Menu, Init); Game.AddScreen('menu', Menu);
-Game.Start; { Initialize subsystems }
-Game.SetNextScreen('menu'); { Queue initial screen }
-Game.Run; { Auto delta-time loop with deferred screen switching }
-Game.Done;
+
+begin
+  Game.Init('CONFIG.INI', 'DATA\RES.XML');
+  New(Menu, Init); Game.AddScreen('menu', Menu);
+  Game.Start; { Initialize subsystems + load resources }
+  Game.SetNextScreen('menu'); { Queue initial screen }
+  Game.Run; { Auto delta-time loop }
+  Game.Done;
+end.
 ```
 
 **Dirty Rectangles (DRECT)**:
