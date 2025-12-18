@@ -16,10 +16,6 @@ rem echo Compiling HISCORE.PAS...
 rem tpc -U..\UNITS HISCORE.PAS
 rem if errorlevel 1 goto error
 
-echo Compiling BASESCR.PAS...
-tpc -U..\UNITS BASESCR.PAS
-if errorlevel 1 goto error
-
 echo Compiling GAMESCR.PAS...
 tpc -U..\UNITS GAMESCR.PAS
 if errorlevel 1 goto error

@@ -4,7 +4,7 @@ interface
 
 uses
   VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
-  XiGame, BaseScr, HiScore;
+  XiGame, HiScore;
 
 const
   { Playfield dimensions }
@@ -47,7 +47,7 @@ type
   end;  
 
   PGameScreen = ^TGameScreen;
-  TGameScreen = object(TBaseScreen)
+  TGameScreen = object(TScreen)
 
     { Game data }
     Playfield: TPlayfield;
@@ -569,19 +569,19 @@ begin
     DialogHeight := 108;
 
   { Create game over dialog }
-  InitDialog('GAME OVER', DialogHeight);
+  Game.InitDialog('GAME OVER', DialogHeight);
 
-  AddDialogLabel(ScoreText);
+  Game.AddDialogLabel(ScoreText);
 
   { Add Submit Score button if high score was reached }
   if HighScoreReached then
-    AddDialogButton('Submit Score', GameOverSubmitScoreButtonEvent);
+    Game.AddDialogButton('Submit Score', GameOverSubmitScoreButtonEvent);
 
-  AddDialogButton('Restart', GameOverRestartButtonEvent);
-  AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
+  Game.AddDialogButton('Restart', GameOverRestartButtonEvent);
+  Game.AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
 
   { Run dialog event loop }
-  ShowDialog(nil);
+  Game.ShowDialog(nil);
 end;
 
 
@@ -593,10 +593,10 @@ begin
 
   if Game.NextDialog = Dialog_Paused then
   begin
-    InitDialog('PAUSED', 88);
-    AddDialogButton('Continue Game', PauseContinueButtonEvent);
-    AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
-    ShowDialog(PauseDialogUpdate);
+    Game.InitDialog('PAUSED', 88);
+    Game.AddDialogButton('Continue Game', PauseContinueButtonEvent);
+    Game.AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
+    Game.ShowDialog(PauseDialogUpdate);
 
     { Restore game screen after dialog closes }
     if Game.NextDialog = Dialog_None then
@@ -608,7 +608,7 @@ begin
 
   if Game.NextDialog = Dialog_ConfirmRestart then
   begin
-    if ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
+    if Game.ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
     begin
       ResetGameState;
       Game.SetNextDialog(Dialog_None);
@@ -621,7 +621,7 @@ begin
 
   if Game.NextDialog = Dialog_ConfirmQuit then
   begin
-    if ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
+    if Game.ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
     begin
       Game.Stop;
       Exit;
