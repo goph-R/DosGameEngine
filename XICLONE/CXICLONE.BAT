@@ -8,8 +8,8 @@ if errorlevel 1 goto error
 
 cd ..\XICLONE
 
-echo Compiling GLOBALS.PAS...
-tpc -U..\UNITS GLOBALS.PAS
+echo Compiling XIGAME.PAS...
+tpc -U..\UNITS XIGAME.PAS
 if errorlevel 1 goto error
 
 rem echo Compiling HISCORE.PAS...
