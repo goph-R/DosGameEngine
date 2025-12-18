@@ -1,4 +1,4 @@
-unit Globals;
+unit XiGame;
 
 interface
 

@@ -4,7 +4,7 @@ interface
 
 uses
   VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
-  Globals, BaseScr, HiScore;
+  XiGame, BaseScr, HiScore;
 
 const
   { Playfield dimensions }

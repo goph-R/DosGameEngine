@@ -1,7 +1,7 @@
 program XiClone;
 
 uses
-  Globals, GameScr;
+  XiGame, GameScr;
 
 var
   GameScreen: PGameScreen;
