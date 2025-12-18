@@ -8,6 +8,7 @@ uses
 const
   TileSize = 16;
   HighScoreSalt = 'XICLONE_HIGHSCORE_V1';  { Salt for high score tamper protection }
+  MaxDialogButtons = 5;
 
 type
   TCustomUIStyle = object(TUIStyle)
@@ -42,12 +43,23 @@ type
     UIStyle: TCustomUIStyle;
     DialogUI: TUIManager;
     HighScoreTable: THighScore;
+    Palette: PPalette;
+
+    { Dialog resources }
+    DialogImage: PImage;
+    DialogBackgroundBuffer: PFrameBuffer;
 
     { Dialog state }
     ConfirmDialogAnswer: Boolean;
     NextDialog: TDialogType;
     PrevDialog: TDialogType;
     BackDialog: TDialogType;
+    DialogSavedBgImage: TImage;
+    DialogLabel: PLabel;
+    DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
+    DialogButtonIndex: ShortInt;
+    DialogHeight: Word;
+    DialogHasTitle: Boolean;
 
     { Game-specific initialization and cleanup }
     constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
@@ -98,6 +110,8 @@ end;
 { ========== TXiCloneGame Implementation ========== }
 
 constructor TXiCloneGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
+var
+  I: Integer;
 begin
   { Call parent constructor }
   inherited Init(ConfigIniPath, ResXmlPath);
@@ -107,15 +121,33 @@ begin
   PrevDialog := Dialog_None;
   BackDialog := Dialog_None;
   ConfirmDialogAnswer := False;
+  DialogLabel := nil;
+  DialogButtonIndex := -1;
+  DialogHeight := 0;
+  DialogHasTitle := False;
+
+  { Initialize dialog button array }
+  for I := 0 to MaxDialogButtons - 1 do
+    DialogButtons[I] := nil;
 
   { Resources will be loaded in Start after VGA initialization }
   GemsImage := nil;
   FontLarge := nil;
   FontSmall := nil;
+  Palette := nil;
+  DialogImage := nil;
+  DialogBackgroundBuffer := nil;
 end;
 
 destructor TXiCloneGame.Done;
 begin
+  { Free dialog resources }
+  if DialogBackgroundBuffer <> nil then
+  begin
+    FreeFrameBuffer(DialogBackgroundBuffer);
+    DialogBackgroundBuffer := nil;
+  end;
+
   { Parent will cleanup resources via ResMan }
   inherited Done;
 end;
@@ -129,6 +161,11 @@ begin
   GemsImage := ResMan.GetImage('gems1');
   FontLarge := ResMan.GetFont('large');
   FontSmall := ResMan.GetFont('small');
+  Palette := ResMan.GetPalette('default');
+
+  { Load dialog resources }
+  DialogImage := ResMan.GetImage('dialog');
+  DialogBackgroundBuffer := CreateFrameBuffer;
 
   { Initialize UI style }
   UIStyle.Init(186, 188, 189, 15);

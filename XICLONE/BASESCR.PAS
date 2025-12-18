@@ -5,9 +5,6 @@ interface
 uses
   VGA, VGAFont, VGAUI, Keyboard, GameUnit, Globals, HiScore, StrUtil;
 
-const
-  MaxDialogButtons = 5;
-
 type
   PBaseScreen = ^TBaseScreen;
   TBaseScreen = object(TScreen)
@@ -26,19 +23,6 @@ type
   end;
 
 implementation
-
-var
-  DialogBackgroundBuffer: PFrameBuffer;
-  DialogImage: PImage;
-  DialogSavedBgImage: TImage;
-  DialogLabel: PLabel;
-  DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
-  DialogButtonIndex: ShortInt;
-  DialogHeight: Word;
-
-  Palette: PPalette;
-
-  DialogHasTitle: Boolean;
 
 procedure RenderDialogDitheredBackground(FrameBuffer: PFrameBuffer); assembler;
 { Optimized assembly checkerboard dither for 286 }
@@ -93,33 +77,19 @@ end;
 constructor TBaseScreen.Init;
 begin
   inherited Init;
-
-  { Load dialog-specific resources only once }
-  if DialogBackgroundBuffer = nil then
-  begin
-    DialogImage := Game.ResMan.GetImage('dialog');
-    DialogBackgroundBuffer := CreateFrameBuffer;
-  end;
 end;
 
 destructor TBaseScreen.Done;
 begin
-  if DialogBackgroundBuffer <> nil then
-  begin
-    FreeFrameBuffer(DialogBackgroundBuffer);  
-  end;
+  inherited Done;
 end;
 
 procedure TBaseScreen.PostInit;
 begin
   inherited PostInit;
 
-  { Set the palette only once }
-  if Palette = nil then
-  begin
-    Palette := Game.ResMan.GetPalette('default');
-    SetPalette(Palette^);
-  end;
+  { Set the palette (loaded in TXiCloneGame.Start) }
+  SetPalette(Game.Palette^);
 end;
 
 procedure TBaseScreen.Update(DT: Real);
@@ -128,12 +98,12 @@ end;
 
 function GetDialogX: Integer;
 begin
-  GetDialogX := 160 - DialogImage^.Width div 2;
+  GetDialogX := 160 - Game.DialogImage^.Width div 2;
 end;
 
 function GetDialogY: Integer;
 begin
-  GetDialogY := 100 - DialogHeight div 2;
+  GetDialogY := 100 - Game.DialogHeight div 2;
 end;
 
 procedure TBaseScreen.InitDialog(Title: String; Height: Word);
@@ -143,50 +113,50 @@ var
   DialogTopHeight: Word;
   DialogBottomHeight: Word;
 begin
-  Game.DialogUI.Init(Game.BackBuffer, DialogBackgroundBuffer);
+  Game.DialogUI.Init(Game.BackBuffer, Game.DialogBackgroundBuffer);
   Game.DialogUI.SetStyle(@Game.UIStyle);
 
-  DialogHeight := Height;
-  DialogButtonIndex := -1;
-  DialogLabel := nil;
+  Game.DialogHeight := Height;
+  Game.DialogButtonIndex := -1;
+  Game.DialogLabel := nil;
   DialogBottomHeight := 2;
-  DialogTopHeight := DialogHeight - DialogBottomHeight;
+  DialogTopHeight := Game.DialogHeight - DialogBottomHeight;
 
   if Game.PrevDialog = Dialog_None then
     RenderDialogDitheredBackground(Game.BackBuffer);
 
   { Save the background behind the dialog }
-  GetImage(DialogSavedBgImage, GetDialogX, GetDialogY, DialogImage^.Width, DialogHeight, Game.BackBuffer);
+  GetImage(Game.DialogSavedBgImage, GetDialogX, GetDialogY, Game.DialogImage^.Width, Game.DialogHeight, Game.BackBuffer);
 
   { Render the top part of the dialog background }
   DialogSourceRect.X := 0;
   DialogSourceRect.Y := 0;
-  DialogSourceRect.Width := DialogImage^.Width;
+  DialogSourceRect.Width := Game.DialogImage^.Width;
   DialogSourceRect.Height := DialogTopHeight;
-  PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY, False, Game.BackBuffer);
+  PutImageRect(Game.DialogImage^, DialogSourceRect, GetDialogX, GetDialogY, False, Game.BackBuffer);
 
   { Render the bottom part of the dialog background }
   DialogSourceRect.X := 0;
-  DialogSourceRect.Y := DialogImage^.Height - DialogBottomHeight;
-  DialogSourceRect.Width := DialogImage^.Width;
+  DialogSourceRect.Y := Game.DialogImage^.Height - DialogBottomHeight;
+  DialogSourceRect.Width := Game.DialogImage^.Width;
   DialogSourceRect.Height := DialogBottomHeight;
-  PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY + DialogTopHeight, False, Game.BackBuffer);
+  PutImageRect(Game.DialogImage^, DialogSourceRect, GetDialogX, GetDialogY + DialogTopHeight, False, Game.BackBuffer);
 
-  if Title <> '' then 
+  if Title <> '' then
   begin
-    DialogHasTitle := True;
-    PrintFontTextCentered(160, GetDialogY + 10, Title, Game.FontLarge^, Game.BackBuffer);    
+    Game.DialogHasTitle := True;
+    PrintFontTextCentered(160, GetDialogY + 10, Title, Game.FontLarge^, Game.BackBuffer);
   end
   else
-    DialogHasTitle := False;
+    Game.DialogHasTitle := False;
 
   { Save the UI background, we just need the background of the dialog }
   DialogSourceRect.X := GetDialogX;
   DialogSourceRect.Y := GetDialogY;
-  DialogSourceRect.Width := DialogImage^.Width;
-  DialogSourceRect.Height := DialogHeight;
+  DialogSourceRect.Width := Game.DialogImage^.Width;
+  DialogSourceRect.Height := Game.DialogHeight;
   CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect,
-                      DialogBackgroundBuffer, DialogSourceRect.X, DialogSourceRect.Y);
+                      Game.DialogBackgroundBuffer, DialogSourceRect.X, DialogSourceRect.Y);
 
 
   if Game.PrevDialog = Dialog_None then
@@ -197,11 +167,11 @@ begin
     { Only the dialog column render }
     DialogSourceRect.Y := 0;
     DialogSourceRect.Height := 200;
-    CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect, 
+    CopyFrameBufferRect(Game.BackBuffer, DialogSourceRect,
                         Game.ScreenBuffer, DialogSourceRect.X, DialogSourceRect.Y);
   end;
-  
-  ClearAllKeyStates; 
+
+  ClearAllKeyStates;
 end;
 
 procedure TBaseScreen.AddDialogLabel(Text: String);
@@ -216,14 +186,14 @@ begin
   H := MessageLineCount * Game.FontSmall^.Height;
 
   StartY := GetDialogY + 10;
-  if DialogHasTitle then
+  if Game.DialogHasTitle then
     StartY := StartY + Game.FontLarge^.Height + 10;
 
-  New(L, Init(GetDialogX + 8, StartY, DialogImage^.Width - 16, H, Text, Game.FontSmall));
+  New(L, Init(GetDialogX + 8, StartY, Game.DialogImage^.Width - 16, H, Text, Game.FontSmall));
   L^.TextAlign := Align_Center + Align_Top;
   Game.DialogUI.AddWidget(L);
-  
-  DialogLabel := L;
+
+  Game.DialogLabel := L;
 end;
 
 procedure TBaseScreen.AddDialogButton(Text: String; EventHandler: TEventHandler);
@@ -231,54 +201,54 @@ var
   Button: PButton;
   StartY: Integer;
 begin
-  if DialogButtonIndex = MaxDialogButtons then
+  if Game.DialogButtonIndex = MaxDialogButtons then
     Exit;
 
   StartY := GetDialogY + 10;
-  if DialogHasTitle then
+  if Game.DialogHasTitle then
     StartY := StartY + Game.FontLarge^.Height + 10;
-  if DialogLabel <> nil then
-    StartY := StartY + DialogLabel^.Rectangle.Height + 10;
+  if Game.DialogLabel <> nil then
+    StartY := StartY + Game.DialogLabel^.Rectangle.Height + 10;
 
-  Inc(DialogButtonIndex);
+  Inc(Game.DialogButtonIndex);
 
-  New(Button, Init(GetDialogX + 20, StartY + DialogButtonIndex * 20, 120, 16, Text, Game.FontSmall));
+  New(Button, Init(GetDialogX + 20, StartY + Game.DialogButtonIndex * 20, 120, 16, Text, Game.FontSmall));
   Button^.SetEventHandler(@EventHandler);
   Game.DialogUI.AddWidget(Button);
 
-  DialogButtons[DialogButtonIndex] := Button;
+  Game.DialogButtons[Game.DialogButtonIndex] := Button;
 end;
 
 procedure TBaseScreen.ShowDialog(UpdateProcedure: TUpdateProcedure);
 var
   i: Integer;
 begin
-  if DialogButtonIndex < 0 then
+  if Game.DialogButtonIndex < 0 then
     Exit;
 
-  Game.DialogUI.SetFocus(DialogButtons[0]);
+  Game.DialogUI.SetFocus(Game.DialogButtons[0]);
   Game.DialogUI.Run(@UpdateProcedure, True);
 
   { Cleanup label if exists }
-  if DialogLabel <> nil then
+  if Game.DialogLabel <> nil then
   begin
-    Game.DialogUI.RemoveWidget(DialogLabel);
-    Dispose(DialogLabel, Done);
-    DialogLabel := nil;
+    Game.DialogUI.RemoveWidget(Game.DialogLabel);
+    Dispose(Game.DialogLabel, Done);
+    Game.DialogLabel := nil;
   end;
 
   { Cleanup buttons }
-  for i := 0 to DialogButtonIndex do
+  for i := 0 to Game.DialogButtonIndex do
   begin
-    Game.DialogUI.RemoveWidget(DialogButtons[i]);
-    Dispose(DialogButtons[i], Done);
+    Game.DialogUI.RemoveWidget(Game.DialogButtons[i]);
+    Dispose(Game.DialogButtons[i], Done);
   end;
 
   Game.DialogUI.Done;
 
   { Restore background behind the dialog }
-  PutImage(DialogSavedBgImage, GetDialogX, GetDialogY, False, Game.BackBuffer);
-  FreeImage(DialogSavedBgImage);
+  PutImage(Game.DialogSavedBgImage, GetDialogX, GetDialogY, False, Game.BackBuffer);
+  FreeImage(Game.DialogSavedBgImage);
 
   if Game.NextDialog = Dialog_None then
     CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
@@ -338,7 +308,4 @@ begin
   ShowConfirm := Game.ConfirmDialogAnswer;
 end;
 
-begin
-  Palette := nil;
-  DialogBackgroundBuffer := nil;
 end.
