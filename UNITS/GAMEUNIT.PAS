@@ -79,6 +79,9 @@ type
 
 implementation
 
+var
+  CurrentGame: PGame;  { Pointer to current game instance for exit handler }
+
 { ========== TScreen Implementation ========== }
 
 constructor TScreen.Init;
@@ -123,12 +126,16 @@ end;
 {$F+}
 procedure CleanupOnExit; far;
 begin
-  Game.Done;
+  if CurrentGame <> nil then
+    CurrentGame^.Done;
 end;
 {$F-}
 
 constructor TGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
 begin
+  { Set current game instance for exit handler }
+  CurrentGame := @Self;
+
   { Store file paths }
   ConfigFilePath := ConfigIniPath;
   ResFilePath := ResXmlPath;
@@ -210,6 +217,9 @@ begin
   { Close VGA }
   if VGAInitialized then
     CloseVGA;
+
+  { Clear current game pointer }
+  CurrentGame := nil;
 end;
 
 procedure TGame.Start;
