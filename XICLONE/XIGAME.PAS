@@ -8,7 +8,7 @@ uses
 const
   TileSize = 16;
   HighScoreSalt = 'XICLONE_HIGHSCORE_V1';  { Salt for high score tamper protection }
-  MaxDialogButtons = 5;
+  MaxDialogWidgets = 10;  { Accommodate labels, buttons, text inputs }
 
 type
   TCustomUIStyle = object(TUIStyle)
@@ -31,7 +31,8 @@ type
     Dialog_Paused,
     Dialog_GameOver,
     Dialog_ConfirmRestart,
-    Dialog_ConfirmQuit
+    Dialog_ConfirmQuit,
+    Dialog_SubmitScore
   );
 
   { Xi Clone game - extends TGame with game-specific resources }
@@ -55,11 +56,10 @@ type
     PrevDialog: TDialogType;
     BackDialog: TDialogType;
     DialogSavedBgImage: TImage;
-    DialogLabel: PLabel;
-    DialogButtons: array [0..MaxDialogButtons - 1] of PButton;
-    DialogButtonIndex: ShortInt;
+    DialogWidgets: array [0..MaxDialogWidgets - 1] of PWidget;
+    DialogWidgetCount: Byte;
     DialogHeight: Word;
-    DialogHasTitle: Boolean;
+    CurrentScore: LongInt;
 
     { Game-specific initialization and cleanup }
     constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
@@ -71,11 +71,18 @@ type
     procedure SetNextDialog(ND: TDialogType);
 
     { Dialog methods }
-    procedure InitDialog(Title: String; Height: Word);
+    procedure InitDialog;
+    procedure PostInitDialog;
+    function GetDialogHeight: Word;
+    procedure AddDialogTitle(Text: String);
     procedure AddDialogLabel(Text: String);
     procedure AddDialogButton(Text: String; EventHandler: TEventHandler);
+    procedure AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TEventHandler);
+    procedure AddDialogWidget(Widget: PWidget);
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
     function ShowConfirm(Message: String; UpdateProcedure: TUpdateProcedure): Boolean;
+    procedure CalculateDialogWidgetPositions;
+    function GetNextSpacing(PrevWidgetType: TWidgetType; I: Integer): Word;
   end;
 
 var
@@ -128,14 +135,13 @@ begin
   PrevDialog := Dialog_None;
   BackDialog := Dialog_None;
   ConfirmDialogAnswer := False;
-  DialogLabel := nil;
-  DialogButtonIndex := -1;
+  DialogWidgetCount := 0;
   DialogHeight := 0;
-  DialogHasTitle := False;
+  CurrentScore := 0;
 
-  { Initialize dialog button array }
-  for I := 0 to MaxDialogButtons - 1 do
-    DialogButtons[I] := nil;
+  { Initialize dialog widget array }
+  for I := 0 to MaxDialogWidgets - 1 do
+    DialogWidgets[I] := nil;
 
   { Resources will be loaded in Start after VGA initialization }
   GemsImage := nil;
@@ -300,19 +306,69 @@ end;
 
 { ========== Dialog Methods ========== }
 
-procedure TXiCloneGame.InitDialog(Title: String; Height: Word);
+procedure TXiCloneGame.InitDialog;
+begin
+  DialogUI.Init(BackBuffer, DialogBackgroundBuffer);
+  DialogUI.SetStyle(@UIStyle);
+  DialogWidgetCount := 0;
+end;
+
+function TXiCloneGame.GetNextSpacing(PrevWidgetType: TWidgetType; I: Integer): Word;
+begin
+    { The default Spacing is 10, only between two buttons/line edits is 5 pixels }
+    if ((DialogWidgets[I]^.WidgetType = WidgetType_Button) or
+        (DialogWidgets[I]^.WidgetType = WidgetType_LineEdit)) and
+       ((PrevWidgetType = WidgetType_Button) or
+        (PrevWidgetType = WidgetType_LineEdit)) then
+      GetNextSpacing := 5
+    else
+      GetNextSpacing := 10;
+end;
+
+function TXiCloneGame.GetDialogHeight: Word;
+var
+  I: Integer;
+  H: Word;
+  Spacing: Word;
+  PrevWidgetType: TWidgetType;
+begin
+  H := 0;
+  PrevWidgetType := WidgetType_Label;
+  for I := 0 to DialogWidgetCount - 1 do
+  begin
+    H := H + GetNextSpacing(PrevWidgetType, I);
+    H := H + DialogWidgets[I]^.Rectangle.Height;
+    PrevWidgetType := DialogWidgets[I]^.WidgetType;
+  end;
+  GetDialogHeight := H + 10;
+end;
+
+procedure TXiCloneGame.CalculateDialogWidgetPositions;
+var
+  I: Integer;
+  CurrentY: Integer;
+  Spacing: Word;
+  PrevWidgetType: TWidgetType;
+begin
+  CurrentY := GetDialogY;
+  PrevWidgetType := WidgetType_Label;
+  for I := 0 to DialogWidgetCount - 1 do
+  begin
+    CurrentY := CurrentY + GetNextSpacing(PrevWidgetType, I);
+    DialogWidgets[I]^.Rectangle.Y := CurrentY;
+    CurrentY := CurrentY + DialogWidgets[I]^.Rectangle.Height;
+    PrevWidgetType := DialogWidgets[I]^.WidgetType;
+  end;
+end;
+
+procedure TXiCloneGame.PostInitDialog;
 var
   DialogSourceRect: TRectangle;
   DialogX: Integer;
   DialogTopHeight: Word;
   DialogBottomHeight: Word;
 begin
-  DialogUI.Init(BackBuffer, DialogBackgroundBuffer);
-  DialogUI.SetStyle(@UIStyle);
-
-  DialogHeight := Height;
-  DialogButtonIndex := -1;
-  DialogLabel := nil;
+  DialogHeight := GetDialogHeight;
   DialogBottomHeight := 2;
   DialogTopHeight := DialogHeight - DialogBottomHeight;
 
@@ -336,14 +392,6 @@ begin
   DialogSourceRect.Height := DialogBottomHeight;
   PutImageRect(DialogImage^, DialogSourceRect, GetDialogX, GetDialogY + DialogTopHeight, False, BackBuffer);
 
-  if Title <> '' then
-  begin
-    DialogHasTitle := True;
-    PrintFontTextCentered(160, GetDialogY + 10, Title, FontLarge^, BackBuffer);
-  end
-  else
-    DialogHasTitle := False;
-
   { Save the UI background, we just need the background of the dialog }
   DialogSourceRect.X := GetDialogX;
   DialogSourceRect.Y := GetDialogY;
@@ -365,7 +413,26 @@ begin
                         ScreenBuffer, DialogSourceRect.X, DialogSourceRect.Y);
   end;
 
+  CalculateDialogWidgetPositions;
+
   ClearAllKeyStates;
+end;
+
+procedure TXiCloneGame.AddDialogWidget(Widget: PWidget);
+begin
+  DialogUI.AddWidget(Widget);
+  DialogWidgets[DialogWidgetCount] := Widget;
+  Inc(DialogWidgetCount);
+end;
+
+procedure TXiCloneGame.AddDialogTitle(Text: String);
+var
+  L: PLabel;
+begin
+  if DialogWidgetCount >= MaxDialogWidgets then Exit;
+  New(L, Init(GetDialogX + 8, 0, DialogImage^.Width - 16, FontLarge^.Height, Text, FontLarge));
+  L^.TextAlign := Align_Center + Align_Top;
+  AddDialogWidget(L);
 end;
 
 procedure TXiCloneGame.AddDialogLabel(Text: String);
@@ -374,69 +441,71 @@ var
   H: Integer;
   MessageLines: TMultiLineText;
   MessageLineCount: Byte;
-  StartY: Integer;
+  I: Integer;
 begin
+  if DialogWidgetCount >= MaxDialogWidgets then Exit;
+  
   SplitLines(Text, MessageLines, MessageLineCount);
   H := MessageLineCount * FontSmall^.Height;
 
-  StartY := GetDialogY + 10;
-  if DialogHasTitle then
-    StartY := StartY + FontLarge^.Height + 10;
-
-  New(L, Init(GetDialogX + 8, StartY, DialogImage^.Width - 16, H, Text, FontSmall));
+  New(L, Init(GetDialogX + 8, 0, DialogImage^.Width - 16, H, Text, FontSmall));
   L^.TextAlign := Align_Center + Align_Top;
-  DialogUI.AddWidget(L);
-
-  DialogLabel := L;
+  AddDialogWidget(L);
 end;
 
 procedure TXiCloneGame.AddDialogButton(Text: String; EventHandler: TEventHandler);
 var
   Button: PButton;
-  StartY: Integer;
+  I: Integer;
 begin
-  if DialogButtonIndex = MaxDialogButtons then
-    Exit;
-
-  StartY := GetDialogY + 10;
-  if DialogHasTitle then
-    StartY := StartY + FontLarge^.Height + 10;
-  if DialogLabel <> nil then
-    StartY := StartY + DialogLabel^.Rectangle.Height + 10;
-
-  Inc(DialogButtonIndex);
-
-  New(Button, Init(GetDialogX + 20, StartY + DialogButtonIndex * 20, 120, 16, Text, FontSmall));
+  if DialogWidgetCount >= MaxDialogWidgets then Exit;
+  New(Button, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, Text, FontSmall));
   Button^.SetEventHandler(@EventHandler);
-  DialogUI.AddWidget(Button);
+  AddDialogWidget(Button);
+end;
 
-  DialogButtons[DialogButtonIndex] := Button;
+procedure TXiCloneGame.AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TEventHandler);
+var
+  LineEdit: PLineEdit;
+  I: Integer;
+begin
+  if DialogWidgetCount >= MaxDialogWidgets then Exit;
+  New(LineEdit, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, FontSmall, MaxLength));
+  LineEdit^.SetText(InitialText);
+  AddDialogWidget(LineEdit);
 end;
 
 procedure TXiCloneGame.ShowDialog(UpdateProcedure: TUpdateProcedure);
 var
   i: Integer;
+  DialogSourceRect: TRectangle;
 begin
-  if DialogButtonIndex < 0 then
+  if DialogWidgetCount = 0 then
     Exit;
 
-  DialogUI.SetFocus(DialogButtons[0]);
+  { Focus first focusable widget (skip labels) }
+  for I := 0 to DialogWidgetCount - 1 do
+  begin
+    { Try to focus this widget - buttons/lineedits are focusable, labels are not }
+    { We can detect buttons/lineedits by checking if they're not labels }
+    { Simple heuristic: Labels have no event handler, focusable widgets do }
+    DialogUI.SetFocus(DialogWidgets[I]);
+    { SetFocus will handle enabled/disabled state }
+    if DialogUI.FocusedWidget <> nil then
+      Break;  { Found a focusable widget }
+  end;
+
+  { Run the Dialog UI }
   DialogUI.Run(@UpdateProcedure, True);
 
-  { Cleanup label if exists }
-  if DialogLabel <> nil then
+  { Cleanup all widgets }
+  for I := 0 to DialogWidgetCount - 1 do
   begin
-    DialogUI.RemoveWidget(DialogLabel);
-    Dispose(DialogLabel, Done);
-    DialogLabel := nil;
+    DialogUI.RemoveWidget(DialogWidgets[I]);
+    Dispose(DialogWidgets[I], Done);
+    DialogWidgets[I] := nil;
   end;
-
-  { Cleanup buttons }
-  for i := 0 to DialogButtonIndex do
-  begin
-    DialogUI.RemoveWidget(DialogButtons[i]);
-    Dispose(DialogButtons[i], Done);
-  end;
+  DialogWidgetCount := 0;
 
   DialogUI.Done;
 
@@ -445,7 +514,21 @@ begin
   FreeImage(DialogSavedBgImage);
 
   if NextDialog = Dialog_None then
+  begin
+    { Restore the clean background (without HUD) to BackBuffer }
+    { Screen update will be handled by the caller (e.g., Restart -> FullRender) }
     CopyFrameBuffer(BackgroundBuffer, BackBuffer);
+  end
+  else
+  begin
+    { Update only the dialog area on screen to clear old dialog visuals }
+    { This is for dialog-to-dialog transitions (e.g., SubmitScore -> GameOver) }
+    DialogSourceRect.X := GetDialogX;
+    DialogSourceRect.Y := GetDialogY;
+    DialogSourceRect.Width := DialogImage^.Width;
+    DialogSourceRect.Height := DialogHeight;
+    CopyFrameBufferRect(BackBuffer, DialogSourceRect, ScreenBuffer, DialogSourceRect.X, DialogSourceRect.Y);
+  end;
 
   ClearAllKeyStates;
 
@@ -453,28 +536,17 @@ begin
 end;
 
 function TXiCloneGame.ShowConfirm(Message: String; UpdateProcedure: TUpdateProcedure): Boolean;
-var
-  MessageLines: TMultiLineText;
-  MessageLineCount: Byte;
-  i: Byte;
-  H: Integer;
-  DialogHeightCalc: Word;
 begin
-  { Calculate message dimensions }
-  SplitLines(Message, MessageLines, MessageLineCount);
-  H := MessageLineCount * FontSmall^.Height;
+  { Begin dialog (initializes DialogUI, resets state) }
+  InitDialog;
 
-  { Calculate dialog height: spacing (10) + message height + spacing (10) + 2 buttons (40) + bottom spacing (10) }
-  DialogHeightCalc := 10 + H + 10 + 40 + 10;
-
-  { Initialize dialog without title }
-  InitDialog('', DialogHeightCalc);
-
-  { Add message label }
+  { Add widgets (no title for confirm dialogs) }
   AddDialogLabel(Message);
-
   AddDialogButton('Cancel', CancelEvent);
   AddDialogButton('OK', OkEvent);
+
+  { Initialize dialog rendering after widgets are added }
+  PostInitDialog;
 
   ShowDialog(UpdateProcedure);
 

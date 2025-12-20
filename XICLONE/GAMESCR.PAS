@@ -109,7 +109,6 @@ type
     procedure LandStack;
     function RandomGemColor: TGemColor;
     function SpawnStack(First: Boolean): Boolean;
-    procedure ShowGameOver;
     procedure RotateStack;
     function CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
     function CountMatchInDirection(StartX, StartY, DX, DY: Integer; Color: TGemColor): Integer;
@@ -127,6 +126,13 @@ type
     procedure FullRender;
 
     procedure ShowFlashMessage(Text: String; SoundName: String);
+
+    procedure SetGameOver;
+    procedure ShowGameOver;
+    procedure SubmitScore;
+
+    procedure Restart;
+    procedure QuitToMenu;
   end;
 
   TStatLabelInfo = record
@@ -143,6 +149,9 @@ const
 
 implementation
 
+var
+  GameScreen: PGameScreen;
+
 constructor TGameScreen.Init;
 begin
   inherited Init;
@@ -156,6 +165,8 @@ begin
 
   { Initialize high score state }
   HighScoreReached := False;
+
+  GameScreen := @Self;
 end;
 
 destructor TGameScreen.Done;
@@ -361,7 +372,7 @@ begin
       if FindAndRemoveMatches = 0 then
       begin
         { Game Over - couldn't spawn and no matches to clear }
-        Game.SetNextDialog(Dialog_GameOver);
+        SetGameOver;
       end
       else
       begin
@@ -513,6 +524,16 @@ begin
     PauseContinueAction;
 end;
 
+procedure PauseRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
+begin
+  if Game.DialogUI.IsEnter(Event) then
+  begin
+    Game.SetNextDialog(Dialog_ConfirmRestart);
+    Game.BackDialog := Dialog_Paused;
+    Game.DialogUI.Stop;
+  end;
+end;
+
 procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if Game.DialogUI.IsEnter(Event) then
@@ -523,32 +544,16 @@ begin
   end;
 end;
 
-procedure GameOverSubmitScoreButtonEvent(var Widget: TWidget; var Event: TEvent);
-begin
-  if Game.DialogUI.IsEnter(Event) then
-  begin
-    { TODO: Implement score submission }
-  end;
-end;
-
 procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if Game.DialogUI.IsEnter(Event) then
-  begin
-    Game.SetNextDialog(Dialog_ConfirmRestart);
-    Game.BackDialog := Dialog_GameOver;
-    Game.DialogUI.Stop;
-  end;
+    GameScreen^.Restart;
 end;
 
 procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
 begin
   if Game.DialogUI.IsEnter(Event) then
-  begin
-    Game.SetNextDialog(Dialog_ConfirmQuit);
-    Game.BackDialog := Dialog_GameOver;
-    Game.DialogUI.Stop;
-  end;
+    GameScreen^.QuitToMenu;
 end;
 
 procedure ConfirmDialogUpdate;
@@ -561,51 +566,134 @@ begin
   end;
 end;
 
+procedure SubmitScoreOk(var Widget: TWidget; var Event: TEvent); far;
+var
+  LineEdit: PLineEdit;
+  PlayerName: String;
+begin
+  if Game.DialogUI.IsEnter(Event) then
+  begin
+    { Find LineEdit widget - should be at index 2 (after title + msg label at index 0, 1) }
+    LineEdit := PLineEdit(Game.DialogWidgets[1]);
+    PlayerName := LineEdit^.GetText;
+
+    { Save high score with player name and current score }
+    SaveHighScore('SCORES.XML', PlayerName, GameScreen^.Score, Game.HighScoreTable);
+
+    Game.SetNextDialog(Dialog_GameOver);
+    Game.DialogUI.Stop;
+  end;
+end;
+
 {$F-}
+
+procedure TGameScreen.SetGameOver;
+begin
+  if HighScoreReached then
+    Game.SetNextDialog(Dialog_SubmitScore)
+  else
+    Game.SetNextDialog(Dialog_GameOver);
+end;
+
+procedure TGameScreen.SubmitScore;
+var
+  Msg: String;
+begin
+  { Format message with final score }
+  Msg := 'Final Score: ' + IntToStr(Score) + #10 +
+         #10 +
+         'NEW HIGH SCORE!' + #10 +
+         'Enter your name:';
+
+  { Begin dialog (initializes DialogUI, resets state) }
+  Game.InitDialog;
+
+  { Add widgets }
+  Game.AddDialogTitle('GAME OVER');  { Title as label widget }
+  Game.AddDialogLabel(Msg);  { Multi-line message with score }
+  Game.AddDialogLineEdit(16, 'Player', SubmitScoreOk);  { Max 16 chars, default "Player" }
+  Game.AddDialogButton('OK', SubmitScoreOk);  { Only OK button, no Cancel }
+
+  { Initialize dialog rendering after widgets are added }
+  Game.PostInitDialog;
+
+  Game.ShowDialog(nil);  { No UpdateProcedure needed }
+end;
 
 procedure TGameScreen.ShowGameOver;
 var
   ScoreText: String;
-  DialogHeight: Word;
 begin
-  { Display final score }
+  { Show standard game over dialog (always, even after submit score) }
   ScoreText := 'Final Score: ' + IntToStr(Score);
 
-  { Determine dialog height based on high score }
-  if HighScoreReached then
-    DialogHeight := 128  { 108 + 20 for extra button }
-  else
-    DialogHeight := 108;
+  { Begin dialog (initializes DialogUI, resets state) }
+  Game.InitDialog;
 
-  { Create game over dialog }
-  Game.InitDialog('GAME OVER', DialogHeight);
-
+  { Add widgets }
+  Game.AddDialogTitle('GAME OVER');  { Title as label widget }
   Game.AddDialogLabel(ScoreText);
 
-  { Add Submit Score button if high score was reached }
-  if HighScoreReached then
-    Game.AddDialogButton('Submit Score', GameOverSubmitScoreButtonEvent);
-
+  { No Submit Score button - removed as per requirements }
   Game.AddDialogButton('Restart', GameOverRestartButtonEvent);
   Game.AddDialogButton('Quit to Menu', GameOverQuitButtonEvent);
+
+  { Initialize dialog rendering after widgets are added }
+  Game.PostInitDialog;
 
   { Run dialog event loop }
   Game.ShowDialog(nil);
 end;
 
+procedure TGameScreen.Restart;
+begin
+  Game.DialogUI.Stop;
+  Game.SetNextDialog(Dialog_None);
+
+  { After dialog closes and cleanup runs, then reset game }
+  { This ensures dialog cleanup doesn't overwrite our game state }
+  { Note: ResetGameState and FullRender will be called after ShowDialog returns }
+end;
+
+procedure TGameScreen.QuitToMenu;
+begin
+  Game.DialogUI.Stop;
+  Game.Stop;
+end;
 
 procedure TGameScreen.Update(DT: Real);
 begin
 
   if Game.NextDialog = Dialog_GameOver then
+  begin
     ShowGameOver;
+    { After dialog closes, check if we should restart }
+    if Game.NextDialog = Dialog_None then
+    begin
+      ResetGameState;
+      CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+      FullRender;
+    end;
+  end;
 
   if Game.NextDialog = Dialog_Paused then
   begin
-    Game.InitDialog('PAUSED', 88);
+    { Begin dialog (initializes DialogUI, resets state) }
+    Game.InitDialog;
+
+    { Add widgets }
+    Game.AddDialogTitle('PAUSED');  { Title as label widget }
     Game.AddDialogButton('Continue Game', PauseContinueButtonEvent);
+    Game.AddDialogButton('Restart Game', PauseRestartButtonEvent);
     Game.AddDialogButton('Quit to Menu', PauseQuitButtonEvent);
+
+    { Initialize dialog rendering after widgets are added }
+    Game.PostInitDialog;
+
     Game.ShowDialog(PauseDialogUpdate);
+
+    { Clear Escape key press after dialog closes to prevent immediate re-trigger }
+    ClearKeyPressed;
 
     { Restore game screen after dialog closes }
     if Game.NextDialog = Dialog_None then
@@ -618,25 +706,27 @@ begin
   if Game.NextDialog = Dialog_ConfirmRestart then
   begin
     if Game.ShowConfirm('Do you want to' + #10 + 'restart the game?', ConfirmDialogUpdate) then
-    begin
-      ResetGameState;
-      Game.SetNextDialog(Dialog_None);
-      CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
-      FullRender;
-    end
+      Restart
     else
       Game.SetNextDialog(Game.BackDialog);
+
+    { Clear key press after confirm dialog }
+    ClearKeyPressed;
   end;
 
   if Game.NextDialog = Dialog_ConfirmQuit then
   begin
     if Game.ShowConfirm('Do you want to quit?', ConfirmDialogUpdate) then
-    begin
-      Game.Stop;
-      Exit;
-    end;
-    Game.SetNextDialog(Game.BackDialog);
+      QuitToMenu
+    else
+      Game.SetNextDialog(Game.BackDialog);
+
+    { Clear key press after confirm dialog }
+    ClearKeyPressed;
   end;
+
+  if Game.NextDialog = Dialog_SubmitScore then
+    SubmitScore;
 
   if Game.NextDialog = Dialog_None then
   begin
@@ -666,7 +756,7 @@ begin
           if not SpawnStack(False) then
           begin
             { Still can't spawn - game over }
-            Game.SetNextDialog(Dialog_GameOver);
+            SetGameOver;            
           end
           else
           begin

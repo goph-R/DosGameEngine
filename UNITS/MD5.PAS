@@ -66,14 +66,10 @@ const
 { Rotate left 32-bit value - 16-bit compatible }
 { Bit-by-bit implementation to avoid signed integer shift issues }
 function ROL(x: LongInt; n: Byte): LongInt;
-type
-  TLongRec = record
-    case Integer of
-      0: (L: LongInt);
-      1: (Bytes: array[0..3] of Byte);
-  end;
 var
-  src, dst: TLongRec;
+  src, dst: LongInt;
+  srcBytes: array[0..3] of Byte absolute src;
+  dstBytes: array[0..3] of Byte absolute dst;
   bitPos, srcByte, srcBit, dstByte, dstBit: Integer;
 begin
   if n = 0 then
@@ -82,8 +78,8 @@ begin
     Exit;
   end;
 
-  src.L := x;
-  dst.L := 0;
+  src := x;
+  dst := 0;
 
   { Rotate each bit individually }
   for bitPos := 0 to 31 do
@@ -94,11 +90,11 @@ begin
     dstByte := ((bitPos + n) and 31) shr 3;
     dstBit := ((bitPos + n) and 31) and 7;
 
-    if (src.Bytes[srcByte] and (1 shl srcBit)) <> 0 then
-      dst.Bytes[dstByte] := dst.Bytes[dstByte] or (1 shl dstBit);
+    if (srcBytes[srcByte] and (1 shl srcBit)) <> 0 then
+      dstBytes[dstByte] := dstBytes[dstByte] or (1 shl dstBit);
   end;
 
-  ROL := dst.L;
+  ROL := dst;
 end;
 
 { MD5 auxiliary functions }

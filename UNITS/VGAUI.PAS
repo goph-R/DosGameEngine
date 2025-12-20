@@ -82,6 +82,14 @@ type
 { Base Widget Type                                                           }
 { ========================================================================== }
 
+  TWidgetType = (
+    WidgetType_Base,
+    WidgetType_Label,
+    WidgetType_Button,
+    WidgetType_Checkbox,
+    WidgetType_LineEdit
+  );
+
   TWidget = object
     Rectangle: TRectangle;
     Visible: Boolean;
@@ -90,6 +98,7 @@ type
     NeedsRedraw: Boolean;   { Widget needs rendering (dirty flag) }
     EventHandler: Pointer;  { TEventHandler - defined below }
     Tag: Integer;
+    WidgetType: TWidgetType;
 
     constructor Init(X, Y: Integer; W, H: Word);
     procedure SetEventHandler(Handler: Pointer);
@@ -313,6 +322,7 @@ begin
   NeedsRedraw := True;  { New widgets always need initial draw }
   EventHandler := nil;
   Tag := 0;
+  WidgetType := WidgetType_Base;
 end;
 
 procedure TWidget.SetEventHandler(Handler: Pointer);
@@ -389,6 +399,7 @@ begin
   { Initialize base widget }
   inherited Init(X, Y, W, H);
   Enabled := False;  { Labels cannot receive focus }
+  WidgetType := WidgetType_Label;
 
   { Split text into lines }
   SplitLines(TextStr, Lines, LineCount);
@@ -443,6 +454,7 @@ end;
 constructor TButton.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
 begin
   inherited Init(X, Y, W, H);
+  WidgetType := WidgetType_Button;
 
   { Split text into lines }
   SplitLines(TextStr, Lines, LineCount);
@@ -550,6 +562,7 @@ end;
 constructor TCheckbox.Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
 begin
   inherited Init(X, Y, W, H);
+  WidgetType := WidgetType_Checkbox;
 
   Image := CheckboxImage;
 
@@ -686,6 +699,7 @@ end;
 constructor TLineEdit.Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
 begin
   inherited Init(X, Y, W, H);
+  WidgetType := WidgetType_LineEdit;
 
   { Allocate empty text }
   New(Text);
@@ -767,10 +781,9 @@ begin
       end;
       Event.Handled := True;
     end
-    { Enter - fire event handler }
+    { Enter - pass to event handler without handling }
     else if Event.KeyCode = $1C then  { Enter=$1C }
     begin
-      Event.Handled := True;
       if EventHandler <> nil then
         TEventHandler(EventHandler)(Self, Event);
     end
@@ -921,9 +934,9 @@ begin
   end;
 
   { Focus new widget (if enabled) }
-  FocusedWidget := Widget;
   if (Widget <> nil) and Widget^.Enabled then
   begin
+    FocusedWidget := Widget;
     Widget^.Focused := True;
     NewEvent.EventType := Event_FocusGain;
     NewEvent.KeyCode := 0;
@@ -932,6 +945,11 @@ begin
     Widget^.Focused := True;
     Widget^.MarkDirty;
     Widget^.HandleEvent(NewEvent);
+  end
+  else
+  begin
+    { Widget is nil or disabled - clear focus }
+    FocusedWidget := nil;
   end;
 end;
 
