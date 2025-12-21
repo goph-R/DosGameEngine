@@ -160,14 +160,15 @@ begin
     Exit;
   end;
 
-  { Always true if table not full }
-  if HS.Count < MaxHighScores then
+  { If table is empty, any score > 0 counts }
+  if HS.Count = 0 then
   begin
     IsHighScore := True;
     Exit;
   end;
 
-  { Check if score beats the lowest score }
+  { Check if score beats the lowest score in the table }
+  { This works whether table is full or not }
   IsHighScore := (Score > HS.Scores[HS.Count - 1]);
 end;
 

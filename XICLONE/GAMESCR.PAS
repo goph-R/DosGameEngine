@@ -311,14 +311,22 @@ begin
       end;
     end;
 
-    { Update score with combo multiplier }
-    Inc(Score, GemsRemoved * 10 * ComboMultiplier);
-
-    { Check for high score (only show message once per session) }
-    if (not HighScoreReached) and IsHighScore(Game.HighScoreTable, Score) then
+    { Check for high score transition (only show message once per session) }
+    { Note: Check BEFORE updating score to detect the transition }
+    if (not HighScoreReached) and (not IsHighScore(Game.HighScoreTable, Score)) then
     begin
-      HighScoreReached := True;
-      ShowFlashMessage('High Score!', '');
+      { Score is not currently a high score, but check if it will be after this match }
+      Inc(Score, GemsRemoved * 10 * ComboMultiplier);
+      if IsHighScore(Game.HighScoreTable, Score) then
+      begin
+        HighScoreReached := True;
+        ShowFlashMessage('High Score!', '');
+      end;
+    end
+    else
+    begin
+      { Already a high score or HighScoreReached flag set, just update score }
+      Inc(Score, GemsRemoved * 10 * ComboMultiplier);
     end;
   end
   else
