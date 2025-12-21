@@ -472,6 +472,7 @@ begin
   if DialogWidgetCount >= MaxDialogWidgets then Exit;
   New(LineEdit, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, FontSmall, MaxLength));
   LineEdit^.SetText(InitialText);
+  LineEdit^.SetEventHandler(@EventHandler);
   AddDialogWidget(LineEdit);
 end;
 

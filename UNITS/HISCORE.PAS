@@ -153,6 +153,13 @@ end;
 
 function IsHighScore(const HS: THighScore; Score: LongInt): Boolean;
 begin
+  { Don't accept zero scores }
+  if Score = 0 then
+  begin
+    IsHighScore := False;
+    Exit;
+  end;
+
   { Always true if table not full }
   if HS.Count < MaxHighScores then
   begin

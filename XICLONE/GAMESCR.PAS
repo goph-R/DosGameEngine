@@ -573,8 +573,8 @@ var
 begin
   if Game.DialogUI.IsEnter(Event) then
   begin
-    { Find LineEdit widget - should be at index 2 (after title + msg label at index 0, 1) }
-    LineEdit := PLineEdit(Game.DialogWidgets[1]);
+    { Find LineEdit widget - index 2 (Title=0, Label=1, LineEdit=2, Button=3) }
+    LineEdit := PLineEdit(Game.DialogWidgets[2]);
     PlayerName := LineEdit^.GetText;
 
     { Save high score with player name and current score }
