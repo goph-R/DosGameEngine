@@ -483,6 +483,9 @@ begin
   if DialogWidgetCount = 0 then
     Exit;
 
+  { Clear any held keys to prevent focus jumping }
+  ClearAllKeyStates;
+
   { Focus first focusable widget (skip labels) }
   for I := 0 to DialogWidgetCount - 1 do
   begin

@@ -142,6 +142,9 @@ function IsKeyPressed(ScanCode: Byte): Boolean;
 { Clear the key pressed states }
 procedure ClearKeyPressed;
 
+{ Clear the BIOS keyboard buffer }
+procedure ClearBIOSKeyboardBuffer;
+
 { Clear all key states }
 procedure ClearAllKeyStates;
 
@@ -180,6 +183,19 @@ begin
 end;
 {$F-}
 
+{ Clear the BIOS keyboard buffer by setting head = tail }
+procedure ClearBIOSKeyboardBuffer;
+var
+  BIOSDataSeg: Word;
+  BufferTail: Word;
+begin
+  BIOSDataSeg := $0040;
+  { Read current tail position }
+  BufferTail := MemW[BIOSDataSeg:$001C];
+  { Set head = tail (empty buffer) }
+  MemW[BIOSDataSeg:$001A] := BufferTail;
+end;
+
 { Clear all key states }
 procedure ClearAllKeyStates;
 var
@@ -187,10 +203,13 @@ var
 begin
   for i := 0 to 127 do
   begin
-    KeyDown[i] := False;
+    { Do NOT clear KeyDown - it should reflect true physical state }
+    { Only clear the edge-detected press state }
     KeyPressed[i] := False;
     KeyChecked[i] := False;
   end;
+  { Also clear the BIOS keyboard buffer to prevent key leakage }
+  ClearBIOSKeyboardBuffer;
 end;
 
 procedure InitKeyboard;
