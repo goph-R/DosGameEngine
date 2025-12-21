@@ -167,9 +167,8 @@ begin
     Exit;
   end;
 
-  { Check if score beats the lowest score in the table }
-  { This works whether table is full or not }
-  IsHighScore := (Score > HS.Scores[HS.Count - 1]);
+  { Check if score beats the HIGHEST score (first place) }
+  IsHighScore := (Score > HS.Scores[0]);
 end;
 
 function AddHighScore(var HS: THighScore; const Name: String; Score: LongInt): Boolean;
