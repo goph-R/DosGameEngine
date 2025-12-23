@@ -158,25 +158,21 @@ var
   LineEdit: PLineEdit;
 
 {$F+}
-procedure OnButtonClick(Sender: PWidget; KeyCode: Byte);
+procedure OnButtonClick(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-    WriteLn('Button clicked!');
+  WriteLn('Button clicked!');
 end;
 
-procedure OnCheckboxToggle(Sender: PWidget; KeyCode: Byte);
+procedure OnCheckboxClick(Sender: PWidget);
 var
   CB: PCheckbox;
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    CB := PCheckbox(Sender);
-    { Checkbox already toggled by widget }
-    if CB^.IsChecked then
-      WriteLn('Checkbox checked')
-    else
-      WriteLn('Checkbox unchecked');
-  end;
+  CB := PCheckbox(Sender);
+  { Checkbox already toggled by widget }
+  if CB^.IsChecked then
+    WriteLn('Checkbox checked')
+  else
+    WriteLn('Checkbox unchecked');
 end;
 
 procedure OnNameSubmit(Sender: PWidget; KeyCode: Byte);
@@ -214,11 +210,11 @@ begin
 
   { Create widgets - MUST use constructor syntax }
   New(Button, Init(10, 10, 120, 20, 'Click Me', @Font));
-  Button^.OnKeyPress := @OnButtonClick;
+  Button^.OnClick := @OnButtonClick;
   UI.AddWidget(Button);
 
   New(Checkbox, Init(10, 35, 120, 16, 'Enable Sound', @Font, @CheckboxImage));
-  Checkbox^.OnKeyPress := @OnCheckboxToggle;
+  Checkbox^.OnClick := @OnCheckboxClick;
   Checkbox^.SetChecked(True);
   UI.AddWidget(Checkbox);
 
@@ -265,27 +261,38 @@ VGAUI uses Delphi VCL-style event handlers. Event handlers MUST use `{$F+}` dire
 
 ```pascal
 {$F+}
-procedure OnButtonKeyPress(Sender: PWidget; KeyCode: Byte);
+procedure OnButtonClick(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    { Handle button press }
-  end;
+  { Handle button click (keyboard or mouse) }
 end;
 {$F-}
 
 { Assign event handler }
-Button^.OnKeyPress := @OnButtonKeyPress;
+Button^.OnClick := @OnButtonClick;
 ```
 
 ### Available Events
 
+- **OnClick** - `TClickEvent` - Widget activated (Enter/Space or complete mouse click)
 - **OnKeyPress** - `TKeyPressEvent` - Key pressed while widget focused
 - **OnMouseDown** - `TMouseEvent` - Mouse button pressed on widget
 - **OnMouseUp** - `TMouseEvent` - Mouse button released
 - **OnMouseMove** - `TMouseEvent` - Mouse moved while button down
 - **OnFocus** - `TFocusEvent` - Widget gained focus
 - **OnBlur** - `TFocusEvent` - Widget lost focus
+
+### When to Use OnClick vs OnKeyPress
+
+**Use OnClick for buttons/checkboxes:**
+- Fires on complete activation (key release or mouse click)
+- No need to check for specific keys
+- Works for both keyboard (Enter/Space) and mouse clicks
+- Provides tactile feedback (button press/release animation)
+
+**Use OnKeyPress for text input or custom key handling:**
+- LineEdit uses this for character input
+- When you need to handle specific keys (F1, Escape, etc.)
+- When you need low-level key processing
 
 ### Virtual Do* Methods
 

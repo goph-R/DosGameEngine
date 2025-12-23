@@ -21,10 +21,9 @@ begin
     UI.Stop;
 end;
 
-procedure OnQuitButtonKeyPress(Sender: PWidget; KeyCode: Byte);
+procedure OnQuitButtonClick(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-    UI.Stop;
+  UI.Stop;
 end;
 
 procedure OnSoundCheckboxKeyPress(Sender: PWidget; KeyCode: Byte);
@@ -112,7 +111,7 @@ begin
 
   { Create Quit Button }
   New(QuitButton, Init(10, 100, 140, 12, 'Quit (ESC)', @FontSmall));
-  QuitButton^.OnKeyPress := @OnQuitButtonKeyPress;
+  QuitButton^.OnClick := @OnQuitButtonClick;
   UI.AddWidget(QuitButton);
 
   { Focus first interactive widget }
