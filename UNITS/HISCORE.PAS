@@ -160,15 +160,15 @@ begin
     Exit;
   end;
 
-  { If table is empty, any score > 0 counts }
-  if HS.Count = 0 then
+  { If table is not full, any score > 0 counts }
+  if HS.Count < MaxHighScores then
   begin
     IsHighScore := True;
     Exit;
   end;
 
-  { Check if score beats the HIGHEST score (first place) }
-  IsHighScore := (Score > HS.Scores[0]);
+  { If table is full, check if score beats the LOWEST score (last place) }
+  IsHighScore := (Score > HS.Scores[MaxHighScores - 1]);
 end;
 
 function AddHighScore(var HS: THighScore; const Name: String; Score: LongInt): Boolean;
