@@ -11,7 +11,44 @@ Retro DOS multimedia engine (Turbo Pascal 7.0, 1994-era). VGA Mode 13h graphics 
 **CRITICAL**: All files MUST use 8.3 format (8 chars + 3 char extension), EXCEPT `DOCS\*` and `TOOLS\*`.
 - Valid: A-Z, 0-9, underscore, hyphen only
 - Compile batch files: Prefix with `C` (e.g., `CVGATEST.BAT` compiles `VGATEST.PAS`)
-- Exceptions: `DOCS\*.md`, `TOOLS\*.*`, `.gitignore`, `README.md`, `CLAUDE.md`
+- Exceptions: `DOCS\*.md`, `TOOLS\*.*`, `.gitignore`, `README.md`, `CLAUDE.md`, `CHANGES.md`
+
+## Changelog Management
+
+The project maintains `CHANGES.md` (named to comply with 8.3 filename limits) following semantic versioning (major.minor.patch).
+
+**When to update CHANGES.md:**
+- When the user requests a new version to be released
+- When significant features are added, fixed, or removed
+- On user's explicit request to update the changelog
+
+**Version numbering (Semantic Versioning):**
+- **Major (x.0.0)**: Breaking changes, major rewrites, incompatible API changes
+- **Minor (0.x.0)**: New features, backwards-compatible additions
+- **Patch (0.0.x)**: Bug fixes, minor improvements, documentation updates
+
+**Format for new versions (ALWAYS ADD AT TOP):**
+```markdown
+## [x.y.z] - YYYY-MM-DD
+
+Brief summary of this version.
+
+### Added
+- New feature descriptions
+
+### Changed
+- Modified functionality descriptions
+
+### Fixed
+- Bug fix descriptions
+
+### Removed
+- Removed feature descriptions
+
+---
+```
+
+**CRITICAL**: New versions MUST be added at the TOP of the file (after the header), not at the bottom. Newest versions always appear first.
 
 ## Folder Structure
 
