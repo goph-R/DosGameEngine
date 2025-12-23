@@ -222,15 +222,26 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Features: Lazy/eager loading, XML-relative paths, dependency resolution, name-based lookup
 - See DOCS\RESMAN.md for XML format
 
-**GAMEUNIT.PAS** - Game framework (2025)
+**DGECORE.PAS** - DOS Game Engine Core (2025)
 - TGame: Main game object (Init, Start, Run, Done, PlayMusic, SetNextScreen, GetScreen, AddScreen)
-- TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide, PostInit)
 - Auto-initializes: VGA, Config, ResMan, RTC, Keyboard, Mouse, SBDSP, framebuffers
 - Screen management via ScreenMap, deferred screen switching, delta-time game loop
 - **No global Game variable** - games extend TGame and provide their own global instance
-- **PostInit**: Called AFTER VGA initialized - use for SetPalette, RenderFrameBuffer, etc. NOT for loading resources
-- **Resource loading**: Load game-specific resources in TGame.Start override, NOT in TScreen.PostInit
+- **Resource loading**: Load game-specific resources in TGame.Start override
 - Exit handler: Uses module-level CurrentGame pointer (set in Init, cleared in Done)
+- Dependencies: VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP, ResMan, PlayHSC (9 units)
+
+**DGESCR.PAS** - DOS Game Engine Screen Management (2025)
+- TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide, PostInit)
+- **PostInit**: Called AFTER VGA initialized - use for SetPalette, RenderFrameBuffer, etc. NOT for loading resources
+- Screen lifecycle: Init → PostInit → Show → Update loop → Hide → Done
+- DialogLabel: Optional label widget for dialog integration
+- Dependencies: VGAUI (1 unit)
+
+**GAMEUNIT.PAS** - Game framework (DEPRECATED - backward compatibility wrapper)
+- Re-exports TGame from DGECORE and TScreen from DGESCR
+- Maintained for backward compatibility only
+- **New code should use DGECore and DGEScr directly**
 - See DOCS\GAMEUNIT.md for architecture
 
 **DRECT.PAS** - Dirty rectangle system (2025)
@@ -427,12 +438,12 @@ id := ResMan.GetSound('explode');
 ResMan.Done; { Cleanup all resources }
 ```
 
-**Game Framework (GAMEUNIT)**:
+**Game Framework (DGE - DOS Game Engine)**:
 ```pascal
 { GLOBALS.PAS - Extend TGame with game-specific resources }
 unit Globals;
 interface
-uses GameUnit, VGA, VGAFont;
+uses DGECore, DGEScr, VGA, VGAFont;
 
 type
   TMyGame = object(TGame)

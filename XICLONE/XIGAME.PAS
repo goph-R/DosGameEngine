@@ -3,7 +3,7 @@ unit XiGame;
 interface
 
 uses
-  VGA, VGAUI, VGAFont, HiScore, GameUnit, Keyboard, StrUtil, GenTypes;
+  VGA, VGAUI, VGAFont, HiScore, DGECore, DGEScr, Keyboard, StrUtil, GenTypes;
 
 const
   TileSize = 16;
