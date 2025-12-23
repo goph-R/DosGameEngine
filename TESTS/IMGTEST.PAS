@@ -40,6 +40,7 @@ type
   end;
 
 var
+  Game: TGame;  { Global game instance }
   TestScreen: PTestScreen;
 
 { ========== TTestScreen Implementation ========== }
@@ -238,8 +239,8 @@ end;
 { ========== Main Program ========== }
 
 begin
-  WriteLn('IMGTEST - Image Operations Test (GameUnit)');
-  WriteLn('===========================================');
+  WriteLn('IMGTEST - Image Operations Test (DGE Framework)');
+  WriteLn('================================================');
   WriteLn;
 
   { Initialize game }
@@ -270,7 +271,7 @@ begin
   WriteLn('- Animation: Frame-rate independent using delta time');
   WriteLn('- Text overlay: Real-time FPS counter with embedded 8x8 font');
   WriteLn('- Double-buffering: Off-screen rendering with RenderFrameBuffer');
-  WriteLn('- GameUnit: Managed lifecycle with TGame and TScreen');
+  WriteLn('- DGE Framework: Managed lifecycle with TGame and TScreen');
   WriteLn('');
   WriteLn('Clipping: Sprites properly clip at negative X/Y coordinates');
   WriteLn('  and at right/bottom edges (320x200 screen boundaries).');
