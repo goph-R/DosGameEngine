@@ -21,31 +21,29 @@ begin
     UI.Stop;
 end;
 
-procedure OnQuitButtonClick(var Widget: TWidget; var Event: TEvent);
+procedure OnQuitButtonKeyPress(Sender: PWidget; KeyCode: Byte);
 begin
-  if UI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
     UI.Stop;
 end;
 
-procedure OnSoundCheckbox(var Widget: TWidget; var Event: TEvent);
+procedure OnSoundCheckboxKeyPress(Sender: PWidget; KeyCode: Byte);
 var
   CB: PCheckbox;
 begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    CB := PCheckbox(@Widget);
-    { Checkbox was toggled - state already changed by widget }
-  end;
+  CB := PCheckbox(Sender);
+  { Checkbox was toggled - state already changed by widget }
+  { Can access CB^.IsChecked here if needed }
 end;
 
-procedure OnNameInputSubmit(var Widget: TWidget; var Event: TEvent);
+procedure OnNameInputKeyPress(Sender: PWidget; KeyCode: Byte);
 var
   Input: PLineEdit;
   PlayerName: string;
 begin
-  if UI.IsEnter(Event) then
+  if KeyCode = Key_Enter then
   begin
-    Input := PLineEdit(@Widget);
+    Input := PLineEdit(Sender);
     PlayerName := Input^.GetText;
     { Name submitted }
   end;
@@ -98,7 +96,7 @@ begin
 
   { Create Sound Checkbox }
   New(SoundCheckbox, Init(10, 52, 140, 12, 'Sound Effects', @FontSmall, @CheckboxImage));
-  SoundCheckbox^.SetEventHandler(@OnSoundCheckbox);
+  SoundCheckbox^.OnKeyPress := @OnSoundCheckboxKeyPress;
   SoundCheckbox^.SetChecked(True);
   UI.AddWidget(SoundCheckbox);
 
@@ -108,13 +106,13 @@ begin
 
   { Create Name Input }
   New(NameInput, Init(10, 84, 140, 12, @FontSmall, 20));
-  NameInput^.SetEventHandler(@OnNameInputSubmit);
+  NameInput^.OnKeyPress := @OnNameInputKeyPress;
   NameInput^.SetText('Player Name');
   UI.AddWidget(NameInput);
 
   { Create Quit Button }
   New(QuitButton, Init(10, 100, 140, 12, 'Quit (ESC)', @FontSmall));
-  QuitButton^.SetEventHandler(@OnQuitButtonClick);
+  QuitButton^.OnKeyPress := @OnQuitButtonKeyPress;
   UI.AddWidget(QuitButton);
 
   { Focus first interactive widget }

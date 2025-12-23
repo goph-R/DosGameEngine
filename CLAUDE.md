@@ -246,19 +246,22 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Viewport rendering, auto-clip, skips tile ID=0
 
 **VGAUI.PAS** - VGA Mode 13h UI system (2025)
-- Types: TEventType (Event_None/KeyPress/FocusGain/FocusLost)
-- TEvent (EventType, KeyCode, Handled)
+- Event handlers (Delphi-style): TKeyPressEvent = procedure(Sender: PWidget; KeyCode: Byte); TMouseEvent = procedure(Sender: PWidget; X, Y: Integer; Button: Byte); TFocusEvent = procedure(Sender: PWidget)
 - TUIStyle object: HighColor, NormalColor, LowColor, FocusColor; Init(high,normal,low,focus), RenderPanel(rect,pressed,fb) virtual
-- TWidget object (base): Rectangle, Visible, Enabled, Focused, NeedsRedraw, EventHandler, Tag
-  - Init(x,y,w,h), SetEventHandler(handler), MarkDirty, SetVisible(value), SetEnabled(value), HandleEvent(event) virtual, Update(dt) virtual, Render(fb,style) virtual, RenderFocusRectangle(fb,style), Done virtual
+- TWidget object (base): Rectangle, Visible, Enabled, Focused, NeedsRedraw, Tag
+  - Event callbacks: OnKeyPress, OnMouseDown, OnMouseUp, OnMouseMove, OnFocus, OnBlur (procedure pointers)
+  - Init(x,y,w,h), MarkDirty, SetVisible(value), SetEnabled(value)
+  - Do* virtual methods: DoKeyPress(keycode), DoMouseDown/Up/Move(x,y,button), DoFocus, DoBlur (override to intercept events)
+  - Update(dt) virtual, Render(fb,style) virtual, RenderFocusRectangle(fb,style), Done virtual
 - TLabel(TWidget): Text, Font; Init(x,y,w,h,text,font), SetText(text), Render virtual, Done virtual
-- TButton(TWidget): Text, Font, Pressed; Init(x,y,w,h,text,font), SetText(text), HandleEvent virtual, Render virtual, Done virtual
-- TCheckbox(TWidget): Text, Font, Image, Checked; Init(x,y,w,h,text,font,image), SetText(text), SetChecked(value), IsChecked, HandleEvent virtual, Render virtual, Done virtual
-- TLineEdit(TWidget): Text, Font, MaxLength, CursorVisible, CursorTimer; Init(x,y,w,h,maxlen,font), SetText(text), GetText, HandleEvent virtual, Update virtual, Render virtual, Done virtual
-- TEventHandler = procedure(widget,event) `{$F+}`, TUpdateProcedure = procedure `{$F+}`
+- TButton(TWidget): Text, Font, Pressed; Init(x,y,w,h,text,font), SetText(text), DoKeyPress/DoMouseDown/DoBlur virtual, Render virtual, Done virtual
+- TCheckbox(TWidget): Text, Font, Image, Checked; Init(x,y,w,h,text,font,image), SetText(text), SetChecked(value), IsChecked, DoKeyPress/DoMouseDown virtual, Render virtual, Done virtual
+- TLineEdit(TWidget): Text, Font, MaxLength, CursorVisible, CursorTimer; Init(x,y,w,h,maxlen,font), SetText(text), GetText, DoKeyPress/DoMouseDown virtual, Update virtual, Render virtual, Done virtual
+- TUIManager: Init(fb,bg), AddWidget, RemoveWidget, SetFocus, Update(dt), RenderDirty, Run(updateproc,vsync), Stop, Done
 - **CRITICAL**: Use constructor/destructor syntax `New(Button, Init(...))` and `Dispose(Button, Done)` for VMT initialization
-- Keyboard-only navigation (Tab, Enter, Space), event-driven architecture
-- Integrates with LINKLIST, VGAFONT, KEYBOARD, VGA, DRECT, RTCTIMER
+- **CRITICAL**: Event handlers need `{$F+}` (far calls). Assign to OnKeyPress/OnMouseDown/etc fields
+- Keyboard + mouse navigation (Tab, arrows, Enter, Space, click), Delphi-style event architecture
+- Integrates with LINKLIST, VGAFONT, KEYBOARD, MOUSE, VGA, DRECT, RTCTIMER
 
 **LOGGER.PAS** - File-based debug logger (2025)
 - Constants: LogLevelError/Warning/Info/Debug (0/1/2/3)
@@ -346,10 +349,18 @@ DoneRTC;
 
 **UI (VGAUI)**:
 ```pascal
+{$F+}
+procedure OnButtonClick(Sender: PWidget; KeyCode: Byte);
+begin
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
+    { Handle click }
+end;
+{$F-}
+
 var Last, Cur, Delta: Real;
 UI.Init(BackBuffer, Background); Style.Init(15,7,8,14); UI.SetStyle(@Style);
 New(Button, Init(x,y,w,h,'Click',@Font)); { MUST use constructor syntax! }
-Button^.SetEventHandler(@OnClick); UI.AddWidget(Button);
+Button^.OnKeyPress := @OnButtonClick; UI.AddWidget(Button);
 InitRTC(1024); Last := GetTimeSeconds;
 while run do
   Cur := GetTimeSeconds; Delta := Cur - Last; Last := Cur;

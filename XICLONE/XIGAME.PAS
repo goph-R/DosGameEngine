@@ -76,8 +76,8 @@ type
     function GetDialogHeight: Word;
     procedure AddDialogTitle(Text: String);
     procedure AddDialogLabel(Text: String);
-    procedure AddDialogButton(Text: String; EventHandler: TEventHandler);
-    procedure AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TEventHandler);
+    procedure AddDialogButton(Text: String; EventHandler: TKeyPressEvent);
+    procedure AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TKeyPressEvent);
     procedure AddDialogWidget(Widget: PWidget);
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
     function ShowConfirm(Message: String; UpdateProcedure: TUpdateProcedure): Boolean;
@@ -285,18 +285,18 @@ begin
 end;
 
 {$F+}
-procedure OkEvent(var Widget: TWidget; var Event: TEvent); far;
+procedure OkEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Game.ConfirmDialogAnswer := True;
     Game.DialogUI.Stop;
   end;
 end;
 
-procedure CancelEvent(var Widget: TWidget; var Event: TEvent); far;
+procedure CancelEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Game.ConfirmDialogAnswer := False;
     Game.DialogUI.Stop;
@@ -453,18 +453,18 @@ begin
   AddDialogWidget(L);
 end;
 
-procedure TXiCloneGame.AddDialogButton(Text: String; EventHandler: TEventHandler);
+procedure TXiCloneGame.AddDialogButton(Text: String; EventHandler: TKeyPressEvent);
 var
   Button: PButton;
   I: Integer;
 begin
   if DialogWidgetCount >= MaxDialogWidgets then Exit;
   New(Button, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, Text, FontSmall));
-  Button^.SetEventHandler(@EventHandler);
+  Button^.OnKeyPress := @EventHandler;
   AddDialogWidget(Button);
 end;
 
-procedure TXiCloneGame.AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TEventHandler);
+procedure TXiCloneGame.AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TKeyPressEvent);
 var
   LineEdit: PLineEdit;
   I: Integer;
@@ -472,7 +472,7 @@ begin
   if DialogWidgetCount >= MaxDialogWidgets then Exit;
   New(LineEdit, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, FontSmall, MaxLength));
   LineEdit^.SetText(InitialText);
-  LineEdit^.SetEventHandler(@EventHandler);
+  LineEdit^.OnKeyPress := @EventHandler;
   AddDialogWidget(LineEdit);
 end;
 

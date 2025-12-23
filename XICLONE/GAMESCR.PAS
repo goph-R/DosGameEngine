@@ -526,15 +526,15 @@ begin
     PauseContinueAction;
 end;
 
-procedure PauseContinueButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure PauseContinueButtonEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
     PauseContinueAction;
 end;
 
-procedure PauseRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure PauseRestartButtonEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Game.SetNextDialog(Dialog_ConfirmRestart);
     Game.BackDialog := Dialog_Paused;
@@ -542,9 +542,9 @@ begin
   end;
 end;
 
-procedure PauseQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure PauseQuitButtonEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Game.SetNextDialog(Dialog_ConfirmQuit);
     Game.BackDialog := Dialog_Paused;
@@ -552,15 +552,15 @@ begin
   end;
 end;
 
-procedure GameOverRestartButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure GameOverRestartButtonEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
     GameScreen^.Restart;
 end;
 
-procedure GameOverQuitButtonEvent(var Widget: TWidget; var Event: TEvent);
+procedure GameOverQuitButtonEvent(Sender: PWidget; KeyCode: Byte);
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
     GameScreen^.QuitToMenu;
 end;
 
@@ -574,12 +574,12 @@ begin
   end;
 end;
 
-procedure SubmitScoreOk(var Widget: TWidget; var Event: TEvent); far;
+procedure SubmitScoreOk(Sender: PWidget; KeyCode: Byte); far;
 var
   LineEdit: PLineEdit;
   PlayerName: String;
 begin
-  if Game.DialogUI.IsEnter(Event) then
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     { Find LineEdit widget - index 2 (Title=0, Label=1, LineEdit=2, Button=3) }
     LineEdit := PLineEdit(Game.DialogWidgets[2]);
