@@ -86,6 +86,7 @@ type
     FlashMessageBackgroundX: Integer;
     FlashMessageBackgroundY: Integer;
     FlashMessageWasOn: Boolean;
+    FlashMessageLastWidth: Integer;  { Width of previous message for proper clearing }
 
     { High scores }
     HighScoreReached: Boolean;
@@ -162,6 +163,7 @@ begin
   FlashMessageText := '';
   FlashMessageNeedsClear := False;
   FlashMessageBackground.Data := nil;  { Initialize to prevent freeing garbage }
+  FlashMessageLastWidth := 0;
 
   { Initialize high score state }
   HighScoreReached := False;
@@ -1245,15 +1247,23 @@ var
   TextWidth: Integer;
   TextX, TextY: Integer;
   R: TRectangle;
+  MaxWidth: Integer;
 begin
   { Always calculate text position and rectangle }
   TextWidth := GetTextWidth(FlashMessageText, Game.FontLarge^);
-  TextX := 160 - (TextWidth div 2);
+
+  { Use the maximum of current and previous width to clear old text remnants }
+  if TextWidth > FlashMessageLastWidth then
+    MaxWidth := TextWidth
+  else
+    MaxWidth := FlashMessageLastWidth;
+
+  TextX := 160 - (MaxWidth div 2);
   TextY := 100 - (Game.FontLarge^.Height div 2);
 
   R.X := TextX;
   R.Y := TextY;
-  R.Width := TextWidth;
+  R.Width := MaxWidth;
   R.Height := Game.FontLarge^.Height;
 
   { Handle final clear when flash message ends }
@@ -1263,6 +1273,7 @@ begin
     begin
       AddDirtyRect(R);
       FlashMessageNeedsClear := False;
+      FlashMessageLastWidth := 0;  { Reset for next message }
     end;
     Exit;
   end;
@@ -1275,16 +1286,17 @@ begin
   begin
     { Save the background (free old one first to prevent memory leak) }
     { This must be done every frame to capture moving stack behind message }
+    { Use MaxWidth to capture the full area }
     FreeImage(FlashMessageBackground);
-    GetImage(FlashMessageBackground, TextX, TextY, TextWidth, Game.FontLarge^.Height, Game.BackBuffer);
+    GetImage(FlashMessageBackground, TextX, TextY, MaxWidth, Game.FontLarge^.Height, Game.BackBuffer);
     FlashMessageBackgroundX := TextX;
     FlashMessageBackgroundY := TextY;
 
     { Need to clear after dirty rectangles flushed }
     FlashMessageNeedsClear := True;
 
-    { Draw the text }
-    PrintFontText(TextX, TextY, FlashMessageText, Game.FontLarge^, Game.BackBuffer);
+    { Draw the text centered within the MaxWidth area }
+    PrintFontText(160 - (TextWidth div 2), TextY, FlashMessageText, Game.FontLarge^, Game.BackBuffer);
   end;
 
   { Add dirty rect when flash turns on or off }
@@ -1292,6 +1304,10 @@ begin
     AddDirtyRect(R);
 
   FlashMessageWasOn := FlashOn;
+
+  { Update last width for next message }
+  if FlashMessageActive then
+    FlashMessageLastWidth := TextWidth;
 end;
 
 procedure TGameScreen.RenderHUD;
