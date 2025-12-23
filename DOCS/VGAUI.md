@@ -1,21 +1,16 @@
 # VGAUI - VGA UI System
 
-Widget-based UI framework for VGA Mode 13h with keyboard navigation.
+Widget-based UI framework for VGA Mode 13h with keyboard and mouse support, using Delphi-style event handlers.
 
 ## Types
 
 ```pascal
 type
-  TEventType = (Event_None, Event_KeyPress, Event_FocusGain, Event_FocusLost);
-
-  TEvent = record
-    EventType: TEventType;
-    KeyCode: Byte;
-    Handled: Boolean;
-  end;
-
+  { Event handler procedure types }
   {$F+}
-  TEventHandler = procedure(var Widget: TWidget; var Event: TEvent);
+  TKeyPressEvent = procedure(Sender: PWidget; KeyCode: Byte);
+  TMouseEvent = procedure(Sender: PWidget; X, Y: Integer; Button: Byte);
+  TFocusEvent = procedure(Sender: PWidget);
   TUpdateProcedure = procedure;
   {$F-}
 
@@ -28,10 +23,30 @@ type
   TWidget = object  { Base class }
     Rectangle: TRectangle;
     Visible, Enabled, Focused, NeedsRedraw: Boolean;
-    EventHandler: Pointer;
     Tag: Integer;
+    WidgetType: TWidgetType;
+
+    { Delphi-style event callbacks }
+    OnKeyPress: Pointer;   { TKeyPressEvent }
+    OnMouseDown: Pointer;  { TMouseEvent }
+    OnMouseUp: Pointer;    { TMouseEvent }
+    OnMouseMove: Pointer;  { TMouseEvent }
+    OnFocus: Pointer;      { TFocusEvent }
+    OnBlur: Pointer;       { TFocusEvent }
+
     constructor Init(X, Y: Integer; W, H: Word);
-    procedure HandleEvent(var Event: TEvent); virtual;
+    procedure MarkDirty;
+    procedure SetVisible(Value: Boolean);
+    procedure SetEnabled(Value: Boolean);
+
+    { Event trigger methods - override to intercept events }
+    procedure DoKeyPress(KeyCode: Byte); virtual;
+    procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
+    procedure DoMouseUp(X, Y: Integer; Button: Byte); virtual;
+    procedure DoMouseMove(X, Y: Integer; Button: Byte); virtual;
+    procedure DoFocus; virtual;
+    procedure DoBlur; virtual;
+
     procedure Update(DeltaTime: Real); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
@@ -39,7 +54,11 @@ type
 
   TLabel = object(TWidget)
     Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
+    TextAlign: Byte;
+
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
@@ -48,24 +67,36 @@ type
 
   TButton = object(TWidget)
     Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
+    TextAlign: Byte;
     Pressed: Boolean;
+
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont);
     procedure SetText(const NewText: string);
-    procedure HandleEvent(var Event: TEvent); virtual;
+    procedure DoKeyPress(KeyCode: Byte); virtual;
+    procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
+    procedure DoBlur; virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
 
   TCheckbox = object(TWidget)
     Text: PShortString;
+    Lines: TMultiLineText;
+    LineCount: Byte;
     Font: PFont;
     Image: PImage;
+    ImageAlign: Byte;
     Checked: Boolean;
+
     constructor Init(X, Y: Integer; W, H: Word; const TextStr: string; FontPtr: PFont; CheckboxImage: PImage);
+    procedure SetText(const NewText: string);
     procedure SetChecked(Value: Boolean);
     function IsChecked: Boolean;
-    procedure HandleEvent(var Event: TEvent); virtual;
+    procedure DoKeyPress(KeyCode: Byte); virtual;
+    procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
@@ -76,10 +107,13 @@ type
     MaxLength: Byte;
     CursorVisible: Boolean;
     CursorTimer: Real;
+
     constructor Init(X, Y: Integer; W, H: Word; FontPtr: PFont; MaxLen: Byte);
     procedure SetText(const NewText: string);
     function GetText: string;
-    procedure HandleEvent(var Event: TEvent); virtual;
+    procedure Clear;
+    procedure DoKeyPress(KeyCode: Byte); virtual;
+    procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
     procedure Update(DeltaTime: Real); virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
@@ -91,16 +125,20 @@ type
     BackBuffer, BackgroundBuffer: PFrameBuffer;
     Style: PUIStyle;
     Running: Boolean;
+    LastMouseButtons: Byte;
 
     procedure Init(FrameBuffer, Background: PFrameBuffer);
     procedure AddWidget(Widget: PWidget);
     procedure RemoveWidget(Widget: PWidget);
     procedure SetFocus(Widget: PWidget);
+    procedure FocusInDirection(DX, DY: Integer);
+    procedure DispatchKeyboardEvents;
+    procedure DispatchMouseEvents;
     procedure Update(DeltaTime: Real);
     procedure RenderAll;
     procedure RenderDirty;
     procedure SetStyle(NewStyle: PUIStyle);
-    procedure Run(UpdateProcedure: Pointer);  { Built-in UI loop }
+    procedure Run(UpdateProcedure: Pointer; VSync: Boolean);
     procedure Stop;
     procedure Done;
   end;
@@ -109,16 +147,46 @@ type
 ## Example
 
 ```pascal
-uses VGA, VGAFont, VGAUI, Keyboard, RTCTimer;
+uses VGA, VGAFont, VGAUI, Keyboard, Mouse, RTCTimer;
+
+var
+  UI: TUIManager;
+  BackBuffer, Background: PFrameBuffer;
+  Font: TFont;
+  Button: PButton;
+  Checkbox: PCheckbox;
+  LineEdit: PLineEdit;
 
 {$F+}
-procedure OnButtonClick(var Widget: TWidget; var Event: TEvent);
+procedure OnButtonClick(Sender: PWidget; KeyCode: Byte);
 begin
-  if (Event.EventType = Event_KeyPress) and
-     ((Event.KeyCode = Key_Enter) or (Event.KeyCode = Key_Space)) then
-  begin
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
     WriteLn('Button clicked!');
-    Event.Handled := True;
+end;
+
+procedure OnCheckboxToggle(Sender: PWidget; KeyCode: Byte);
+var
+  CB: PCheckbox;
+begin
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
+  begin
+    CB := PCheckbox(Sender);
+    { Checkbox already toggled by widget }
+    if CB^.IsChecked then
+      WriteLn('Checkbox checked')
+    else
+      WriteLn('Checkbox unchecked');
+  end;
+end;
+
+procedure OnNameSubmit(Sender: PWidget; KeyCode: Byte);
+var
+  Input: PLineEdit;
+begin
+  if KeyCode = Key_Enter then
+  begin
+    Input := PLineEdit(Sender);
+    WriteLn('Name submitted: ', Input^.GetText);
   end;
 end;
 
@@ -129,50 +197,53 @@ begin
 end;
 {$F-}
 
-var
-  UI: TUIManager;
-  Style: TUIStyle;
-  BackBuffer, Background: PFrameBuffer;
-  Font: TFont;
-  Button: PButton;
-  Label: PLabel;
-
 begin
   InitVGA;
   InitKeyboard;
+  InitMouse;
+  ShowMouse;
   BackBuffer := CreateFrameBuffer;
   Background := CreateFrameBuffer;
+  ClearFrameBuffer(Background);
 
   { Load font }
   LoadFont('DATA\FONT.XML', Font);
 
   { Setup UI }
   UI.Init(BackBuffer, Background);
-  Style.Init(15, 7, 8, 14);  { High, Normal, Low, Focus }
-  UI.SetStyle(@Style);
 
   { Create widgets - MUST use constructor syntax }
-  New(Label, Init(10, 10, 200, Font.Height, 'Hello World!', @Font));
-  UI.AddWidget(Label);
-
-  New(Button, Init(100, 60, 120, 24, 'Click Me', @Font));
-  Button^.SetEventHandler(@OnButtonClick);
+  New(Button, Init(10, 10, 120, 20, 'Click Me', @Font));
+  Button^.OnKeyPress := @OnButtonClick;
   UI.AddWidget(Button);
+
+  New(Checkbox, Init(10, 35, 120, 16, 'Enable Sound', @Font, @CheckboxImage));
+  Checkbox^.OnKeyPress := @OnCheckboxToggle;
+  Checkbox^.SetChecked(True);
+  UI.AddWidget(Checkbox);
+
+  New(LineEdit, Init(10, 55, 120, 16, @Font, 20));
+  LineEdit^.OnKeyPress := @OnNameSubmit;
+  LineEdit^.SetText('Player Name');
+  UI.AddWidget(LineEdit);
+
+  { Focus first widget }
   UI.SetFocus(Button);
 
-  { Run UI loop }
-  UI.Run(@OnUpdate);
+  { Run UI loop with VSync }
+  UI.Run(@OnUpdate, True);
 
   { Cleanup }
-  UI.RemoveWidget(Button);
-  Dispose(Button, Done);
-  UI.RemoveWidget(Label);
-  Dispose(Label, Done);
+  UI.RemoveWidget(Button); Dispose(Button, Done);
+  UI.RemoveWidget(Checkbox); Dispose(Checkbox, Done);
+  UI.RemoveWidget(LineEdit); Dispose(LineEdit, Done);
   UI.Done;
 
   FreeFont(Font);
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(Background);
+  HideMouse;
+  DoneMouse;
   DoneKeyboard;
   CloseVGA;
 end.
@@ -180,10 +251,56 @@ end.
 
 ## Navigation
 
-- **Arrow Keys:** Focus nearest widget in direction
+- **Arrow Keys:** Focus nearest widget in direction (automatic)
 - **Enter/Space:** Activate focused button/checkbox
+- **Mouse Click:** Focus and activate widget
 - **A-Z, 0-9:** Text input in LineEdit
 - **Backspace:** Delete character in LineEdit
+
+## Event Handlers
+
+### Delphi-Style Event Callbacks
+
+VGAUI uses Delphi VCL-style event handlers. Event handlers MUST use `{$F+}` directive:
+
+```pascal
+{$F+}
+procedure OnButtonKeyPress(Sender: PWidget; KeyCode: Byte);
+begin
+  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
+  begin
+    { Handle button press }
+  end;
+end;
+{$F-}
+
+{ Assign event handler }
+Button^.OnKeyPress := @OnButtonKeyPress;
+```
+
+### Available Events
+
+- **OnKeyPress** - `TKeyPressEvent` - Key pressed while widget focused
+- **OnMouseDown** - `TMouseEvent` - Mouse button pressed on widget
+- **OnMouseUp** - `TMouseEvent` - Mouse button released
+- **OnMouseMove** - `TMouseEvent` - Mouse moved while button down
+- **OnFocus** - `TFocusEvent` - Widget gained focus
+- **OnBlur** - `TFocusEvent` - Widget lost focus
+
+### Virtual Do* Methods
+
+Widgets can override Do* methods to intercept events before callbacks:
+
+```pascal
+procedure TMyButton.DoKeyPress(KeyCode: Byte);
+begin
+  { Custom handling }
+  if KeyCode = Key_F1 then
+    ShowHelp
+  else
+    inherited DoKeyPress(KeyCode);  { Call parent + user callback }
+end;
+```
 
 ## Rendering
 
@@ -192,30 +309,49 @@ end.
 UI.RenderAll;
 RenderFrameBuffer(BackBuffer);
 
-{ Optimized dirty rendering }
+{ Optimized dirty rendering (40x faster) }
 UI.RenderDirty;  { Only renders widgets with NeedsRedraw=True }
 ```
 
-## Event Handlers
-
-Event handlers MUST use `{$F+}` directive:
+## UI Loop
 
 ```pascal
-{$F+}
-procedure OnCheckboxToggle(var Widget: TWidget; var Event: TEvent);
-var CB: PCheckbox;
+{ Built-in UI loop with timing }
+UI.Run(@OnUpdate, True);  { VSync enabled }
+
+{ Manual loop }
+InitRTC(1024);
+Last := GetTimeSeconds;
+while Running do
 begin
-  if Event.EventType = Event_KeyPress then
-  begin
-    CB := PCheckbox(@Widget);
-    if CB^.IsChecked then
-      EnableSound
-    else
-      DisableSound;
-    Event.Handled := True;
-  end;
+  Cur := GetTimeSeconds;
+  DT := Cur - Last;
+  Last := Cur;
+
+  OnUpdate;  { User code }
+  UI.Update(DT);
+  UI.RenderDirty;
+  ClearKeyPressed;
 end;
-{$F-}
+DoneRTC;
+```
+
+## Alignment Constants
+
+```pascal
+{ Horizontal }
+Align_Left   = 1;
+Align_Center = 2;
+Align_Right  = 4;
+
+{ Vertical }
+Align_Top    = 8;
+Align_Middle = 16;
+Align_Bottom = 32;
+
+{ Examples }
+Label^.TextAlign := Align_Center + Align_Middle;  { Centered text }
+Label^.TextAlign := Align_Left + Align_Top;       { Top-left aligned }
 ```
 
 ## Critical Notes
@@ -225,22 +361,37 @@ end;
 3. **Far calls** - Event handlers need `{$F+}` directive
 4. **Remove before dispose** - Call `UI.RemoveWidget` before `Dispose`
 5. **Font/Image lifetime** - Caller manages, widgets don't copy
+6. **Event assignment** - Use `@` operator: `Widget^.OnKeyPress := @Handler`
 
 ## Widget Memory
 
 ```pascal
 { Widget owns: }
 - Text: PShortString (allocated in Init, freed in Done)
+- Lines: TMultiLineText (for multi-line text wrapping)
 
 { Widget does NOT own: }
 - Font: PFont (caller manages)
-- Image: PImage (caller manages)
+- Image: PImage (caller manages - for checkbox)
+```
+
+## Widget Types
+
+```pascal
+WidgetType_Base     = 0;
+WidgetType_Label    = 1;
+WidgetType_Button   = 2;
+WidgetType_Checkbox = 3;
+WidgetType_LineEdit = 4;
 ```
 
 ## Notes
 
-- Keyboard-only navigation (Tab, arrows, Enter/Space)
+- Keyboard + mouse navigation (Tab, arrows, Enter/Space, click)
 - 3D beveled panels (Windows 95-style)
-- Dirty rectangle optimization for performance
-- Event-driven architecture
-- See TESTS\UITEST.PAS for complete example
+- Dirty rectangle optimization for 40x performance boost
+- Delphi VCL-style event architecture
+- Multi-line text support with automatic wrapping
+- Blinking cursor in LineEdit (500ms interval)
+- See `TESTS\UITEST.PAS` for complete example
+- See `DOCS\DESIGN\UI-REFACTOR.md` for event system design
