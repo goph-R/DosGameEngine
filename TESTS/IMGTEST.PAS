@@ -1,13 +1,13 @@
 { IMGTEST.PAS - Test program for TImage operations }
 { Demonstrates GetImage, PutImage with transparency, and sprite animation }
-{ Refactored to use GameUnit framework }
+{ Refactored to use DGE framework }
 
 program ImgTest;
 
 {$M 16384,0,655360}  { Stack: 16KB, MinHeap: 0, MaxHeap: 640KB }
 
 uses
-  GameUnit, VGA, VGAPrint, PCX, Dos, PlayHSC, Config, Keyboard;
+  DGECore, DGEScr, VGA, VGAPrint, PCX, Dos, PlayHSC, Config, Keyboard;
 
 type
   TTestSprite = record
