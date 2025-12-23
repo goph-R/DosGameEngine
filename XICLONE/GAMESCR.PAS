@@ -4,7 +4,7 @@ interface
 
 uses
   VGA, VGAFont, VGAPrint, VGAUI, DRect, Keyboard, GameUnit, PCX, StrUtil,
-  XiGame, HiScore;
+  GenTypes, XiGame, HiScore;
 
 const
   { Playfield dimensions }
@@ -189,15 +189,16 @@ var
   i: Integer;
 begin
   for i := Low(StatLabelInfos) to High(StatLabelInfos) do
-    PrintFontTextRight(
+    PrintFontText(
       StatLabelsX,
       StatLabelInfos[i].Y,
       StatLabelInfos[i].Text,
+      Align_Right,
       Game.FontSmall^,
       Game.BackgroundBuffer
     );
 
-  PrintFontText(NextLabelX, NextLabelY, 'Next:', Game.FontSmall^, Game.BackgroundBuffer);
+  PrintFontText(NextLabelX, NextLabelY, 'Next:', Align_Left, Game.FontSmall^, Game.BackgroundBuffer);
 end;
 
 procedure TGameScreen.Show;
@@ -1298,7 +1299,7 @@ begin
     FlashMessageNeedsClear := True;
 
     { Draw the text centered within the MaxWidth area }
-    PrintFontText(160 - (TextWidth div 2), TextY, FlashMessageText, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(160, TextY, FlashMessageText, Align_Center, Game.FontLarge^, Game.BackBuffer);
   end;
 
   { Add dirty rect when flash turns on or off }
@@ -1372,7 +1373,7 @@ begin
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, ScoreY, ScoreText, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, ScoreY, ScoreText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastScore := Score;
@@ -1389,7 +1390,7 @@ begin
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, LevelY, LevelText, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, LevelY, LevelText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastLevel := Level;
@@ -1406,7 +1407,7 @@ begin
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontTextRight(StatLabelsX, BlocksY, BlocksText, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, BlocksY, BlocksText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastBlocks := Blocks;
