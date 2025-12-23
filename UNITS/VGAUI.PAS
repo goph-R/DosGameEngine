@@ -530,14 +530,15 @@ end;
 procedure TButton.DoKeyPress(KeyCode: Byte);
 begin
   { Enter or Space presses the button down }
+  { Note: Visual state is set here for keyboard, mouse sets it in DoMouseDown }
   if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Pressed := True;
     MarkDirty;  { Visual state changed }
-
-    { Call OnKeyPress event (OnClick will be called on key release) }
-    inherited DoKeyPress(KeyCode);
   end;
+
+  { Always call OnKeyPress event }
+  inherited DoKeyPress(KeyCode);
 end;
 
 procedure TButton.DoMouseDown(X, Y: Integer; Button: Byte);
@@ -1239,6 +1240,13 @@ begin
     if (MouseDownWidget <> nil) and (WidgetUnderMouse = MouseDownWidget) then
     begin
       MouseDownWidget^.DoClick;
+
+      { Release button visual state after click }
+      if MouseDownWidget^.WidgetType = WidgetType_Button then
+      begin
+        PButton(MouseDownWidget)^.Pressed := False;
+        MouseDownWidget^.MarkDirty;
+      end;
     end;
 
     { Clear mouse down tracking }
