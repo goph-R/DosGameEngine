@@ -294,6 +294,32 @@ Button^.OnClick := @OnButtonClick;
 - When you need to handle specific keys (F1, Escape, etc.)
 - When you need low-level key processing
 
+**Pattern for forms with text input + submit button:**
+```pascal
+{ Shared submission logic }
+procedure DoSubmit;
+begin
+  { Get text from input and process it }
+end;
+
+{ Button handler - fires on click }
+procedure OnSubmitButton(Sender: PWidget);
+begin
+  DoSubmit;
+end;
+
+{ LineEdit handler - fires on Enter key }
+procedure OnInputEnter(Sender: PWidget; KeyCode: Byte);
+begin
+  if KeyCode = Key_Enter then
+    DoSubmit;
+end;
+
+{ Assign handlers }
+LineEdit^.OnKeyPress := @OnInputEnter;  { Enter in text field }
+SubmitButton^.OnClick := @OnSubmitButton;  { Click button }
+```
+
 ### Virtual Do* Methods
 
 Widgets can override Do* methods to intercept events before callbacks:
