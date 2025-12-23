@@ -567,7 +567,8 @@ begin
   end;
 end;
 
-procedure SubmitScoreOk(Sender: PWidget); far;
+{ Shared logic for submitting score }
+procedure DoSubmitScore;
 var
   LineEdit: PLineEdit;
   PlayerName: String;
@@ -581,6 +582,19 @@ begin
 
   Game.SetNextDialog(Dialog_GameOver);
   Game.DialogUI.Stop;
+end;
+
+{ OK button click handler }
+procedure SubmitScoreOkButton(Sender: PWidget); far;
+begin
+  DoSubmitScore;
+end;
+
+{ LineEdit Enter key handler }
+procedure SubmitScoreOkLineEdit(Sender: PWidget; KeyCode: Byte); far;
+begin
+  if KeyCode = Key_Enter then
+    DoSubmitScore;
 end;
 
 {$F-}
@@ -609,8 +623,8 @@ begin
   { Add widgets }
   Game.AddDialogTitle('GAME OVER');  { Title as label widget }
   Game.AddDialogLabel(Msg);  { Multi-line message with score }
-  Game.AddDialogLineEdit(16, 'Player', SubmitScoreOk);  { Max 16 chars, default "Player" }
-  Game.AddDialogButton('OK', SubmitScoreOk);  { Only OK button, no Cancel }
+  Game.AddDialogLineEdit(16, 'Player', SubmitScoreOkLineEdit);  { Max 16 chars, default "Player" }
+  Game.AddDialogButton('OK', SubmitScoreOkButton);  { Only OK button, no Cancel }
 
   { Initialize dialog rendering after widgets are added }
   Game.PostInitDialog;
