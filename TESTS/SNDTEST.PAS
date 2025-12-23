@@ -53,7 +53,7 @@ begin
   { Load sounds into XMS }
   WriteLn('Loading sounds into XMS memory...');
 
-  ExplosionID := Bank.LoadSound('..\XICLONE\DATA\LAND.VOC');
+  ExplosionID := Bank.LoadSound('DATA\EXPLODE.VOC');
   if ExplosionID < 0 then
   begin
     WriteLn('ERROR: Failed to load EXPLODE.VOC');
