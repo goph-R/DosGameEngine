@@ -75,7 +75,7 @@ begin
 
   { Test numbers and symbols }
   PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', LargeFont^, ScreenBuffer);
-  PrintFontText(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', SmallFont^, ScreenBuffer);
+  PrintFontTextColored(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', 12, SmallFont^, ScreenBuffer);
 
   { Test right-aligned text }
   PrintFontTextRight(310, 170, 'Right Align', LargeFont^, ScreenBuffer);

@@ -101,11 +101,13 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **VGAPRINT.PAS** - Embedded 8x8 bitmap font, PrintText(x,y,text,color,fb)
 
 **VGAFONT.PAS** - Variable-width font from PCX sprite sheet + XML
-- Types: TFont (Image, Height, Padding, Chars, Loaded), PFont, TCharInfo
+- Types: TFont (Image, Height, Padding, ReplaceColor, Chars, Loaded), PFont, TCharInfo
 - Constants: MaxChars = 128
 - LoadFont(xml,font), FreeFont(font), GetLoadFontError
 - PrintFontText(x,y,text,font,fb), PrintFontTextCentered(x,y,text,font,fb), PrintFontTextRight(x,y,text,font,fb)
+- PrintFontTextColored(x,y,text,color,font,fb), PrintFontTextCenteredColored(x,y,text,color,font,fb), PrintFontTextRightColored(x,y,text,color,font,fb)
 - GetTextWidth(text,font)
+- **Color replacement**: Set `replace-color` XML attribute (0-255) to enable runtime color replacement. ReplaceColor=0 disables replacement
 - **IMPORTANT**: Font.Padding is only for horizontal character spacing, NOT for vertical line spacing. Use Font.Height for vertical spacing between lines
 
 **PCX.PAS** - PCX image loading and saving (ZSoft PCX v5, Aseprite/GIMP-compatible)

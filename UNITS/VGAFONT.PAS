@@ -22,6 +22,7 @@ type
     Image: TImage;                            { Font sprite sheet }
     Height: Byte;                             { Height of all characters }
     Padding: Byte;                            { Right padding of all characters }
+    ReplaceColor: Byte;                       { Color to replace (0 = no replacement) }
     Chars: array[0..MaxChars-1] of TCharInfo; { Character metadata }
     Loaded: Boolean;                          { True if font successfully loaded }
   end;
@@ -63,6 +64,33 @@ procedure PrintFontTextRight(
   FrameBuffer: PFrameBuffer
 );
 
+{ Render colored text using loaded font (replaces ReplaceColor with Color) }
+procedure PrintFontTextColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+
+{ Draw centered colored text }
+procedure PrintFontTextCenteredColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+
+{ Draw right-aligned colored text }
+procedure PrintFontTextRightColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+
 implementation
 
 var
@@ -84,8 +112,8 @@ end;
 function LoadFont(const XMLFile: string;var Font: TFont): Boolean;
 var
   FontNode, CharNode: PXMLNode;
-  HeightStr, PaddingStr, CodeStr, XStr, YStr, WidthStr: string;
-  Height, Padding, Code, X, Y, Width: Integer;
+  HeightStr, PaddingStr, ReplaceColorStr, CodeStr, XStr, YStr, WidthStr: string;
+  Height, Padding, ReplaceColor, Code, X, Y, Width: Integer;
   i: Integer;
   ImageFile: string;
 begin
@@ -102,6 +130,7 @@ begin
   Font.Loaded := False;
   Font.Height := 0;
   Font.Padding := 0;
+  Font.ReplaceColor := 0;
 
   { Load XML }
   if not XMLLoadFile(XMLFile, FontNode) then
@@ -144,6 +173,20 @@ begin
   end;
 
   Font.Padding := Padding;
+
+  { Read replace-color attribute (default to 0 if not specified) }
+  ReplaceColorStr := XMLAttr(FontNode, 'replace-color');
+  if ReplaceColorStr <> '' then
+  begin
+    ReplaceColor := StrToInt(ReplaceColorStr);
+    if (ReplaceColor < 0) or (ReplaceColor > 255) then
+    begin
+      SetError('Invalid replace-color: ' + ReplaceColorStr + ' (must be 0-255)');
+      XMLFreeTree(FontNode);
+      Exit;
+    end;
+    Font.ReplaceColor := ReplaceColor;
+  end;
 
   { Parse each <char> element }
   CharNode := FontNode^.FirstChild;
@@ -248,6 +291,7 @@ begin
   end;
 
   Font.Height := 0;
+  Font.ReplaceColor := 0;
   Font.Loaded := False;
 end;
 
@@ -343,6 +387,137 @@ var
 begin
   TextWidth := GetTextWidth(Text, Font);
   PrintFontText(X - TextWidth, Y, Text, Font, FrameBuffer);
+end;
+
+{ Internal: Render single character with color replacement }
+procedure RenderCharColored(
+  var Font: TFont;
+  const CharInfo: TCharInfo;
+  X, Y: Integer;
+  Color: Byte;
+  FrameBuffer: PFrameBuffer
+);
+var
+  SrcX, SrcY: Integer;
+  DestX, DestY: Integer;
+  PixelColor: Byte;
+  SrcOffset, DestOffset: Word;
+  ImageData: PByteArray;
+begin
+  { Early exit if ReplaceColor is 0 (no replacement) }
+  if Font.ReplaceColor = 0 then
+  begin
+    { Use the fast non-colored rendering }
+    Exit;
+  end;
+
+  ImageData := PByteArray(Font.Image.Data);
+
+  { Loop through each pixel in the character }
+  for SrcY := 0 to Font.Height - 1 do
+  begin
+    for SrcX := 0 to CharInfo.Width - 1 do
+    begin
+      DestX := X + SrcX;
+      DestY := Y + SrcY;
+
+      { Clip check }
+      if (DestX < 0) or (DestX >= 320) or (DestY < 0) or (DestY >= 200) then
+        Continue;
+
+      { Calculate source pixel offset }
+      SrcOffset := Word(CharInfo.Y + SrcY) * Font.Image.Width + Word(CharInfo.X + SrcX);
+      PixelColor := ImageData^[SrcOffset];
+
+      { Skip transparent pixels (color 0) }
+      if PixelColor = 0 then
+        Continue;
+
+      { Replace if matches ReplaceColor }
+      if PixelColor = Font.ReplaceColor then
+        PixelColor := Color;
+
+      { Draw pixel to framebuffer }
+      DestOffset := Word(DestY) * 320 + Word(DestX);
+      FrameBuffer^[DestOffset] := PixelColor;
+    end;
+  end;
+end;
+
+{ Render colored text using loaded font }
+procedure PrintFontTextColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+var
+  i: Integer;
+  CharCode: Byte;
+  CharInfo: TCharInfo;
+  SourceRect: TRectangle;
+  CursorX: Integer;
+begin
+  if not Font.Loaded then Exit;
+
+  { If ReplaceColor is 0, use normal non-colored rendering }
+  if Font.ReplaceColor = 0 then
+  begin
+    PrintFontText(X, Y, Text, Font, FrameBuffer);
+    Exit;
+  end;
+
+  CursorX := X;
+
+  for i := 1 to Length(Text) do
+  begin
+    CharCode := Ord(Text[i]);
+
+    { Skip extended ASCII }
+    if CharCode > 127 then Continue;
+
+    CharInfo := Font.Chars[CharCode];
+
+    { Skip undefined characters }
+    if not CharInfo.Defined then Continue;
+
+    { Render character with color replacement }
+    RenderCharColored(Font, CharInfo, CursorX, Y, Color, FrameBuffer);
+
+    { Advance cursor }
+    CursorX := CursorX + CharInfo.Width + Font.Padding;
+  end;
+end;
+
+{ Draw centered colored text }
+procedure PrintFontTextCenteredColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+var
+  TextWidth: Integer;
+begin
+  TextWidth := GetTextWidth(Text, Font);
+  PrintFontTextColored(X - (TextWidth div 2), Y, Text, Color, Font, FrameBuffer);
+end;
+
+{ Draw right-aligned colored text }
+procedure PrintFontTextRightColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+var
+  TextWidth: Integer;
+begin
+  TextWidth := GetTextWidth(Text, Font);
+  PrintFontTextColored(X - TextWidth, Y, Text, Color, Font, FrameBuffer);
 end;
 
 end.
