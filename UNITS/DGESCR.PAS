@@ -18,7 +18,7 @@
   Important Notes:
     - PostInit runs AFTER InitVGA, safe for palette/rendering operations
     - Update receives delta time in seconds (Real)
-    - DialogLabel: Optional label widget for dialog integration
+    - No dependencies - completely standalone screen base
 
   Usage Example:
     type
@@ -38,23 +38,17 @@ unit DGEScr;
 
 interface
 
-uses
-  VGAUI;  { For PLabel type }
-
 type
   PScreen = ^TScreen;
 
   { Screen object - abstract base for game states/screens }
   TScreen = object
-    DialogLabel: PLabel;
-
     constructor Init;
     destructor Done; virtual;
     procedure PostInit; virtual;
     procedure Update(DT: Real); virtual;
     procedure Show; virtual;
     procedure Hide; virtual;
-    procedure AddDialogLabel(ADialogLabel: PLabel);
   end;
 
 implementation
@@ -64,7 +58,6 @@ implementation
 constructor TScreen.Init;
 begin
   { Base implementation - override in derived screens }
-  DialogLabel := nil;
 end;
 
 destructor TScreen.Done;
@@ -90,11 +83,6 @@ end;
 procedure TScreen.Hide;
 begin
   { Base implementation - override in derived screens }
-end;
-
-procedure TScreen.AddDialogLabel(ADialogLabel: PLabel);
-begin
-  DialogLabel := ADialogLabel;
 end;
 
 end.

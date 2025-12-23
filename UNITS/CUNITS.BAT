@@ -114,6 +114,18 @@ echo Compiling RESMAN.PAS...
 tpc RESMAN.PAS
 if errorlevel 1 goto error
 
+echo Compiling MATHUTIL.PAS...
+tpc MATHUTIL.PAS
+if errorlevel 1 goto error
+
+echo Compiling DGESCR.PAS...
+tpc DGESCR.PAS
+if errorlevel 1 goto error
+
+echo Compiling DGECORE.PAS...
+tpc DGECORE.PAS
+if errorlevel 1 goto error
+
 echo Compiling GAMEUNIT.PAS...
 tpc GAMEUNIT.PAS
 if errorlevel 1 goto error

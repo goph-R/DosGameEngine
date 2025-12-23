@@ -235,8 +235,8 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - TScreen: Abstract screen/state base (Init, Done, Update, Show, Hide, PostInit)
 - **PostInit**: Called AFTER VGA initialized - use for SetPalette, RenderFrameBuffer, etc. NOT for loading resources
 - Screen lifecycle: Init → PostInit → Show → Update loop → Hide → Done
-- DialogLabel: Optional label widget for dialog integration
-- Dependencies: VGAUI (1 unit)
+- **Zero dependencies** - completely standalone screen base object
+- Minimal, focused API for state management
 
 **GAMEUNIT.PAS** - Game framework (DEPRECATED - backward compatibility wrapper)
 - Re-exports TGame from DGECORE and TScreen from DGESCR
