@@ -88,6 +88,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 **GENTYPES.PAS** - Generic types
 - Pointer types: PByte, PWord, PShortString
 - Array types: TByteArray (0..65520), PByteArray, TWordArray (0..32000), PWordArray
+- Alignment: TAlign (Byte), Align_Left/Center/Right (horizontal), Align_Top/Middle/Bottom (vertical)
 
 **VGA.PAS** - Mode 13h graphics
 - Types: TFrameBuffer, PFrameBuffer, TImage, PImage, TRectangle, TPalette, TRGBColor
@@ -104,9 +105,9 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Types: TFont (Image, Height, Padding, ReplaceColor, Chars, Loaded), PFont, TCharInfo
 - Constants: MaxChars = 128
 - LoadFont(xml,font), FreeFont(font), GetLoadFontError
-- PrintFontText(x,y,text,font,fb), PrintFontTextCentered(x,y,text,font,fb), PrintFontTextRight(x,y,text,font,fb)
-- PrintFontTextColored(x,y,text,color,font,fb), PrintFontTextCenteredColored(x,y,text,color,font,fb), PrintFontTextRightColored(x,y,text,color,font,fb)
+- PrintFontText(x,y,text,align,font,fb), PrintFontTextColored(x,y,text,color,align,font,fb)
 - GetTextWidth(text,font)
+- **Alignment**: Uses TAlign from GENTYPES (Align_Left, Align_Center, Align_Right)
 - **Color replacement**: Set `replace-color` XML attribute (0-255) to enable runtime color replacement. ReplaceColor=0 disables replacement
 - **IMPORTANT**: Font.Padding is only for horizontal character spacing, NOT for vertical line spacing. Use Font.Height for vertical spacing between lines
 

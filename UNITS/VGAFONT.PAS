@@ -37,59 +37,27 @@ function GetLoadFontError: string;
 { Free font resources }
 procedure FreeFont(var Font: TFont);
 
-{ Render text using loaded font }
+{ Render text using loaded font with alignment }
 procedure PrintFontText(
   X, Y: Integer;
   const Text: string;
+  Align: TAlign;
+  var Font: TFont;
+  FrameBuffer: PFrameBuffer
+);
+
+{ Render colored text using loaded font with alignment (replaces ReplaceColor with Color) }
+procedure PrintFontTextColored(
+  X, Y: Integer;
+  const Text: string;
+  Color: Byte;
+  Align: TAlign;
   var Font: TFont;
   FrameBuffer: PFrameBuffer
 );
 
 { Calculate text width in pixels }
 function GetTextWidth(const Text: string; var Font: TFont): Integer;
-
-{ Draw centered text }
-procedure PrintFontTextCentered(
-  X, Y: Integer;
-  const Text: string;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-
-{ Draw right-aligned text }
-procedure PrintFontTextRight(
-  X, Y: Integer;
-  const Text: string;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-
-{ Render colored text using loaded font (replaces ReplaceColor with Color) }
-procedure PrintFontTextColored(
-  X, Y: Integer;
-  const Text: string;
-  Color: Byte;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-
-{ Draw centered colored text }
-procedure PrintFontTextCenteredColored(
-  X, Y: Integer;
-  const Text: string;
-  Color: Byte;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-
-{ Draw right-aligned colored text }
-procedure PrintFontTextRightColored(
-  X, Y: Integer;
-  const Text: string;
-  Color: Byte;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
 
 implementation
 
@@ -295,10 +263,11 @@ begin
   Font.Loaded := False;
 end;
 
-{ Render text using loaded font }
+{ Render text using loaded font with alignment }
 procedure PrintFontText(
   X, Y: Integer;
   const Text: string;
+  Align: TAlign;
   var Font: TFont;
   FrameBuffer: PFrameBuffer
 );
@@ -308,8 +277,17 @@ var
   CharInfo: TCharInfo;
   SourceRect: TRectangle;
   CursorX: Integer;
+  TextWidth: Integer;
 begin
   if not Font.Loaded then Exit;
+
+  { Calculate text width and adjust X based on alignment }
+  TextWidth := GetTextWidth(Text, Font);
+  if (Align and Align_Center) <> 0 then
+    X := X - (TextWidth div 2)
+  else if (Align and Align_Right) <> 0 then
+    X := X - TextWidth;
+  { Align_Left uses X as-is }
 
   CursorX := X;
 
@@ -359,34 +337,6 @@ begin
       Width := Width + Font.Chars[CharCode].Width + Font.Padding;
   end;
   GetTextWidth := Width;
-end;
-
-{ Draw centered text }
-procedure PrintFontTextCentered(
-  X, Y: Integer;
-  const Text: string;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-var
-  TextWidth: Integer;
-begin
-  TextWidth := GetTextWidth(Text, Font);
-  PrintFontText(X - (TextWidth div 2), Y, Text, Font, FrameBuffer);
-end;
-
-{ Draw right-aligned text }
-procedure PrintFontTextRight(
-  X, Y: Integer;
-  const Text: string;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-var
-  TextWidth: Integer;
-begin
-  TextWidth := GetTextWidth(Text, Font);
-  PrintFontText(X - TextWidth, Y, Text, Font, FrameBuffer);
 end;
 
 { Internal: Render single character with color replacement }
@@ -444,11 +394,12 @@ begin
   end;
 end;
 
-{ Render colored text using loaded font }
+{ Render colored text using loaded font with alignment }
 procedure PrintFontTextColored(
   X, Y: Integer;
   const Text: string;
   Color: Byte;
+  Align: TAlign;
   var Font: TFont;
   FrameBuffer: PFrameBuffer
 );
@@ -458,15 +409,24 @@ var
   CharInfo: TCharInfo;
   SourceRect: TRectangle;
   CursorX: Integer;
+  TextWidth: Integer;
 begin
   if not Font.Loaded then Exit;
 
   { If ReplaceColor is 0, use normal non-colored rendering }
   if Font.ReplaceColor = 0 then
   begin
-    PrintFontText(X, Y, Text, Font, FrameBuffer);
+    PrintFontText(X, Y, Text, Align, Font, FrameBuffer);
     Exit;
   end;
+
+  { Calculate text width and adjust X based on alignment }
+  TextWidth := GetTextWidth(Text, Font);
+  if (Align and Align_Center) <> 0 then
+    X := X - (TextWidth div 2)
+  else if (Align and Align_Right) <> 0 then
+    X := X - TextWidth;
+  { Align_Left uses X as-is }
 
   CursorX := X;
 
@@ -488,36 +448,6 @@ begin
     { Advance cursor }
     CursorX := CursorX + CharInfo.Width + Font.Padding;
   end;
-end;
-
-{ Draw centered colored text }
-procedure PrintFontTextCenteredColored(
-  X, Y: Integer;
-  const Text: string;
-  Color: Byte;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-var
-  TextWidth: Integer;
-begin
-  TextWidth := GetTextWidth(Text, Font);
-  PrintFontTextColored(X - (TextWidth div 2), Y, Text, Color, Font, FrameBuffer);
-end;
-
-{ Draw right-aligned colored text }
-procedure PrintFontTextRightColored(
-  X, Y: Integer;
-  const Text: string;
-  Color: Byte;
-  var Font: TFont;
-  FrameBuffer: PFrameBuffer
-);
-var
-  TextWidth: Integer;
-begin
-  TextWidth := GetTextWidth(Text, Font);
-  PrintFontTextColored(X - TextWidth, Y, Text, Color, Font, FrameBuffer);
 end;
 
 end.

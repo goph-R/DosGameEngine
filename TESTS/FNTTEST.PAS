@@ -3,7 +3,7 @@
 
 program FontTest;
 
-uses VGA, VGAFont, ResMan;
+uses VGA, VGAFont, ResMan, GenTypes;
 
 var
   ResMgr: TResourceManager;
@@ -61,24 +61,24 @@ begin
   ClearFrameBuffer(ScreenBuffer);
 
   { Test text rendering at different positions }
-  PrintFontText(10, 10, 'Hello World!', LargeFont^, ScreenBuffer);
-  PrintFontText(10, 10 + LargeFont^.Height, 'Variable Width Font Test', SmallFont^, ScreenBuffer);
+  PrintFontText(10, 10, 'Hello World!', Align_Left, LargeFont^, ScreenBuffer);
+  PrintFontText(10, 10 + LargeFont^.Height, 'Variable Width Font Test', Align_Left, SmallFont^, ScreenBuffer);
 
   { Test centered text }
-  PrintFontTextCentered(160, 50, 'Centered Text', SmallFont^, ScreenBuffer);
+  PrintFontText(160, 50, 'Centered Text', Align_Center, SmallFont^, ScreenBuffer);
 
   { Test all letters }
-  PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', LargeFont^, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont^.Height - 5, 'abcdefghijklmnopqrstuvwxyz', LargeFont^, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont^.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SmallFont^, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont^.Height * 2 + SmallFont^.Height, 'abcdefghijklmnopqrstuvwxyz', SmallFont^, ScreenBuffer);
+  PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', Align_Left, LargeFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height - 5, 'abcdefghijklmnopqrstuvwxyz', Align_Left, LargeFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', Align_Left, SmallFont^, ScreenBuffer);
+  PrintFontText(10, 70 + LargeFont^.Height * 2 + SmallFont^.Height, 'abcdefghijklmnopqrstuvwxyz', Align_Left, SmallFont^, ScreenBuffer);
 
   { Test numbers and symbols }
-  PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', LargeFont^, ScreenBuffer);
-  PrintFontTextColored(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', 12, SmallFont^, ScreenBuffer);
+  PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', Align_Left, LargeFont^, ScreenBuffer);
+  PrintFontTextColored(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', 12, Align_Left, SmallFont^, ScreenBuffer);
 
   { Test right-aligned text }
-  PrintFontTextRight(310, 170, 'Right Align', LargeFont^, ScreenBuffer);
+  PrintFontText(310, 170, 'Right Align', Align_Right, LargeFont^, ScreenBuffer);
 
   ReadLn;
 

@@ -21,21 +21,6 @@ interface
 uses VGA, VGAFont, GenTypes, LinkList, Keyboard, Mouse, DRect, RTCTimer, StrUtil;
 
 { ========================================================================== }
-{ Text Alignment Constants                                                   }
-{ ========================================================================== }
-
-const
-  { Horizontal alignment }
-  Align_Left   = 1;
-  Align_Center = 2;
-  Align_Right  = 4;
-
-  { Vertical alignment }
-  Align_Top    = 8;
-  Align_Middle = 16;
-  Align_Bottom = 32;
-
-{ ========================================================================== }
 { Event System - Delphi-style Event Handlers                                }
 { ========================================================================== }
 
@@ -494,7 +479,7 @@ begin
   begin
     LineWidth := GetTextWidth(Lines[i], Font^);
     X := CalculateAlignedX(Rectangle.X, Rectangle.Width, LineWidth, TextAlign, Align_Left);
-    PrintFontText(X, Y, Lines[i], Font^, FrameBuffer);
+    PrintFontText(X, Y, Lines[i], Align_Left, Font^, FrameBuffer);
     Inc(Y, Font^.Height);
   end;
 end;
@@ -597,7 +582,7 @@ begin
     begin
       LineWidth := GetTextWidth(Lines[i], Font^);
       TextX := CalculateAlignedX(Rectangle.X, Rectangle.Width, LineWidth, TextAlign, Align_Center);
-      PrintFontText(TextX, TextY, Lines[i], Font^, FrameBuffer);
+      PrintFontText(TextX, TextY, Lines[i], Align_Left, Font^, FrameBuffer);
       Inc(TextY, Font^.Height);
     end;
   end;
@@ -739,7 +724,7 @@ begin
     begin
       LineWidth := GetTextWidth(Lines[i], Font^);
       TextX := CalculateAlignedX(TextAreaX, TextAreaWidth, LineWidth, TextAlign, Align_Left);
-      PrintFontText(TextX, TextY, Lines[i], Font^, FrameBuffer);
+      PrintFontText(TextX, TextY, Lines[i], Align_Left, Font^, FrameBuffer);
       Inc(TextY, Font^.Height);
     end;
   end;
@@ -911,7 +896,7 @@ begin
   { Render text }
   TextX := Rectangle.X + 4;
   TextY := Rectangle.Y + (Rectangle.Height - Font^.Height) div 2;
-  PrintFontText(TextX, TextY, DisplayText, Font^, FrameBuffer);
+  PrintFontText(TextX, TextY, DisplayText, Align_Left, Font^, FrameBuffer);
 
   { Render blinking cursor if focused }
   if Focused and CursorVisible then

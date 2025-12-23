@@ -18,6 +18,20 @@ type
   TWordArray = array[0..32000] of Word;  { Max size: 32000 * 2 = 64000 bytes }
   PWordArray = ^TWordArray;
 
+  { Alignment type for text and UI elements }
+  TAlign = Byte;
+
+const
+  { Horizontal alignment }
+  Align_Left   = 1;
+  Align_Center = 2;
+  Align_Right  = 4;
+
+  { Vertical alignment }
+  Align_Top    = 8;
+  Align_Middle = 16;
+  Align_Bottom = 32;
+
 implementation
 
 end.
