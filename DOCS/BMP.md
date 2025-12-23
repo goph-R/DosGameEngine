@@ -61,7 +61,7 @@ begin
   if not LoadBMPWithPalette('PLAYER.BMP', Img, Pal) then
   begin
     WriteLn('Error: ', GetLoadBMPError);
-    CloseVGA;
+    DoneVGA;
     Exit;
   end;
 
@@ -72,7 +72,7 @@ begin
   SaveBMP('OUTPUT.BMP', Img, Pal);
 
   FreeImage(@Img);
-  CloseVGA;
+  DoneVGA;
 end;
 ```
 

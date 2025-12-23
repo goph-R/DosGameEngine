@@ -60,7 +60,7 @@ begin
     ClearDirtyRects;
   end;
 
-  CloseVGA;
+  DoneVGA;
   FreeFrameBuffer(BackBuffer);
 end;
 ```

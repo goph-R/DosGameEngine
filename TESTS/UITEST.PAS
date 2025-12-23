@@ -160,7 +160,7 @@ begin
   DoneKeyboard;
   FreeFrameBuffer(BackBuffer);
   FreeFrameBuffer(BackgroundBuffer);
-  CloseVGA;
+  DoneVGA;
 
   FreeResources;
 end.

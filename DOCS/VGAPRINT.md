@@ -23,7 +23,7 @@ begin
   PrintText(10, 20, 'Score: 1234', 14, BackBuffer);
 
   RenderFrameBuffer(BackBuffer);
-  CloseVGA;
+  DoneVGA;
   FreeFrameBuffer(BackBuffer);
 end;
 ```

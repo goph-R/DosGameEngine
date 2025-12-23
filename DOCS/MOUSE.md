@@ -43,7 +43,7 @@ begin
   if not InitMouse then
   begin
     WriteLn('Mouse driver not found! Load MOUSE.COM');
-    CloseVGA;
+    DoneVGA;
     Halt(1);
   end;
 
@@ -72,7 +72,7 @@ begin
 
   DoneMouse;
   DoneKeyboard;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 
@@ -139,7 +139,7 @@ begin
   FreeImage(CursorImage);
   FreeFrameBuffer(BackBuffer);
   DoneMouse;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

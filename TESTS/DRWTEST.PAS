@@ -80,5 +80,5 @@ begin
 
   DoneKeyboard;
   FreeFrameBuffer(FB);
-  CloseVGA;
+  DoneVGA;
 end.

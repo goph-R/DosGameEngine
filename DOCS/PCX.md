@@ -169,7 +169,7 @@ begin
   { Cleanup }
   FreeFrameBuffer(FB);
   FreeImage(Img);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 
@@ -207,7 +207,7 @@ begin
 
   { Cleanup }
   FreeFrameBuffer(FB);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

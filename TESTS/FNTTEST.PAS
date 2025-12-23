@@ -71,11 +71,18 @@ begin
   PrintFontText(10, 70, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', Align_Left, LargeFont^, ScreenBuffer);
   PrintFontText(10, 70 + LargeFont^.Height - 5, 'abcdefghijklmnopqrstuvwxyz', Align_Left, LargeFont^, ScreenBuffer);
   PrintFontText(10, 70 + LargeFont^.Height * 2, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', Align_Left, SmallFont^, ScreenBuffer);
-  PrintFontText(10, 70 + LargeFont^.Height * 2 + SmallFont^.Height, 'abcdefghijklmnopqrstuvwxyz', Align_Left, SmallFont^, ScreenBuffer);
+  PrintFontText(
+    10, 70 + LargeFont^.Height * 2 + SmallFont^.Height, 
+    'abcdefghijklmnopqrstuvwxyz', Align_Left, SmallFont^, ScreenBuffer
+  );
 
   { Test numbers and symbols }
   PrintFontText(10, 130, '0123456789 `~!@#$%^&*()_+-{}[]', Align_Left, LargeFont^, ScreenBuffer);
-  PrintFontTextColored(10, 130 + LargeFont^.Height, '0123456789 `~!@#$%^&*()_+-{}[]', 12, Align_Left, SmallFont^, ScreenBuffer);
+  PrintFontTextColored(
+    10, 130 + LargeFont^.Height,
+    '0123456789 `~!@#$%^&*()_+-{}[]',
+    12, Align_Left, SmallFont^, ScreenBuffer
+  );
 
   { Test right-aligned text }
   PrintFontText(310, 170, 'Right Align', Align_Right, LargeFont^, ScreenBuffer);
@@ -83,7 +90,7 @@ begin
   ReadLn;
 
   { Cleanup }
-  CloseVGA;
+  DoneVGA;
   ResMgr.Done;
 
   WriteLn;

@@ -126,7 +126,7 @@ begin
   HideMouse;
   DoneMouse;
   FreeFrameBuffer(FrameBuffer);
-  CloseVGA;
+  DoneVGA;
   DoneKeyboard;
 
   WriteLn('Mouse test completed.');

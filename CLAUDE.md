@@ -90,9 +90,18 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - Array types: TByteArray (0..65520), PByteArray, TWordArray (0..32000), PWordArray
 - Alignment: TAlign (Byte), Align_Left/Center/Right (horizontal), Align_Top/Middle/Bottom (vertical)
 
+**MATHUTIL.PAS** - Mathematical utilities
+- Clamping: Clamp(value,min,max), ClampLong(value,min,max)
+- Interpolation: Lerp(a,b,t), LerpInt(a,b,t) - Linear interpolation
+- Fixed-point (16.16): FixedMul(a,b), FixedDiv(a,b), IntToFixed(val), FixedToInt(val)
+- Min/Max: Min(a,b), Max(a,b), MinLong(a,b), MaxLong(a,b)
+- Absolute: Abs(val), AbsLong(val)
+- **Fixed-point format**: 16 bits integer, 16 bits fractional (range: -32768 to 32767.99998)
+- **CRITICAL**: Use LongInt cast for large shifts: `LongInt(320) shl 16`, not `320 shl 16` (overflows)
+
 **VGA.PAS** - Mode 13h graphics
 - Types: TFrameBuffer, PFrameBuffer, TImage, PImage, TRectangle, TPalette, TRGBColor
-- Init: InitVGA, CloseVGA, WaitForVSync
+- Init: InitVGA, DoneVGA, WaitForVSync
 - Buffers: CreateFrameBuffer, GetScreenBuffer, ClearFrameBuffer, CopyFrameBuffer, CopyFrameBufferRect (REP MOVSW for 286 speed), RenderFrameBuffer, FreeFrameBuffer
 - Palette: SetPalette, SetRGB, GetRGB, RotatePalette, LoadPalette
 - Clipping: SetClipRectangle (set rendering bounds)
@@ -349,7 +358,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 ```pascal
 InitVGA; fb := CreateFrameBuffer;
 // Draw to fb^...
-RenderFrameBuffer(fb); CloseVGA; FreeFrameBuffer(fb);
+RenderFrameBuffer(fb); DoneVGA; FreeFrameBuffer(fb);
 ```
 
 **Music (HSC)**:
@@ -517,7 +526,7 @@ MD5Final(digest, ctx);
 4. **ExitProc**: Install handler to unhook on Ctrl+C/Break
 5. **Sound buffers**: Don't free while `Playing=True` (DMA read errors)
 6. **HSC + Sound**: Don't `while Playing` loop with HSC active (freezes)
-7. **VGA cleanup**: Call CloseVGA before exit
+7. **VGA cleanup**: Call DoneVGA before exit
 8. **Memory**: Match Create/Free pairs
 9. **Keyboard**: ClearKeyPressed at END of loop
 10. **DMA**: SBDSP handles 64KB boundaries automatically

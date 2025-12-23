@@ -23,7 +23,7 @@ begin
   RenderFrameBuffer(FrameBuffer);
   ReadLn;
 
-  CloseVGA;
+  DoneVGA;
   FreeFrameBuffer(FrameBuffer);
   FreeImage(TestImage);
 end.
@@ -117,6 +117,6 @@ begin
   { CRITICAL: Clean up all interrupts }
   DoneRTC;
   DoneKeyboard;
-  CloseVGA;
+  DoneVGA;
 end.
 ```

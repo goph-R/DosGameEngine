@@ -122,7 +122,7 @@ begin
   FreeFrameBuffer(BackBuffer);
   FreeImage(SpriteSheet);
   DoneRTC;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

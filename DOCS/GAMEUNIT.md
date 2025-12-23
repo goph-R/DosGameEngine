@@ -119,7 +119,7 @@ Shutdown all subsystems (reverse order of `Start`):
 6. Uninitialize keyboard: `DoneKeyboard`
 7. Uninitialize RTC timer: `DoneRTC`
 8. Free resource manager: `ResMan.Done`
-9. Close VGA: `CloseVGA` (if initialized)
+9. Close VGA: `DoneVGA` (if initialized)
 10. Clear `CurrentGame` pointer
 
 **Virtual:** Override in derived game objects to cleanup game-specific resources (call inherited at end).

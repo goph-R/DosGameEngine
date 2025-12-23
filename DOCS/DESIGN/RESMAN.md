@@ -982,7 +982,7 @@ begin
   DoneRTC;
   DoneKeyboard;
   FreeFrameBuffer(BackBuffer);
-  CloseVGA;
+  DoneVGA;
 
   ResMgr.Done;
 end.

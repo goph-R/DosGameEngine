@@ -1,3 +1,36 @@
+{ VGAPRINT.PAS - Embedded 8x8 bitmap font renderer
+
+  Purpose: Simple, fast text rendering using an embedded fixed-width
+           8x8 bitmap font. No external files required - font data is
+           compiled directly into the executable.
+
+  Font Characteristics:
+    - Fixed 8x8 pixel monospace font
+    - 96 printable characters (ASCII 32-127: space through tilde)
+    - No external dependencies (embedded font data)
+    - Fast rendering (no alignment or color replacement overhead)
+
+  Features:
+    - Direct framebuffer rendering
+    - Simple API: PrintText(x, y, text, color, fb)
+    - Minimal memory footprint (768 bytes font data)
+
+  Usage Example:
+    PrintText(10, 10, 'Score: 1000', 15, fb);
+
+  When to use:
+    - Quick debug output during development
+    - Simple fixed-width text displays
+    - Retro monospace aesthetic
+    - Minimal memory/file overhead needed
+
+  When to use VGAFONT instead:
+    - Variable-width proportional fonts
+    - Need text alignment (left/center/right)
+    - Runtime color replacement needed
+    - Custom font styles from PCX files
+}
+
 unit VGAPrint;
 
 interface

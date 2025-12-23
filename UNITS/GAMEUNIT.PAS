@@ -1,3 +1,43 @@
+{ GAMEUNIT.PAS - Game framework foundation
+
+  Purpose: High-level game framework that integrates all engine subsystems
+           (VGA, audio, input, resources) with screen management and a
+           delta-time game loop.
+
+  Architecture:
+    - TGame: Main game object - extend this in your game's Globals unit
+    - TScreen: Abstract screen/state base - implement for each game screen
+    - Automatic subsystem initialization (VGA, Sound, Input, Resources)
+    - Screen state machine with deferred screen switching
+    - Delta-time game loop using RTC high-resolution timer
+
+  Key Features:
+    - Init: Initializes all subsystems (VGA, Config, ResMan, etc.)
+    - Start: Loads resources, calls screen PostInit after VGA setup
+    - Run: Main game loop with automatic delta-time calculation
+    - Screen management: AddScreen, SetNextScreen, GetScreen
+    - Dialog system: ShowDialog, ShowConfirm with VGA UI integration
+    - Music control: PlayMusic with HSC playback
+
+  Screen Lifecycle:
+    1. Create screen: New(MyScreen, Init)
+    2. Register: Game.AddScreen('menu', MyScreen)
+    3. Queue: Game.SetNextScreen('menu')
+    4. Framework calls: PostInit → Show → Update loop → Hide → Done
+
+  Important Notes:
+    - PostInit: Called AFTER VGA initialized - use for SetPalette, rendering
+    - Resource loading: Load in TGame.Start override, NOT in TScreen.PostInit
+    - Exit handler: Uses module-level CurrentGame pointer for cleanup
+    - No global Game variable - extend TGame in your Globals unit
+
+  Dependencies: VGA, Config, StrMap, RTCTimer, Keyboard, Mouse, SBDSP,
+                ResMan, PlayHSC, VGAUI (10 units - high coupling)
+
+  Usage Example:
+    See DOCS\GAMEUNIT.md for complete architecture guide
+}
+
 unit GameUnit;
 
 {$G+}  { Enable 286 instructions }
@@ -216,7 +256,7 @@ begin
 
   { Close VGA }
   if VGAInitialized then
-    CloseVGA;
+    DoneVGA;
 
   { Clear current game pointer }
   CurrentGame := nil;

@@ -31,7 +31,7 @@ type
 
 ```pascal
 procedure InitVGA;
-procedure CloseVGA;  { CRITICAL: Call before exit }
+procedure DoneVGA;  { CRITICAL: Call before exit }
 procedure WaitForVSync;
 ```
 
@@ -125,7 +125,7 @@ begin
   { Cleanup }
   FreeImage(PlayerImage);
   FreeFrameBuffer(BackBuffer);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 
@@ -205,7 +205,7 @@ end;
 
 ## Critical Notes
 
-1. **CloseVGA** - MUST call before exit or terminal stuck in graphics mode
+1. **DoneVGA** - MUST call before exit or terminal stuck in graphics mode
 2. **Color 0 = transparent** - When drawing images
 3. **Palette range** - RGB values 0-63, not 0-255
 4. **WaitForVSync** - Call before RenderFrameBuffer to prevent tearing

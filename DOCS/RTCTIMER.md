@@ -55,7 +55,7 @@ begin
     while GetTimeSeconds - CurrentTime < 0.0166 do;
   end;
 
-  CloseVGA;
+  DoneVGA;
   DoneRTC;                                   { CRITICAL: Restore IRQ8 }
 end;
 ```

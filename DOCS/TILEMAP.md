@@ -207,7 +207,7 @@ begin
     WriteLn('Error: ', GetLoadTileMapError);
 
   FreeFrameBuffer(Buffer);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

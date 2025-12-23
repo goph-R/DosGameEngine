@@ -264,7 +264,7 @@ begin
   { Cleanup }
   FreeFrameBuffer(FrameBuffer);
   FreeFrameBuffer(BackBuffer);
-  CloseVGA;
+  DoneVGA;
 
   FreeTileMap(TileMap);
 

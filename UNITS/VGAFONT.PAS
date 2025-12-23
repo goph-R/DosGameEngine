@@ -1,5 +1,39 @@
-{ VGAFONT.PAS - Variable-Width Font System }
-{ Sprite sheet-based variable-width font renderer for VGA Mode 13h }
+{ VGAFONT.PAS - Variable-width bitmap font renderer
+
+  Purpose: Loads and renders variable-width fonts from PCX sprite sheets
+           with XML metadata. Supports horizontal alignment and runtime
+           color replacement for dynamic text coloring.
+
+  Font Format:
+    - PCX image: Horizontal sprite sheet with character glyphs
+    - XML metadata: Character widths, positions, and spacing
+    - Optional replace-color attribute for runtime color substitution
+
+  Features:
+    - Variable character widths for proportional fonts
+    - Horizontal alignment (Left/Center/Right) using TAlign from GENTYPES
+    - Runtime color replacement (set Font.ReplaceColor to enable)
+    - Efficient character rendering with clipping support
+
+  Font.Padding: Horizontal spacing between characters (NOT vertical)
+  Font.Height: Use for vertical line spacing calculations
+
+  Usage Example:
+    LoadFont('DATA\FONT.XML', Font);
+    PrintFontText(160, 100, 'Hello', Align_Center, Font, fb);
+    PrintFontTextColored(10, 10, 'Red Text', 12, Align_Left, Font, fb);
+    FreeFont(Font);
+
+  When to use:
+    - Custom game fonts with variable widths
+    - Styled text rendering (titles, menus, HUD)
+    - When you need alignment or color control
+
+  When to use VGAPRINT instead:
+    - Quick debug output
+    - Fixed-width monospace text
+    - Minimal memory overhead (embedded font)
+}
 
 unit VGAFont;
 

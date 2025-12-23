@@ -12,7 +12,7 @@ DoneRTC;          { Unhook RTC timer (IRQ8) }
 DoneKeyboard;     { Unhook keyboard (IRQ1, INT 9h) }
 
 { Now safe to do cleanup and I/O }
-CloseVGA;         { Restore text mode }
+DoneVGA;         { Restore text mode }
 WriteLn(...);     { Console I/O }
 ```
 
@@ -56,5 +56,5 @@ end.
 | Mouse erratic/broken after exit | IRQ2 cascade was masked - use fixed RTCTIMER.PAS (only masks IRQ8) |
 | Keyboard stops working after exit | IRQ2 cascade was masked - prevents slave PIC (IRQ8-15) from working |
 | Sound cuts off immediately | Use RTCTimer instead of PIT Timer 0 for timing |
-| Screen stays in graphics mode | Missing `CloseVGA` call |
+| Screen stays in graphics mode | Missing `DoneVGA` call |
 | Crackling audio | DMA buffer crossing 64KB boundary (auto-fixed in SBDSP) |

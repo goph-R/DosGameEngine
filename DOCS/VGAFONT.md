@@ -561,7 +561,7 @@ begin
   { Load font }
   if not LoadFont('FONTS\MAIN.XML', GameFont) then
   begin
-    CloseVGA;
+    DoneVGA;
     WriteLn('Error: ', GetLoadFontError);
     Halt(1);
   end;
@@ -577,7 +577,7 @@ begin
 
   { Cleanup }
   FreeFont(GameFont);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 
@@ -723,7 +723,7 @@ begin
 
   if not LoadFont('FONTS\MYFONT.XML', Font) then
   begin
-    CloseVGA;
+    DoneVGA;
     WriteLn('Error: ', GetLoadFontError);
     Halt(1);
   end;
@@ -740,7 +740,7 @@ begin
 
   FreeFont(Font);
   FreeFrameBuffer(Buffer);
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

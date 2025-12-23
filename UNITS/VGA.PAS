@@ -1,3 +1,30 @@
+{ VGA.PAS - VGA Mode 13h graphics library
+
+  Purpose: Core graphics routines for 320x200 256-color VGA mode.
+           Provides framebuffer management, palette control, drawing
+           primitives, and image manipulation with hardware clipping.
+
+  Target: VGA Mode 13h (320x200, 256 colors, linear framebuffer at A000:0000)
+
+  Features:
+    - Double-buffered rendering with CreateFrameBuffer/RenderFrameBuffer
+    - Hardware-accelerated operations using REP MOVSW (286 optimized)
+    - Automatic clipping to screen bounds (0-319, 0-199)
+    - Color 0 = transparent in PutImage operations
+    - Palette manipulation and VSync support
+
+  Dependencies: DOS, 286 CPU, VGA adapter
+
+  Usage Example:
+    InitVGA;
+    fb := CreateFrameBuffer;
+    ClearFrameBuffer(fb);
+    DrawLine(0, 0, 319, 199, 15, fb);
+    RenderFrameBuffer(fb);
+    DoneVGA;
+    FreeFrameBuffer(fb);
+}
+
 unit vga;
 
 {$G+}  { Enable 286 instructions }
@@ -30,7 +57,7 @@ type
   end;
 
 procedure InitVGA;
-procedure CloseVGA;
+procedure DoneVGA;
 procedure SetClipRectangle(const R: TRectangle);  { Set clipping bounds for rendering }
 procedure WaitForVSync;
 
@@ -100,7 +127,7 @@ begin
   ClipRectangle := R;
 end;
 
-procedure CloseVGA; assembler;
+procedure DoneVGA; assembler;
  asm
   mov ah, 00h
   mov al, OldMode

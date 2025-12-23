@@ -20,7 +20,7 @@ Complete reference for all DOS Game Engine units. For detailed documentation, se
 Low-level VGA Mode 13h graphics driver (320×200, 256 colors).
 
 **Key Functions:**
-- `InitVGA` / `CloseVGA` - Mode switching
+- `InitVGA` / `DoneVGA` - Mode switching
 - `CreateFrameBuffer` / `RenderFrameBuffer` - Double-buffering
 - `SetPalette` / `RotatePalette` / `GetRGB` / `SetRGB` - Palette control
 - `DrawLine` / `DrawHLine` / `DrawVLine` - Line drawing
@@ -837,7 +837,7 @@ begin
 
   FreeFrameBuffer(FB);
   DoneKeyboard;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 
@@ -874,7 +874,7 @@ begin
   end;
 
   DoneKeyboard;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

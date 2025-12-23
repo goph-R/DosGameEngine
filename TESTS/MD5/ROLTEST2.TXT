@@ -1,0 +1,29 @@
+ROL Function Test
+=================
+
+ROL($12345678, 0)
+Expected: $12345678
+Got:      $12345678
+PASS
+
+ROL($12345678, 1)
+Expected: $2468ACF0
+Got:      $2468ACF0
+PASS
+
+ROL($67452301, 7)
+Expected: $3A291808
+Got:      $A29180B3
+FAIL ***
+
+ROL($80000001, 1)
+Expected: $00000003
+Got:      $00000003
+PASS
+
+ROL($12345678, 16)
+Expected: $56781234
+Got:      $56781234
+PASS
+
+All tests complete!

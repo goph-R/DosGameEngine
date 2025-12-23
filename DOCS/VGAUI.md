@@ -241,7 +241,7 @@ begin
   HideMouse;
   DoneMouse;
   DoneKeyboard;
-  CloseVGA;
+  DoneVGA;
 end.
 ```
 

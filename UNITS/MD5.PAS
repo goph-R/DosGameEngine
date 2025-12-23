@@ -176,6 +176,7 @@ var
   a, b, c, d: LongInt;
   x: array[0..15] of LongInt;
   i: Integer;
+  temp: LongInt;  { Temporary for breaking down complex expressions }
 begin
   { Decode input block into 16 32-bit words (little-endian) }
   for i := 0 to 15 do
@@ -187,83 +188,83 @@ begin
   c := state[2];
   d := state[3];
 
-  { Round 1 }
-  a := b + ROL(a + F(b, c, d) + x[ 0] + T[ 0], 7);
-  d := a + ROL(d + F(a, b, c) + x[ 1] + T[ 1], 12);
-  c := d + ROL(c + F(d, a, b) + x[ 2] + T[ 2], 17);
-  b := c + ROL(b + F(c, d, a) + x[ 3] + T[ 3], 22);
-  a := b + ROL(a + F(b, c, d) + x[ 4] + T[ 4], 7);
-  d := a + ROL(d + F(a, b, c) + x[ 5] + T[ 5], 12);
-  c := d + ROL(c + F(d, a, b) + x[ 6] + T[ 6], 17);
-  b := c + ROL(b + F(c, d, a) + x[ 7] + T[ 7], 22);
-  a := b + ROL(a + F(b, c, d) + x[ 8] + T[ 8], 7);
-  d := a + ROL(d + F(a, b, c) + x[ 9] + T[ 9], 12);
-  c := d + ROL(c + F(d, a, b) + x[10] + T[10], 17);
-  b := c + ROL(b + F(c, d, a) + x[11] + T[11], 22);
-  a := b + ROL(a + F(b, c, d) + x[12] + T[12], 7);
-  d := a + ROL(d + F(a, b, c) + x[13] + T[13], 12);
-  c := d + ROL(c + F(d, a, b) + x[14] + T[14], 17);
-  b := c + ROL(b + F(c, d, a) + x[15] + T[15], 22);
+  { Round 1 - all operations broken down into simple steps }
+  temp := a + F(b, c, d); temp := temp + x[0]; temp := temp + T[0]; temp := ROL(temp, 7); a := b + temp;
+  temp := d + F(a, b, c); temp := temp + x[1]; temp := temp + T[1]; temp := ROL(temp, 12); d := a + temp;
+  temp := c + F(d, a, b); temp := temp + x[2]; temp := temp + T[2]; temp := ROL(temp, 17); c := d + temp;
+  temp := b + F(c, d, a); temp := temp + x[3]; temp := temp + T[3]; temp := ROL(temp, 22); b := c + temp;
+  temp := a + F(b, c, d); temp := temp + x[4]; temp := temp + T[4]; temp := ROL(temp, 7); a := b + temp;
+  temp := d + F(a, b, c); temp := temp + x[5]; temp := temp + T[5]; temp := ROL(temp, 12); d := a + temp;
+  temp := c + F(d, a, b); temp := temp + x[6]; temp := temp + T[6]; temp := ROL(temp, 17); c := d + temp;
+  temp := b + F(c, d, a); temp := temp + x[7]; temp := temp + T[7]; temp := ROL(temp, 22); b := c + temp;
+  temp := a + F(b, c, d); temp := temp + x[8]; temp := temp + T[8]; temp := ROL(temp, 7); a := b + temp;
+  temp := d + F(a, b, c); temp := temp + x[9]; temp := temp + T[9]; temp := ROL(temp, 12); d := a + temp;
+  temp := c + F(d, a, b); temp := temp + x[10]; temp := temp + T[10]; temp := ROL(temp, 17); c := d + temp;
+  temp := b + F(c, d, a); temp := temp + x[11]; temp := temp + T[11]; temp := ROL(temp, 22); b := c + temp;
+  temp := a + F(b, c, d); temp := temp + x[12]; temp := temp + T[12]; temp := ROL(temp, 7); a := b + temp;
+  temp := d + F(a, b, c); temp := temp + x[13]; temp := temp + T[13]; temp := ROL(temp, 12); d := a + temp;
+  temp := c + F(d, a, b); temp := temp + x[14]; temp := temp + T[14]; temp := ROL(temp, 17); c := d + temp;
+  temp := b + F(c, d, a); temp := temp + x[15]; temp := temp + T[15]; temp := ROL(temp, 22); b := c + temp;
 
-  { Round 2 }
-  a := b + ROL(a + G(b, c, d) + x[ 1] + T[16], 5);
-  d := a + ROL(d + G(a, b, c) + x[ 6] + T[17], 9);
-  c := d + ROL(c + G(d, a, b) + x[11] + T[18], 14);
-  b := c + ROL(b + G(c, d, a) + x[ 0] + T[19], 20);
-  a := b + ROL(a + G(b, c, d) + x[ 5] + T[20], 5);
-  d := a + ROL(d + G(a, b, c) + x[10] + T[21], 9);
-  c := d + ROL(c + G(d, a, b) + x[15] + T[22], 14);
-  b := c + ROL(b + G(c, d, a) + x[ 4] + T[23], 20);
-  a := b + ROL(a + G(b, c, d) + x[ 9] + T[24], 5);
-  d := a + ROL(d + G(a, b, c) + x[14] + T[25], 9);
-  c := d + ROL(c + G(d, a, b) + x[ 3] + T[26], 14);
-  b := c + ROL(b + G(c, d, a) + x[ 8] + T[27], 20);
-  a := b + ROL(a + G(b, c, d) + x[13] + T[28], 5);
-  d := a + ROL(d + G(a, b, c) + x[ 2] + T[29], 9);
-  c := d + ROL(c + G(d, a, b) + x[ 7] + T[30], 14);
-  b := c + ROL(b + G(c, d, a) + x[12] + T[31], 20);
+  { Round 2 - all operations broken down into simple steps }
+  temp := a + G(b, c, d); temp := temp + x[1]; temp := temp + T[16]; temp := ROL(temp, 5); a := b + temp;
+  temp := d + G(a, b, c); temp := temp + x[6]; temp := temp + T[17]; temp := ROL(temp, 9); d := a + temp;
+  temp := c + G(d, a, b); temp := temp + x[11]; temp := temp + T[18]; temp := ROL(temp, 14); c := d + temp;
+  temp := b + G(c, d, a); temp := temp + x[0]; temp := temp + T[19]; temp := ROL(temp, 20); b := c + temp;
+  temp := a + G(b, c, d); temp := temp + x[5]; temp := temp + T[20]; temp := ROL(temp, 5); a := b + temp;
+  temp := d + G(a, b, c); temp := temp + x[10]; temp := temp + T[21]; temp := ROL(temp, 9); d := a + temp;
+  temp := c + G(d, a, b); temp := temp + x[15]; temp := temp + T[22]; temp := ROL(temp, 14); c := d + temp;
+  temp := b + G(c, d, a); temp := temp + x[4]; temp := temp + T[23]; temp := ROL(temp, 20); b := c + temp;
+  temp := a + G(b, c, d); temp := temp + x[9]; temp := temp + T[24]; temp := ROL(temp, 5); a := b + temp;
+  temp := d + G(a, b, c); temp := temp + x[14]; temp := temp + T[25]; temp := ROL(temp, 9); d := a + temp;
+  temp := c + G(d, a, b); temp := temp + x[3]; temp := temp + T[26]; temp := ROL(temp, 14); c := d + temp;
+  temp := b + G(c, d, a); temp := temp + x[8]; temp := temp + T[27]; temp := ROL(temp, 20); b := c + temp;
+  temp := a + G(b, c, d); temp := temp + x[13]; temp := temp + T[28]; temp := ROL(temp, 5); a := b + temp;
+  temp := d + G(a, b, c); temp := temp + x[2]; temp := temp + T[29]; temp := ROL(temp, 9); d := a + temp;
+  temp := c + G(d, a, b); temp := temp + x[7]; temp := temp + T[30]; temp := ROL(temp, 14); c := d + temp;
+  temp := b + G(c, d, a); temp := temp + x[12]; temp := temp + T[31]; temp := ROL(temp, 20); b := c + temp;
 
-  { Round 3 }
-  a := b + ROL(a + H(b, c, d) + x[ 5] + T[32], 4);
-  d := a + ROL(d + H(a, b, c) + x[ 8] + T[33], 11);
-  c := d + ROL(c + H(d, a, b) + x[11] + T[34], 16);
-  b := c + ROL(b + H(c, d, a) + x[14] + T[35], 23);
-  a := b + ROL(a + H(b, c, d) + x[ 1] + T[36], 4);
-  d := a + ROL(d + H(a, b, c) + x[ 4] + T[37], 11);
-  c := d + ROL(c + H(d, a, b) + x[ 7] + T[38], 16);
-  b := c + ROL(b + H(c, d, a) + x[10] + T[39], 23);
-  a := b + ROL(a + H(b, c, d) + x[13] + T[40], 4);
-  d := a + ROL(d + H(a, b, c) + x[ 0] + T[41], 11);
-  c := d + ROL(c + H(d, a, b) + x[ 3] + T[42], 16);
-  b := c + ROL(b + H(c, d, a) + x[ 6] + T[43], 23);
-  a := b + ROL(a + H(b, c, d) + x[ 9] + T[44], 4);
-  d := a + ROL(d + H(a, b, c) + x[12] + T[45], 11);
-  c := d + ROL(c + H(d, a, b) + x[15] + T[46], 16);
-  b := c + ROL(b + H(c, d, a) + x[ 2] + T[47], 23);
+  { Round 3 - all operations broken down into simple steps }
+  temp := a + H(b, c, d); temp := temp + x[5]; temp := temp + T[32]; temp := ROL(temp, 4); a := b + temp;
+  temp := d + H(a, b, c); temp := temp + x[8]; temp := temp + T[33]; temp := ROL(temp, 11); d := a + temp;
+  temp := c + H(d, a, b); temp := temp + x[11]; temp := temp + T[34]; temp := ROL(temp, 16); c := d + temp;
+  temp := b + H(c, d, a); temp := temp + x[14]; temp := temp + T[35]; temp := ROL(temp, 23); b := c + temp;
+  temp := a + H(b, c, d); temp := temp + x[1]; temp := temp + T[36]; temp := ROL(temp, 4); a := b + temp;
+  temp := d + H(a, b, c); temp := temp + x[4]; temp := temp + T[37]; temp := ROL(temp, 11); d := a + temp;
+  temp := c + H(d, a, b); temp := temp + x[7]; temp := temp + T[38]; temp := ROL(temp, 16); c := d + temp;
+  temp := b + H(c, d, a); temp := temp + x[10]; temp := temp + T[39]; temp := ROL(temp, 23); b := c + temp;
+  temp := a + H(b, c, d); temp := temp + x[13]; temp := temp + T[40]; temp := ROL(temp, 4); a := b + temp;
+  temp := d + H(a, b, c); temp := temp + x[0]; temp := temp + T[41]; temp := ROL(temp, 11); d := a + temp;
+  temp := c + H(d, a, b); temp := temp + x[3]; temp := temp + T[42]; temp := ROL(temp, 16); c := d + temp;
+  temp := b + H(c, d, a); temp := temp + x[6]; temp := temp + T[43]; temp := ROL(temp, 23); b := c + temp;
+  temp := a + H(b, c, d); temp := temp + x[9]; temp := temp + T[44]; temp := ROL(temp, 4); a := b + temp;
+  temp := d + H(a, b, c); temp := temp + x[12]; temp := temp + T[45]; temp := ROL(temp, 11); d := a + temp;
+  temp := c + H(d, a, b); temp := temp + x[15]; temp := temp + T[46]; temp := ROL(temp, 16); c := d + temp;
+  temp := b + H(c, d, a); temp := temp + x[2]; temp := temp + T[47]; temp := ROL(temp, 23); b := c + temp;
 
-  { Round 4 }
-  a := b + ROL(a + II(b, c, d) + x[ 0] + T[48], 6);
-  d := a + ROL(d + II(a, b, c) + x[ 7] + T[49], 10);
-  c := d + ROL(c + II(d, a, b) + x[14] + T[50], 15);
-  b := c + ROL(b + II(c, d, a) + x[ 5] + T[51], 21);
-  a := b + ROL(a + II(b, c, d) + x[12] + T[52], 6);
-  d := a + ROL(d + II(a, b, c) + x[ 3] + T[53], 10);
-  c := d + ROL(c + II(d, a, b) + x[10] + T[54], 15);
-  b := c + ROL(b + II(c, d, a) + x[ 1] + T[55], 21);
-  a := b + ROL(a + II(b, c, d) + x[ 8] + T[56], 6);
-  d := a + ROL(d + II(a, b, c) + x[15] + T[57], 10);
-  c := d + ROL(c + II(d, a, b) + x[ 6] + T[58], 15);
-  b := c + ROL(b + II(c, d, a) + x[13] + T[59], 21);
-  a := b + ROL(a + II(b, c, d) + x[ 4] + T[60], 6);
-  d := a + ROL(d + II(a, b, c) + x[11] + T[61], 10);
-  c := d + ROL(c + II(d, a, b) + x[ 2] + T[62], 15);
-  b := c + ROL(b + II(c, d, a) + x[ 9] + T[63], 21);
+  { Round 4 - all operations broken down into simple steps }
+  temp := a + II(b, c, d); temp := temp + x[0]; temp := temp + T[48]; temp := ROL(temp, 6); a := b + temp;
+  temp := d + II(a, b, c); temp := temp + x[7]; temp := temp + T[49]; temp := ROL(temp, 10); d := a + temp;
+  temp := c + II(d, a, b); temp := temp + x[14]; temp := temp + T[50]; temp := ROL(temp, 15); c := d + temp;
+  temp := b + II(c, d, a); temp := temp + x[5]; temp := temp + T[51]; temp := ROL(temp, 21); b := c + temp;
+  temp := a + II(b, c, d); temp := temp + x[12]; temp := temp + T[52]; temp := ROL(temp, 6); a := b + temp;
+  temp := d + II(a, b, c); temp := temp + x[3]; temp := temp + T[53]; temp := ROL(temp, 10); d := a + temp;
+  temp := c + II(d, a, b); temp := temp + x[10]; temp := temp + T[54]; temp := ROL(temp, 15); c := d + temp;
+  temp := b + II(c, d, a); temp := temp + x[1]; temp := temp + T[55]; temp := ROL(temp, 21); b := c + temp;
+  temp := a + II(b, c, d); temp := temp + x[8]; temp := temp + T[56]; temp := ROL(temp, 6); a := b + temp;
+  temp := d + II(a, b, c); temp := temp + x[15]; temp := temp + T[57]; temp := ROL(temp, 10); d := a + temp;
+  temp := c + II(d, a, b); temp := temp + x[6]; temp := temp + T[58]; temp := ROL(temp, 15); c := d + temp;
+  temp := b + II(c, d, a); temp := temp + x[13]; temp := temp + T[59]; temp := ROL(temp, 21); b := c + temp;
+  temp := a + II(b, c, d); temp := temp + x[4]; temp := temp + T[60]; temp := ROL(temp, 6); a := b + temp;
+  temp := d + II(a, b, c); temp := temp + x[11]; temp := temp + T[61]; temp := ROL(temp, 10); d := a + temp;
+  temp := c + II(d, a, b); temp := temp + x[2]; temp := temp + T[62]; temp := ROL(temp, 15); c := d + temp;
+  temp := b + II(c, d, a); temp := temp + x[9]; temp := temp + T[63]; temp := ROL(temp, 21); b := c + temp;
 
   { Add this chunk's hash to result so far }
-  Inc(state[0], a);
-  Inc(state[1], b);
-  Inc(state[2], c);
-  Inc(state[3], d);
+  state[0] := state[0] + a;
+  state[1] := state[1] + b;
+  state[2] := state[2] + c;
+  state[3] := state[3] + d;
 end;
 
 { Initialize MD5 context }
@@ -293,10 +294,10 @@ begin
   index := Word((ctx.Count[0] shr 3) and $3F);
 
   { Update bit count }
-  Inc(ctx.Count[0], LongInt(len) shl 3);
+  ctx.Count[0] := ctx.Count[0] + (LongInt(len) shl 3);
   if ctx.Count[0] < (LongInt(len) shl 3) then
-    Inc(ctx.Count[1]);
-  Inc(ctx.Count[1], LongInt(len) shr 29);
+    ctx.Count[1] := ctx.Count[1] + 1;
+  ctx.Count[1] := ctx.Count[1] + (LongInt(len) shr 29);
 
   partLen := 64 - index;
 

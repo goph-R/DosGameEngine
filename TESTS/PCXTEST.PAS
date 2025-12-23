@@ -56,7 +56,7 @@ begin
   ClearKeyPressed;
 
   { Cleanup }
-  CloseVGA;
+  DoneVGA;
   DoneKeyboard;
   FreeFrameBuffer(FrameBuffer);
   FreeImage(TestImage);

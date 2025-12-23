@@ -372,7 +372,7 @@ begin
 
   { Cleanup }
   FreeFrameBuffer(FrameBuffer);
-  CloseVGA;
+  DoneVGA;
 
   DoneRTC;
   DoneKeyboard;
