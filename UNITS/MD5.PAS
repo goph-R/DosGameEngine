@@ -63,59 +63,111 @@ const
     $f7537e82, $bd3af235, $2ad7d2bb, $eb86d391
   );
 
-{ Rotate left 32-bit value - 16-bit compatible }
-{ Bit-by-bit implementation to avoid signed integer shift issues }
-function ROL(x: LongInt; n: Byte): LongInt;
-var
-  src, dst: LongInt;
-  srcBytes: array[0..3] of Byte absolute src;
-  dstBytes: array[0..3] of Byte absolute dst;
-  bitPos, srcByte, srcBit, dstByte, dstBit: Integer;
-begin
-  if n = 0 then
-  begin
-    ROL := x;
-    Exit;
-  end;
+{ Rotate left 32-bit value - assembly implementation for reliability }
+function ROL(x: LongInt; n: Byte): LongInt; assembler;
+asm
+  mov   cl, n       { Load shift count into CL }
+  mov   ax, word ptr x     { Load low word of x }
+  mov   dx, word ptr x+2   { Load high word of x }
 
-  src := x;
-  dst := 0;
+  or    cl, cl      { Check if n = 0 }
+  jz    @done
 
-  { Rotate each bit individually }
-  for bitPos := 0 to 31 do
-  begin
-    srcByte := bitPos shr 3;          { bitPos div 8 }
-    srcBit := bitPos and 7;           { bitPos mod 8 }
+  { Rotate DX:AX left by CL bits }
+@loop:
+  shl   ax, 1       { Shift low word left }
+  rcl   dx, 1       { Rotate high word left with carry }
+  jnc   @nocarry
+  or    ax, 1       { Set bit 0 if carry from DX }
+@nocarry:
+  dec   cl
+  jnz   @loop
 
-    dstByte := ((bitPos + n) and 31) shr 3;
-    dstBit := ((bitPos + n) and 31) and 7;
-
-    if (srcBytes[srcByte] and (1 shl srcBit)) <> 0 then
-      dstBytes[dstByte] := dstBytes[dstByte] or (1 shl dstBit);
-  end;
-
-  ROL := dst;
+@done:
+  { Return value in DX:AX }
 end;
 
-{ MD5 auxiliary functions }
-function F(x, y, z: LongInt): LongInt;
-begin
-  F := (x and y) or ((not x) and z);
+{ MD5 auxiliary functions - assembly for CPU-independent bitwise operations }
+function F(x, y, z: LongInt): LongInt; assembler;
+asm
+  mov   ax, word ptr x
+  mov   dx, word ptr x+2
+  and   ax, word ptr y       { x and y (low word) }
+  and   dx, word ptr y+2     { x and y (high word) }
+  mov   bx, ax               { Save low word in BX }
+  mov   cx, dx               { Save high word in CX }
+
+  mov   ax, word ptr x
+  mov   dx, word ptr x+2
+  not   ax                   { not x (low word) }
+  not   dx                   { not x (high word) }
+  and   ax, word ptr z       { (not x) and z (low word) }
+  and   dx, word ptr z+2     { (not x) and z (high word) }
+
+  or    ax, bx               { Combine results (low word) }
+  or    dx, cx               { Combine results (high word) }
 end;
 
-function G(x, y, z: LongInt): LongInt;
-begin
-  G := (x and z) or (y and (not z));
+function G(x, y, z: LongInt): LongInt; assembler;
+asm
+  mov   ax, word ptr x
+  mov   dx, word ptr x+2
+  and   ax, word ptr z       { x and z (low word) }
+  and   dx, word ptr z+2     { x and z (high word) }
+  mov   bx, ax               { Save low word in BX }
+  mov   cx, dx               { Save high word in CX }
+
+  mov   ax, word ptr z
+  mov   dx, word ptr z+2
+  not   ax                   { not z (low word) }
+  not   dx                   { not z (high word) }
+  and   ax, word ptr y       { y and (not z) (low word) }
+  and   dx, word ptr y+2     { y and (not z) (high word) }
+
+  or    ax, bx               { Combine results (low word) }
+  or    dx, cx               { Combine results (high word) }
 end;
 
-function H(x, y, z: LongInt): LongInt;
-begin
-  H := x xor y xor z;
+function H(x, y, z: LongInt): LongInt; assembler;
+asm
+  mov   ax, word ptr x
+  mov   dx, word ptr x+2
+  xor   ax, word ptr y       { x xor y (low word) }
+  xor   dx, word ptr y+2     { x xor y (high word) }
+  xor   ax, word ptr z       { xor z (low word) }
+  xor   dx, word ptr z+2     { xor z (high word) }
 end;
 
-function II(x, y, z: LongInt): LongInt;
-begin
-  II := y xor (x or (not z));
+function II(x, y, z: LongInt): LongInt; assembler;
+asm
+  mov   ax, word ptr z
+  mov   dx, word ptr z+2
+  not   ax                   { not z (low word) }
+  not   dx                   { not z (high word) }
+  or    ax, word ptr x       { x or (not z) (low word) }
+  or    dx, word ptr x+2     { x or (not z) (high word) }
+  xor   ax, word ptr y       { y xor result (low word) }
+  xor   dx, word ptr y+2     { y xor result (high word) }
+end;
+
+{ Decode 4 bytes to LongInt (little-endian) - assembly for reliability }
+function DecodeLongInt(const buf; ofs: Word): LongInt; assembler;
+asm
+  les   bx, buf
+  add   bx, ofs
+  mov   ax, es:[bx]      { Load bytes 0-1 }
+  mov   dx, es:[bx+2]    { Load bytes 2-3 }
+end;
+
+{ Encode LongInt to 4 bytes (little-endian) - assembly for reliability }
+procedure EncodeLongInt(value: LongInt; var buf; ofs: Word); assembler;
+asm
+  les   bx, buf
+  add   bx, ofs
+  mov   ax, word ptr value     { Load low word }
+  mov   dx, word ptr value+2   { Load high word }
+  mov   es:[bx], ax      { Store bytes 0-1 }
+  mov   es:[bx+2], dx    { Store bytes 2-3 }
 end;
 
 { MD5 transformation - processes one 64-byte block }
@@ -127,12 +179,7 @@ var
 begin
   { Decode input block into 16 32-bit words (little-endian) }
   for i := 0 to 15 do
-  begin
-    x[i] := LongInt(block[i * 4]) or
-            (LongInt(block[i * 4 + 1]) shl 8) or
-            (LongInt(block[i * 4 + 2]) shl 16) or
-            (LongInt(block[i * 4 + 3]) shl 24);
-  end;
+    x[i] := DecodeLongInt(block, i * 4);
 
   { Initialize working variables }
   a := state[0];
@@ -290,11 +337,8 @@ var
   i: Integer;
 begin
   { Save bit count (little-endian) }
-  for i := 0 to 3 do
-  begin
-    bits[i] := Byte((ctx.Count[0] shr (i * 8)) and $FF);
-    bits[i + 4] := Byte((ctx.Count[1] shr (i * 8)) and $FF);
-  end;
+  EncodeLongInt(ctx.Count[0], bits, 0);
+  EncodeLongInt(ctx.Count[1], bits, 4);
 
   { Pad to 56 bytes mod 64 }
   index := Word((ctx.Count[0] shr 3) and $3F);
@@ -309,12 +353,7 @@ begin
 
   { Store state in digest (little-endian) }
   for i := 0 to 3 do
-  begin
-    digest[i * 4] := Byte((ctx.State[i]) and $FF);
-    digest[i * 4 + 1] := Byte((ctx.State[i] shr 8) and $FF);
-    digest[i * 4 + 2] := Byte((ctx.State[i] shr 16) and $FF);
-    digest[i * 4 + 3] := Byte((ctx.State[i] shr 24) and $FF);
-  end;
+    EncodeLongInt(ctx.State[i], digest, i * 4);
 end;
 
 { Convert digest to 32-character hex string }
