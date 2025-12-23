@@ -76,7 +76,7 @@ type
     function GetDialogHeight: Word;
     procedure AddDialogTitle(Text: String);
     procedure AddDialogLabel(Text: String);
-    procedure AddDialogButton(Text: String; EventHandler: TKeyPressEvent);
+    procedure AddDialogButton(Text: String; EventHandler: TClickEvent);
     procedure AddDialogLineEdit(MaxLength: Byte; InitialText: String; EventHandler: TKeyPressEvent);
     procedure AddDialogWidget(Widget: PWidget);
     procedure ShowDialog(UpdateProcedure: TUpdateProcedure);
@@ -285,22 +285,16 @@ begin
 end;
 
 {$F+}
-procedure OkEvent(Sender: PWidget; KeyCode: Byte);
+procedure OkEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    Game.ConfirmDialogAnswer := True;
-    Game.DialogUI.Stop;
-  end;
+  Game.ConfirmDialogAnswer := True;
+  Game.DialogUI.Stop;
 end;
 
-procedure CancelEvent(Sender: PWidget; KeyCode: Byte);
+procedure CancelEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    Game.ConfirmDialogAnswer := False;
-    Game.DialogUI.Stop;
-  end;
+  Game.ConfirmDialogAnswer := False;
+  Game.DialogUI.Stop;
 end;
 {$F-}
 
@@ -453,14 +447,14 @@ begin
   AddDialogWidget(L);
 end;
 
-procedure TXiCloneGame.AddDialogButton(Text: String; EventHandler: TKeyPressEvent);
+procedure TXiCloneGame.AddDialogButton(Text: String; EventHandler: TClickEvent);
 var
   Button: PButton;
   I: Integer;
 begin
   if DialogWidgetCount >= MaxDialogWidgets then Exit;
   New(Button, Init(GetDialogX + 20, 0, DialogImage^.Width - 40, 16, Text, FontSmall));
-  Button^.OnKeyPress := @EventHandler;
+  Button^.OnClick := @EventHandler;
   AddDialogWidget(Button);
 end;
 

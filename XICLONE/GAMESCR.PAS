@@ -528,42 +528,33 @@ begin
     PauseContinueAction;
 end;
 
-procedure PauseContinueButtonEvent(Sender: PWidget; KeyCode: Byte);
+procedure PauseContinueButtonEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-    PauseContinueAction;
+  PauseContinueAction;
 end;
 
-procedure PauseRestartButtonEvent(Sender: PWidget; KeyCode: Byte);
+procedure PauseRestartButtonEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    Game.SetNextDialog(Dialog_ConfirmRestart);
-    Game.BackDialog := Dialog_Paused;
-    Game.DialogUI.Stop;
-  end;
+  Game.SetNextDialog(Dialog_ConfirmRestart);
+  Game.BackDialog := Dialog_Paused;
+  Game.DialogUI.Stop;
 end;
 
-procedure PauseQuitButtonEvent(Sender: PWidget; KeyCode: Byte);
+procedure PauseQuitButtonEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    Game.SetNextDialog(Dialog_ConfirmQuit);
-    Game.BackDialog := Dialog_Paused;
-    Game.DialogUI.Stop;
-  end;
+  Game.SetNextDialog(Dialog_ConfirmQuit);
+  Game.BackDialog := Dialog_Paused;
+  Game.DialogUI.Stop;
 end;
 
-procedure GameOverRestartButtonEvent(Sender: PWidget; KeyCode: Byte);
+procedure GameOverRestartButtonEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-    GameScreen^.Restart;
+  GameScreen^.Restart;
 end;
 
-procedure GameOverQuitButtonEvent(Sender: PWidget; KeyCode: Byte);
+procedure GameOverQuitButtonEvent(Sender: PWidget);
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-    GameScreen^.QuitToMenu;
+  GameScreen^.QuitToMenu;
 end;
 
 procedure ConfirmDialogUpdate;
@@ -576,23 +567,20 @@ begin
   end;
 end;
 
-procedure SubmitScoreOk(Sender: PWidget; KeyCode: Byte); far;
+procedure SubmitScoreOk(Sender: PWidget); far;
 var
   LineEdit: PLineEdit;
   PlayerName: String;
 begin
-  if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
-  begin
-    { Find LineEdit widget - index 2 (Title=0, Label=1, LineEdit=2, Button=3) }
-    LineEdit := PLineEdit(Game.DialogWidgets[2]);
-    PlayerName := LineEdit^.GetText;
+  { Find LineEdit widget - index 2 (Title=0, Label=1, LineEdit=2, Button=3) }
+  LineEdit := PLineEdit(Game.DialogWidgets[2]);
+  PlayerName := LineEdit^.GetText;
 
-    { Save high score with player name and current score }
-    SaveHighScore('SCORES.XML', PlayerName, GameScreen^.Score, Game.HighScoreTable);
+  { Save high score with player name and current score }
+  SaveHighScore('SCORES.XML', PlayerName, GameScreen^.Score, Game.HighScoreTable);
 
-    Game.SetNextDialog(Dialog_GameOver);
-    Game.DialogUI.Stop;
-  end;
+  Game.SetNextDialog(Dialog_GameOver);
+  Game.DialogUI.Stop;
 end;
 
 {$F-}
