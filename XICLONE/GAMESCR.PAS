@@ -663,9 +663,10 @@ begin
   Game.DialogUI.Stop;
   Game.SetNextDialog(Dialog_None);
 
-  { After dialog closes and cleanup runs, then reset game }
-  { This ensures dialog cleanup doesn't overwrite our game state }
-  { Note: ResetGameState and FullRender will be called after ShowDialog returns }
+  { Reset game state and restore clean background }
+  ResetGameState;
+  CopyFrameBuffer(Game.BackgroundBuffer, Game.BackBuffer);
+  FullRender;
 end;
 
 procedure TGameScreen.QuitToMenu;
