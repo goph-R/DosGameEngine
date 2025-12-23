@@ -42,6 +42,10 @@ echo Compiling PCX.PAS...
 tpc PCX.PAS
 if errorlevel 1 goto error
 
+echo Compiling BMP.PAS...
+tpc BMP.PAS
+if errorlevel 1 goto error
+
 echo Compiling MINIXML.PAS...
 tpc MINIXML.PAS
 if errorlevel 1 goto error
