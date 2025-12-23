@@ -3,6 +3,7 @@
 **Automated (recommended):**
 ```bash
 cd TESTS
+CBMPTEST.BAT    # BMP image loader test
 CVGATEST.BAT    # VGA graphics test
 CSNDTEST.BAT    # Sound bank test
 CSPRTEST.BAT    # Sprite animation test
