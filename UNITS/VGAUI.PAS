@@ -87,6 +87,7 @@ type
     OnMouseDown: Pointer;  { TMouseEvent }
     OnMouseUp: Pointer;    { TMouseEvent }
     OnMouseMove: Pointer;  { TMouseEvent }
+    OnClick: Pointer;      { TClickEvent - called on Enter/Space or complete mouse click }
     OnFocus: Pointer;      { TFocusEvent }
     OnBlur: Pointer;       { TFocusEvent }
 
@@ -100,6 +101,7 @@ type
     procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
     procedure DoMouseUp(X, Y: Integer; Button: Byte); virtual;
     procedure DoMouseMove(X, Y: Integer; Button: Byte); virtual;
+    procedure DoClick; virtual;
     procedure DoFocus; virtual;
     procedure DoBlur; virtual;
 
@@ -116,6 +118,7 @@ type
   TKeyPressEvent = procedure(Sender: PWidget; KeyCode: Byte);
   TMouseEvent = procedure(Sender: PWidget; X, Y: Integer; Button: Byte);
   TFocusEvent = procedure(Sender: PWidget);
+  TClickEvent = procedure(Sender: PWidget);  { Called on Enter/Space or mouse click }
   TUpdateProcedure = procedure;  { User update callback (no parameters) }
 {$F-}
 
@@ -174,6 +177,7 @@ type
     function IsChecked: Boolean;
     procedure DoKeyPress(KeyCode: Byte); virtual;
     procedure DoMouseDown(X, Y: Integer; Button: Byte); virtual;
+    procedure DoClick; virtual;
     procedure Render(FrameBuffer: PFrameBuffer; Style: PUIStyle); virtual;
     destructor Done; virtual;
   end;
@@ -209,6 +213,7 @@ type
   TUIManager = object
     Widgets: TLinkedList;
     FocusedWidget: PWidget;
+    MouseDownWidget: PWidget;        { Widget where mouse button was pressed }
     BackBuffer: PFrameBuffer;
     BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
     FirstRender: Boolean;            { Force full redraw on first frame }
@@ -330,6 +335,7 @@ begin
   OnMouseDown := nil;
   OnMouseUp := nil;
   OnMouseMove := nil;
+  OnClick := nil;
   OnFocus := nil;
   OnBlur := nil;
 end;
@@ -394,6 +400,13 @@ begin
   { Call user callback if set }
   if OnFocus <> nil then
     TFocusEvent(OnFocus)(@Self);
+end;
+
+procedure TWidget.DoClick;
+begin
+  { Call user callback if set }
+  if OnClick <> nil then
+    TClickEvent(OnClick)(@Self);
 end;
 
 procedure TWidget.DoBlur;
@@ -521,7 +534,10 @@ begin
     Pressed := True;
     MarkDirty;  { Visual state changed }
 
-    { Call user callback }
+    { Call OnClick event }
+    DoClick;
+
+    { Call OnKeyPress event }
     inherited DoKeyPress(KeyCode);
   end;
 end;
@@ -541,7 +557,7 @@ begin
     Pressed := True;
     MarkDirty;  { Visual state changed }
 
-    { Call user callback }
+    { Call OnMouseDown callback (OnClick will be called on release) }
     inherited DoMouseDown(X, Y, Button);
   end;
 end;
@@ -637,13 +653,13 @@ end;
 
 procedure TCheckbox.DoKeyPress(KeyCode: Byte);
 begin
-  { Enter or Space toggles checkbox }
+  { Enter or Space triggers click }
   if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
-    Checked := not Checked;
-    MarkDirty;  { Checkbox state changed }
+    { Call OnClick event (which toggles the checkbox) }
+    DoClick;
 
-    { Call user callback }
+    { Call OnKeyPress event }
     inherited DoKeyPress(KeyCode);
   end;
 end;
@@ -660,12 +676,20 @@ begin
 
   if InBounds and Enabled then
   begin
-    Checked := not Checked;
-    MarkDirty;  { Checkbox state changed }
-
-    { Call user callback }
+    { Don't toggle here - will toggle in DoClick on mouse release }
+    { Call OnMouseDown callback }
     inherited DoMouseDown(X, Y, Button);
   end;
+end;
+
+procedure TCheckbox.DoClick;
+begin
+  { Toggle checkbox state on click (keyboard or mouse) }
+  Checked := not Checked;
+  MarkDirty;
+
+  { Call user OnClick callback }
+  inherited DoClick;
 end;
 
 procedure TCheckbox.Render(FrameBuffer: PFrameBuffer; Style: PUIStyle);
@@ -934,6 +958,7 @@ procedure TUIManager.Init(FrameBuffer, Background: PFrameBuffer);
 begin
   ListInit(Widgets);
   FocusedWidget := nil;
+  MouseDownWidget := nil;
   BackBuffer := FrameBuffer;
   BackgroundBuffer := Background;
   FirstRender := True;
@@ -952,6 +977,8 @@ procedure TUIManager.RemoveWidget(Widget: PWidget);
 begin
   if FocusedWidget = Widget then
     FocusedWidget := nil;
+  if MouseDownWidget = Widget then
+    MouseDownWidget := nil;
   ListRemoveByValue(Widgets, Widget);
 end;
 
@@ -1094,6 +1121,7 @@ var
   Node: PListEntry;
   Widget: PWidget;
   InBounds: Boolean;
+  WidgetUnderMouse: PWidget;
 begin
   { Update mouse state from INT 33h driver }
   UpdateMouse;
@@ -1102,30 +1130,66 @@ begin
   Y := GetMouseY;
   Buttons := GetMouseButtons;
 
+  { Find widget under mouse cursor }
+  WidgetUnderMouse := nil;
+  Node := Widgets.First;
+  while Node <> nil do
+  begin
+    Widget := PWidget(Node^.Value);
+    if Widget^.Visible and Widget^.Enabled then
+    begin
+      InBounds := (X >= Widget^.Rectangle.X) and
+                  (X < Widget^.Rectangle.X + Widget^.Rectangle.Width) and
+                  (Y >= Widget^.Rectangle.Y) and
+                  (Y < Widget^.Rectangle.Y + Widget^.Rectangle.Height);
+
+      if InBounds then
+      begin
+        WidgetUnderMouse := Widget;
+        Break;
+      end;
+    end;
+    Node := Node^.Next;
+  end;
+
   { Detect button press transitions (0 -> non-zero) }
   if (Buttons <> 0) and (LastMouseButtons = 0) then
   begin
-    { Find widget under cursor and give it focus }
-    Node := Widgets.First;
-    while Node <> nil do
+    if WidgetUnderMouse <> nil then
     begin
-      Widget := PWidget(Node^.Value);
-      if Widget^.Visible and Widget^.Enabled then
-      begin
-        InBounds := (X >= Widget^.Rectangle.X) and
-                    (X < Widget^.Rectangle.X + Widget^.Rectangle.Width) and
-                    (Y >= Widget^.Rectangle.Y) and
-                    (Y < Widget^.Rectangle.Y + Widget^.Rectangle.Height);
-
-        if InBounds then
-        begin
-          SetFocus(Widget);
-          Widget^.DoMouseDown(X, Y, Buttons);
-          Break;
-        end;
-      end;
-      Node := Node^.Next;
+      { Give focus and track widget for click detection }
+      SetFocus(WidgetUnderMouse);
+      MouseDownWidget := WidgetUnderMouse;
+      WidgetUnderMouse^.DoMouseDown(X, Y, Buttons);
     end;
+  end;
+
+  { Mouse move with button held - check if mouse left the widget }
+  if (Buttons <> 0) and (MouseDownWidget <> nil) then
+  begin
+    { If mouse moved outside the widget that was clicked }
+    if WidgetUnderMouse <> MouseDownWidget then
+    begin
+      { Release visual state (e.g., button unpresses) }
+      if MouseDownWidget^.WidgetType = WidgetType_Button then
+      begin
+        PButton(MouseDownWidget)^.Pressed := False;
+        MouseDownWidget^.MarkDirty;
+      end;
+    end
+    else
+    begin
+      { Mouse is still over the widget - keep pressed state }
+      if MouseDownWidget^.WidgetType = WidgetType_Button then
+      begin
+        PButton(MouseDownWidget)^.Pressed := True;
+        MouseDownWidget^.MarkDirty;
+      end;
+    end;
+
+    { Call mouse move event }
+    if FocusedWidget <> nil then
+      FocusedWidget^.DoMouseMove(X, Y, Buttons);
   end;
 
   { Detect button release transitions (non-zero -> 0) }
@@ -1133,13 +1197,15 @@ begin
   begin
     if FocusedWidget <> nil then
       FocusedWidget^.DoMouseUp(X, Y, LastMouseButtons);
-  end;
 
-  { Mouse move events (if any button is down) }
-  if Buttons <> 0 then
-  begin
-    if FocusedWidget <> nil then
-      FocusedWidget^.DoMouseMove(X, Y, Buttons);
+    { OnClick: Only if released over the same widget where pressed }
+    if (MouseDownWidget <> nil) and (WidgetUnderMouse = MouseDownWidget) then
+    begin
+      MouseDownWidget^.DoClick;
+    end;
+
+    { Clear mouse down tracking }
+    MouseDownWidget := nil;
   end;
 
   { Store current state for next frame }
