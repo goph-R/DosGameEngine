@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="US-ASCII"?>
 <resources>
 
-  <!-- used by IMGTEST.PAS -->
+  <!-- Shared test resources -->
   <music name="fantasy" path="FANTASY.HSC" />
   <sound name="explode" path="EXPLODE.VOC" />
   <image name="test" path="TEST.PCX" palette="test" />

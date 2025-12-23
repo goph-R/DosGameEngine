@@ -291,8 +291,9 @@ if Timer >= Duration then
 ## 📚 Related Documentation
 
 - **RTCTIMER.PAS**: High-resolution RTC timer unit (IRQ8)
-- **IMGTEST.PAS**: Example of delta-time movement and FPS calculation
-- **FIXED-POINT.md** (TODO): Fixed-point math for sub-pixel precision
+- **SPRTEST.PAS**: Example of delta-time movement and FPS calculation
+- **XiClone**: Full game implementation with delta-time physics
+- **MATHUTIL.PAS**: Fixed-point math utilities (16.16 format)
 
 ## 🔧 Future Improvements
 

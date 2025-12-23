@@ -1182,7 +1182,7 @@ All error messages now include the resource name for better debugging context.
 **Integration Test:**
 Use resource manager in existing tests:
 - SPRTEST.PAS → Load image and sprites from XML instead of manual setup
-- IMGTEST.PAS → Load images, music and sound from XML
+- XiClone → Full game using resource manager for all assets
 
 ## Summary
 

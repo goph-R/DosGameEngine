@@ -6,7 +6,6 @@ cd TESTS
 CVGATEST.BAT    # VGA graphics test
 CSNDTEST.BAT    # Sound bank test
 CSPRTEST.BAT    # Sprite animation test
-CIMGTEST.BAT    # Advanced VGA demo with music and sound
 CTMXTEST.BAT    # TMX tilemap scrolling test
 CXMLTEST.BAT    # XML parser test
 ```
