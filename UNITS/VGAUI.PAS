@@ -214,6 +214,7 @@ type
     Widgets: TLinkedList;
     FocusedWidget: PWidget;
     MouseDownWidget: PWidget;        { Widget where mouse button was pressed }
+    KeyDownCode: Byte;               { Activation key currently held (Key_Enter or Key_Space) }
     BackBuffer: PFrameBuffer;
     BackgroundBuffer: PFrameBuffer;  { Static background for restoring dirty regions }
     FirstRender: Boolean;            { Force full redraw on first frame }
@@ -528,16 +529,13 @@ end;
 
 procedure TButton.DoKeyPress(KeyCode: Byte);
 begin
-  { Enter or Space triggers the button }
+  { Enter or Space presses the button down }
   if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
     Pressed := True;
     MarkDirty;  { Visual state changed }
 
-    { Call OnClick event }
-    DoClick;
-
-    { Call OnKeyPress event }
+    { Call OnKeyPress event (OnClick will be called on key release) }
     inherited DoKeyPress(KeyCode);
   end;
 end;
@@ -653,13 +651,12 @@ end;
 
 procedure TCheckbox.DoKeyPress(KeyCode: Byte);
 begin
-  { Enter or Space triggers click }
+  { Enter or Space starts the activation }
   if (KeyCode = Key_Enter) or (KeyCode = Key_Space) then
   begin
-    { Call OnClick event (which toggles the checkbox) }
-    DoClick;
+    { Visual feedback could go here if needed }
 
-    { Call OnKeyPress event }
+    { Call OnKeyPress event (OnClick will be called on key release) }
     inherited DoKeyPress(KeyCode);
   end;
 end;
@@ -959,6 +956,7 @@ begin
   ListInit(Widgets);
   FocusedWidget := nil;
   MouseDownWidget := nil;
+  KeyDownCode := 0;
   BackBuffer := FrameBuffer;
   BackgroundBuffer := Background;
   FirstRender := True;
@@ -990,6 +988,18 @@ begin
     FocusedWidget^.Focused := False;
     FocusedWidget^.MarkDirty;
     FocusedWidget^.DoBlur;
+  end;
+
+  { Clear key down tracking when focus changes }
+  if KeyDownCode <> 0 then
+  begin
+    { Release button visual state if needed }
+    if (FocusedWidget <> nil) and (FocusedWidget^.WidgetType = WidgetType_Button) then
+    begin
+      PButton(FocusedWidget)^.Pressed := False;
+      FocusedWidget^.MarkDirty;
+    end;
+    KeyDownCode := 0;
   end;
 
   { Focus new widget (if enabled) }
@@ -1094,6 +1104,26 @@ var
 begin
   if FocusedWidget = nil then Exit;
 
+  { Check for activation key (Enter/Space) release }
+  if KeyDownCode <> 0 then
+  begin
+    if not IsKeyDown(KeyDownCode) then
+    begin
+      { Key was released - trigger OnClick }
+      FocusedWidget^.DoClick;
+
+      { Release button visual state }
+      if FocusedWidget^.WidgetType = WidgetType_Button then
+      begin
+        PButton(FocusedWidget)^.Pressed := False;
+        FocusedWidget^.MarkDirty;
+      end;
+
+      KeyDownCode := 0;
+    end;
+    Exit;  { Don't process other keys while activation key is held }
+  end;
+
   { Check all scan codes from 1 to 127 }
   for ScanCode := 1 to 127 do
   begin
@@ -1105,6 +1135,13 @@ begin
         Key_Down:  FocusInDirection(0, 1);
         Key_Left:  FocusInDirection(-1, 0);
         Key_Right: FocusInDirection(1, 0);
+        Key_Enter, Key_Space:
+        begin
+          { Track activation key for release detection }
+          KeyDownCode := ScanCode;
+          { Send key press to widget (which sets visual state) }
+          FocusedWidget^.DoKeyPress(ScanCode);
+        end;
       else
         { All other keys go to the focused widget }
         FocusedWidget^.DoKeyPress(ScanCode);
