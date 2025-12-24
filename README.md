@@ -150,7 +150,8 @@ XICLONE.EXE
 - **[CONFIG.PAS](DOCS/CONFIG.md)** - INI configuration system
 
 ### Utilities
-- **[GENTYPES.PAS](DOCS/GENTYPES.md)** - Generic pointer and array types
+- **[GENTYPES.PAS](DOCS/GENTYPES.md)** - Generic pointer and array types, alignment constants
+- **[MATHUTIL.PAS](DOCS/MATHUTIL.md)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
 - **[STRUTIL.PAS](DOCS/STRUTIL.md)** - String conversion utilities
 - **[STRMAP.PAS](DOCS/STRMAP.md)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](DOCS/LINKLIST.md)** - Doubly-linked list
@@ -158,8 +159,10 @@ XICLONE.EXE
 - **[HISCORE.PAS](DOCS/HISCORE.md)** - High score management with tamper protection
 - **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
 
-### Game Framework
-- **[GAMEUNIT.PAS](DOCS/GAMEUNIT.md)** - Unified game loop and screen management
+### Game Framework (DGE - DOS Game Engine)
+- **[DGECORE.PAS](DOCS/GAMEUNIT.md)** - Game framework core (TGame object, subsystem integration)
+- **[DGESCR.PAS](DOCS/GAMEUNIT.md)** - Screen/state management (TScreen base object)
+- **[GAMEUNIT.PAS](DOCS/GAMEUNIT.md)** - Backward compatibility wrapper (deprecated)
 
 ### Guides
 - **[Build Guide](DOCS/BUILD.md)** - Compilation instructions
