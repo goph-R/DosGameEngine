@@ -16,8 +16,23 @@ const
   PlayfieldY = 4;
 
   { Game tuning }
-  InitialFallSpeed = 16.0; { 1 tile per second }
+  BaseFallSpeed = 16.0;    { Base speed: 1 tile per second }
   FastFallSpeed = 160.0;   { 10 tile per second, when holding down }
+  BlocksPerLevel = 50;     { Blocks needed to advance to next level (Sega Columns standard) }
+  MaxSpeedLevel = 9;       { Level where speed caps out (Sega Columns standard) }
+
+  { Speed multipliers for each level (non-linear progression like Sega Columns) }
+  LevelSpeedMultipliers: array[1..9] of Real = (
+    1.0,   { Level 1: 1.0x (base speed) }
+    1.2,   { Level 2: 1.2x }
+    1.4,   { Level 3: 1.4x }
+    1.6,   { Level 4: 1.6x }
+    1.9,   { Level 5: 1.9x }
+    2.2,   { Level 6: 2.2x }
+    2.5,   { Level 7: 2.5x }
+    2.8,   { Level 8: 2.8x }
+    3.1    { Level 9+: 3.1x (capped) }
+  );
 
   { Next stack preview position }
   NextStackX = 230;
@@ -114,6 +129,7 @@ type
     procedure CheckForMatches;
     procedure LandStack;
     function RandomGemColor: TGemColor;
+    function CalculateFallSpeed(CurrentLevel: Integer): Real;
     function SpawnStack(First: Boolean): Boolean;
     procedure RotateStack;
     function CheckStackCollision(CheckX, StartCheckY: Integer): Boolean;
@@ -331,6 +347,9 @@ procedure TGameScreen.CheckForMatches;
 var
   GemsRemoved: Integer;
   ComboText: String;
+  OldLevel: Integer;
+  DifficultyMultiplier: Integer;
+  ScoreGain: LongInt;
 begin
   { Find matches and mark them for flashing }
   GemsRemoved := FindAndRemoveMatches;
@@ -353,12 +372,32 @@ begin
       end;
     end;
 
+    { Update blocks count and check for level up }
+    OldLevel := Level;
+    Inc(Blocks, GemsRemoved);
+    Level := (Blocks div BlocksPerLevel) + 1;
+
+    { Check for level up transition }
+    if Level > OldLevel then
+      ShowFlashMessage('Level Up!', '');
+
+    { Calculate score gain with difficulty multiplier }
+    case Game.Difficulty of
+      GameDifficulty_Easy:   DifficultyMultiplier := 1;  { 1x score on Easy }
+      GameDifficulty_Normal: DifficultyMultiplier := 2;  { 2x score on Normal }
+      GameDifficulty_Hard:   DifficultyMultiplier := 3;  { 3x score on Hard }
+    else
+      DifficultyMultiplier := 1;  { Fallback }
+    end;
+
+    ScoreGain := GemsRemoved * ComboMultiplier * DifficultyMultiplier;
+
     { Check for high score transition (only show message once per session) }
     { Note: Check BEFORE updating score to detect the transition }
     if (not HighScoreReached) and (not IsHighScore(Game.HighScoreTable, Score)) then
     begin
       { Score is not currently a high score, but check if it will be after this match }
-      Inc(Score, GemsRemoved * 10 * ComboMultiplier);
+      Inc(Score, ScoreGain);
       if IsHighScore(Game.HighScoreTable, Score) then
       begin
         HighScoreReached := True;
@@ -368,7 +407,7 @@ begin
     else
     begin
       { Already a high score or HighScoreReached flag set, just update score }
-      Inc(Score, GemsRemoved * 10 * ComboMultiplier);
+      Inc(Score, ScoreGain);
     end;
   end
   else
@@ -551,7 +590,7 @@ begin
   if IsKeyDown(Key_Down) then
     CurrentStack.FallSpeed := FastFallSpeed
   else
-    CurrentStack.FallSpeed := InitialFallSpeed;
+    CurrentStack.FallSpeed := CalculateFallSpeed(Level);
 end;
 
 {$F+}
@@ -883,6 +922,24 @@ begin
   RandomGemColor := TGemColor(R);
 end;
 
+function TGameScreen.CalculateFallSpeed(CurrentLevel: Integer): Real;
+var
+  SpeedLevel: Integer;
+  Multiplier: Real;
+begin
+  { Cap level at MaxSpeedLevel for speed calculation }
+  if CurrentLevel > MaxSpeedLevel then
+    SpeedLevel := MaxSpeedLevel
+  else
+    SpeedLevel := CurrentLevel;
+
+  { Get multiplier from lookup table (1-indexed) }
+  Multiplier := LevelSpeedMultipliers[SpeedLevel];
+
+  { Return base speed multiplied by level multiplier }
+  CalculateFallSpeed := BaseFallSpeed * Multiplier;
+end;
+
 function TGameScreen.SpawnStack(First: Boolean): Boolean;
 var
   SpawnCol: Integer;
@@ -917,7 +974,7 @@ begin
   CurrentStack.GridX := SpawnCol;
   CurrentStack.PixelX := PlayfieldX + (CurrentStack.GridX * TileSize);
   CurrentStack.PixelY := -3 * TileSize;  { Start above playfield }
-  CurrentStack.FallSpeed := InitialFallSpeed;
+  CurrentStack.FallSpeed := CalculateFallSpeed(Level);
   CurrentStack.Active := True;
 
   { Generate next stack preview }
@@ -1444,10 +1501,11 @@ begin
     LastLevel := Level;
   end;
 
-  { Render Blocks number (only if changed) }
+  { Render Blocks remaining to next level (only if changed) }
   if Blocks <> LastBlocks then
   begin
-    BlocksText := PadZero(Blocks, 3);
+    { Calculate blocks remaining to next level (countdown) }
+    BlocksText := PadZero(BlocksPerLevel - (Blocks mod BlocksPerLevel), 3);
     TextWidth := GetTextWidth(BlocksText, Game.FontLarge^);
 
     { Clear area and redraw }
