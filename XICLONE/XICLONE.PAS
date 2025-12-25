@@ -10,7 +10,7 @@ begin
   WriteLn('Loading XiClone...');
 
   { Initialize }
-  Game.Init('..\SETUP\CONFIG.INI', 'DATA\RES.XML');
+  Game.Init('CONFIG.INI', 'DATA\RES.XML');
   Game.Start;
 
   { Create and register screens }

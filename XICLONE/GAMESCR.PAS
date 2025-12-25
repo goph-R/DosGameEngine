@@ -93,6 +93,11 @@ type
 
     Paused: Boolean;
 
+    { Difficulty-based label positions }
+    ScoreLabelsY: Integer;
+    LevelLabelsY: Integer;
+    BlocksLabelsY: Integer;
+
     constructor Init;
     destructor Done; virtual;
     procedure PostInit; virtual;
@@ -136,18 +141,6 @@ type
     procedure QuitToMenu;
   end;
 
-  TStatLabelInfo = record
-    Y: Integer;
-    Text: String;
-  end;
-
-const
-  StatLabelInfos: array[0..2] of TStatLabelInfo = (
-    (Y: 17;  Text: 'Score:'),
-    (Y: 58;  Text: 'Level:'),
-    (Y: 99;  Text: 'Blocks:')
-  );
-
 implementation
 
 var
@@ -185,30 +178,76 @@ begin
 end;
 
 procedure TGameScreen.DrawStaticHUD;
-var
-  i: Integer;
 begin
-  for i := Low(StatLabelInfos) to High(StatLabelInfos) do
-    PrintFontText(
-      StatLabelsX,
-      StatLabelInfos[i].Y,
-      StatLabelInfos[i].Text,
-      Align_Right,
-      Game.FontSmall^,
-      Game.BackgroundBuffer
-    );
+  { Draw Score label }
+  PrintFontText(
+    StatLabelsX,
+    ScoreLabelsY,
+    'Score:',
+    Align_Right,
+    Game.FontSmall^,
+    Game.BackgroundBuffer
+  );
 
+  { Draw Level label }
+  PrintFontText(
+    StatLabelsX,
+    LevelLabelsY,
+    'Level:',
+    Align_Right,
+    Game.FontSmall^,
+    Game.BackgroundBuffer
+  );
+
+  { Draw Blocks label }
+  PrintFontText(
+    StatLabelsX,
+    BlocksLabelsY,
+    'Blocks:',
+    Align_Right,
+    Game.FontSmall^,
+    Game.BackgroundBuffer
+  );
+
+  { Draw Next label }
   PrintFontText(NextLabelX, NextLabelY, 'Next:', Align_Left, Game.FontSmall^, Game.BackgroundBuffer);
 end;
 
 procedure TGameScreen.Show;
+var
+  BgFilename: String;
 begin
   { Show loading message while decompressing PCX (takes ~2-3s on 8MHz) }
   ClearFrameBuffer(Game.ScreenBuffer);
   PrintText(120, 95, 'Loading...', 15, Game.ScreenBuffer);
 
+  { Build background filename based on difficulty (BG1.PCX, BG2.PCX, BG3.PCX) }
+  BgFilename := 'DATA\BG' + IntToStr(Ord(Game.Difficulty) + 1) + '.PCX';
+
   { Load background (slow: RLE decompression) }
-  LoadPCXToFrameBuffer('DATA\BG1.PCX', Game.BackgroundBuffer);
+  LoadPCXToFrameBuffer(BgFilename, Game.BackgroundBuffer);
+
+  { Set label positions based on difficulty }
+  case Game.Difficulty of
+    GameDifficulty_Easy:
+    begin
+      ScoreLabelsY := 17;
+      LevelLabelsY := 58;
+      BlocksLabelsY := 99;
+    end;
+    GameDifficulty_Normal:
+    begin
+      ScoreLabelsY := 12;
+      LevelLabelsY := 50;
+      BlocksLabelsY := 88;
+    end;
+    GameDifficulty_Hard:
+    begin
+      ScoreLabelsY := 37;
+      LevelLabelsY := 88;
+      BlocksLabelsY := 139;
+    end;
+  end;
 
   DrawStaticHUD;
 
@@ -829,8 +868,18 @@ end;
 function TGameScreen.RandomGemColor: TGemColor;
 var
   R: Integer;
+  MaxGemTypes: Integer;
 begin
-  R := Random(6) + 1;  { 1-6 for colored gems, excluding empty and magic jewel }
+  { Determine max gem types based on difficulty }
+  case Game.Difficulty of
+    GameDifficulty_Easy:   MaxGemTypes := 4;  { Red, Yellow, Green, Blue }
+    GameDifficulty_Normal: MaxGemTypes := 5;  { Red, Yellow, Green, Blue, Pink }
+    GameDifficulty_Hard:   MaxGemTypes := 6;  { Red, Yellow, Green, Blue, Pink, Purple }
+  else
+    MaxGemTypes := 4;  { Fallback to easy }
+  end;
+
+  R := Random(MaxGemTypes) + 1;  { 1-MaxGemTypes for colored gems, excluding empty and magic jewel }
   RandomGemColor := TGemColor(R);
 end;
 
@@ -838,6 +887,9 @@ function TGameScreen.SpawnStack(First: Boolean): Boolean;
 var
   SpawnCol: Integer;
   i: Integer;
+  MagicGemChance: Integer;
+  HasMagicGem: Boolean;
+  MagicGemPosition: Integer;
 begin
   SpawnCol := PlayfieldCols div 2;  { Middle column }
 
@@ -872,6 +924,27 @@ begin
   NextStackGems[0] := RandomGemColor;
   NextStackGems[1] := RandomGemColor;
   NextStackGems[2] := RandomGemColor;
+
+  { Determine if next stack should have a magic gem }
+  HasMagicGem := False;
+
+  { 100% chance if combo multiplier is 3 or higher }
+  if ComboMultiplier >= 3 then
+    HasMagicGem := True
+  else
+  begin
+    { 1% random chance (Random(100) returns 0-99, so < 1 gives us 1%) }
+    MagicGemChance := Random(100);
+    if MagicGemChance < 1 then
+      HasMagicGem := True;
+  end;
+
+  { Place magic gem at random position in next stack }
+  if HasMagicGem then
+  begin
+    MagicGemPosition := Random(3);  { 0, 1, or 2 }
+    NextStackGems[MagicGemPosition] := Gem_MagicJewel;
+  end;
 
   { Initialize last position to current position }
   LastStackX := CurrentStack.PixelX;
@@ -977,8 +1050,8 @@ begin
     begin
       Color := Playfield.Tiles[X, Y];
 
-      { Skip empty tiles }
-      if Color = Gem_Empty then Continue;
+      { Skip empty tiles and magic jewels (magic jewels handled separately) }
+      if (Color = Gem_Empty) or (Color = Gem_MagicJewel) then Continue;
 
       { Check all four directions }
       for Dir := 0 to 3 do
@@ -1316,48 +1389,15 @@ end;
 
 procedure TGameScreen.RenderHUD;
 var
-  {
-  NextY: Integer;
-  }
   R: TRectangle;
   ScoreText, LevelText, BlocksText: string;
   TextWidth: Integer;
-  FreeMem: LongInt;
-  S: string;
-const
-  ScoreY = 25;   { 17 + 8 }
-  LevelY = 66;   { 58 + 8 }
-  BlocksY = 107; { 99 + 8 }
+  ScoreNumberY, LevelNumberY, BlocksNumberY: Integer;
 begin
-  {
-  NextY := 10;
-
-  if (ShowFPS) then
-  begin    
-    R.X := NextY;
-    R.Y := 10;
-    R.Width := 80;
-    R.Height := 8;
-    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
-    PrintText(10, 10, 'FPS: ' + IntToStr(FPS), 15, Game.BackBuffer);
-    AddDirtyRect(R);
-    Inc(NextY, R.Height + 2);
-  end;
-
-  if (ShowMem) then
-  begin
-    R.X := NextY;
-    R.Y := 10;
-    R.Width := 160;
-    R.Height := 8;
-    CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
-    FreeMem := MemAvail;
-    Str(FreeMem, S);
-    PrintText(10, NextY, 'Free: ' + S + ' bytes', 15, Game.BackBuffer);
-    AddDirtyRect(R);
-    Inc(NextY, R.Height + 2);
-  end; 
-  } 
+  { Calculate Y positions for numbers (label Y + 8 pixels) }
+  ScoreNumberY := ScoreLabelsY + 8;
+  LevelNumberY := LevelLabelsY + 8;
+  BlocksNumberY := BlocksLabelsY + 8;
 
   R.X := 0;
   R.Width := StatLabelsX;
@@ -1370,11 +1410,11 @@ begin
     TextWidth := GetTextWidth(ScoreText, Game.FontLarge^);
 
     { Clear area and redraw }
-    R.Y := ScoreY;
+    R.Y := ScoreNumberY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontText(StatLabelsX, ScoreY, ScoreText, Align_Right, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, ScoreNumberY, ScoreText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastScore := Score;
@@ -1387,11 +1427,11 @@ begin
     TextWidth := GetTextWidth(LevelText, Game.FontLarge^);
 
     { Clear area and redraw }
-    R.Y := LevelY;
+    R.Y := LevelNumberY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontText(StatLabelsX, LevelY, LevelText, Align_Right, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, LevelNumberY, LevelText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastLevel := Level;
@@ -1404,11 +1444,11 @@ begin
     TextWidth := GetTextWidth(BlocksText, Game.FontLarge^);
 
     { Clear area and redraw }
-    R.Y := BlocksY;
+    R.Y := BlocksNumberY;
     CopyFrameBufferRect(Game.BackgroundBuffer, R, Game.BackBuffer, R.X, R.Y);
 
     { Draw right-aligned }
-    PrintFontText(StatLabelsX, BlocksY, BlocksText, Align_Right, Game.FontLarge^, Game.BackBuffer);
+    PrintFontText(StatLabelsX, BlocksNumberY, BlocksText, Align_Right, Game.FontLarge^, Game.BackBuffer);
     AddDirtyRect(R);
 
     LastBlocks := Blocks;

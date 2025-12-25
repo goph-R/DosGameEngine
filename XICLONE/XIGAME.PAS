@@ -26,6 +26,12 @@ type
     Gem_MagicJewel   { 7 - Special multi-colored gem }
   );
 
+  TGameDifficulty = (
+    GameDifficulty_Easy,    { 0 - Easy mode }
+    GameDifficulty_Normal,  { 1 - Normal mode }
+    GameDifficulty_Hard     { 2 - Hard mode }
+  );
+
   TDialogType = (
     Dialog_None,
     Dialog_Paused,
@@ -60,6 +66,9 @@ type
     DialogWidgetCount: Byte;
     DialogHeight: Word;
     CurrentScore: LongInt;
+
+    { Game settings }
+    Difficulty: TGameDifficulty;
 
     { Game-specific initialization and cleanup }
     constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
@@ -129,6 +138,9 @@ var
 begin
   { Call parent constructor }
   inherited Init(ConfigIniPath, ResXmlPath);
+
+  { Initialize game settings }
+  Difficulty := GameDifficulty_Easy;  { Default difficulty }
 
   { Initialize dialog state }
   NextDialog := Dialog_None;
