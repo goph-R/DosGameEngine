@@ -140,7 +140,7 @@ begin
   inherited Init(ConfigIniPath, ResXmlPath);
 
   { Initialize game settings }
-  Difficulty := GameDifficulty_Easy;  { Default difficulty }
+  Difficulty := GameDifficulty_Hard;  { Default difficulty }
 
   { Initialize dialog state }
   NextDialog := Dialog_None;

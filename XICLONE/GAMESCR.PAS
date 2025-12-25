@@ -1029,6 +1029,7 @@ var
   X, Y: Integer;
   Color: TGemColor;
   MatchLen: Integer;
+  ForwardCount, BackwardCount: Integer;
   GemsRemoved: Integer;
   MarkForRemoval: array[0..PlayfieldCols - 1, 0..PlayfieldRows - 1] of Boolean;
   i, MarkX, MarkY: Integer;
@@ -1059,10 +1060,16 @@ begin
         DX := Directions[Dir, 0];
         DY := Directions[Dir, 1];
 
-        MatchLen := CountMatchInDirection(X, Y, DX, DY, Color);
+        { Count in both directions from this gem }
+        ForwardCount := CountMatchInDirection(X, Y, DX, DY, Color);
+        BackwardCount := CountMatchInDirection(X, Y, -DX, -DY, Color);
+        { Total match length (subtract 1 to avoid counting starting gem twice) }
+        MatchLen := ForwardCount + BackwardCount - 1;
+
         if MatchLen >= 3 then
         begin
-          for i := 0 to MatchLen - 1 do
+          { Mark gems in both directions }
+          for i := -(BackwardCount - 1) to (ForwardCount - 1) do
           begin
             MarkX := X + (i * DX);
             MarkY := Y + (i * DY);
