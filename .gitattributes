@@ -1,15 +1,30 @@
-# DOS project - use CRLF line endings for all text files
-* text eol=crlf
+# DOS project - use CRLF line endings for text files
+# CRITICAL: Binary files must be explicitly excluded from text conversion
 
-# Explicitly mark binary files
-*.exe binary
-*.obj binary
-*.tpu binary
-*.pcx binary
-*.hsc binary
-*.voc binary
-*.wav binary
-*.pal binary
-*.png binary
-*.gif binary
-*.bmp binary
+# Use text=auto (not text) - let Git auto-detect binary vs text
+# This prevents accidentally converting binary files
+* text=auto eol=crlf
+
+# Explicitly mark binary files to PREVENT any line-ending conversion
+# IMPORTANT: Use -text (not 'binary') to exclude from text normalization
+*.exe -text
+*.com -text
+*.obj -text
+*.tpu -text
+*.pcx -text
+*.hsc -text
+*.voc -text
+*.wav -text
+*.pal -text
+*.png -text
+*.gif -text
+*.bmp -text
+*.dll -text
+*.pdb -text
+*.sys -text
+*.xcf -text
+*.zip -text
+*.aiff -text
+*.mp3 -text
+*.sou -text
+*.aseprite -text
