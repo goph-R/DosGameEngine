@@ -1,12 +1,8 @@
-# DOS project - use CRLF line endings for text files
-# CRITICAL: Binary files must be explicitly excluded from text conversion
+# Simple binary file protection - no line ending conversion
+# All text files use LF (Unix standard)
+# DOSBox handles LF in .BAT files correctly
 
-# Use text=auto (not text) - let Git auto-detect binary vs text
-# This prevents accidentally converting binary files
-* text=auto eol=crlf
-
-# Explicitly mark binary files to PREVENT any line-ending conversion
-# IMPORTANT: Use -text (not 'binary') to exclude from text normalization
+# Mark binary files to prevent any conversion
 *.exe -text
 *.com -text
 *.obj -text
