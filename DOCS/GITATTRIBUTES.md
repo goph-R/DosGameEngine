@@ -27,10 +27,10 @@ The original `.gitattributes` file had a critical bug that corrupted **ALL binar
 The corrected `.gitattributes`:
 
 ```gitattributes
-# CORRECT - Preserves binary files
-* text=auto eol=crlf
+# CORRECT - Simple and safe
+# No line-ending conversion, just protect binary files
 
-# Explicitly mark binary files
+# Mark binary files to prevent any conversion
 *.exe -text
 *.obj -text
 *.tpu -text
@@ -39,9 +39,10 @@ The corrected `.gitattributes`:
 ```
 
 **Key changes:**
-1. `text=auto` instead of `text` - Git auto-detects binary vs text files
-2. `-text` instead of `binary` for binary file patterns (modern Git syntax)
-3. Added all binary extensions used in the project
+1. Removed ALL line-ending rules (no `eol=crlf`)
+2. `-text` marks binary files to prevent any conversion
+3. Text files use whatever line endings are committed (LF in our case)
+4. Simple, explicit, and safe
 
 ## How Git Line Endings Work
 
@@ -54,16 +55,19 @@ The corrected `.gitattributes`:
 | Attribute | Behavior |
 |-----------|----------|
 | `* text eol=crlf` | **BAD**: Forces CRLF on ALL files (breaks binaries) |
-| `* text=auto eol=crlf` | **GOOD**: Auto-detects text, applies CRLF to text only |
+| `* text=auto eol=crlf` | **COMPLEX**: Auto-detects text, applies CRLF (can still cause issues) |
 | `*.obj binary` | **OLD**: Marks as binary (deprecated syntax) |
-| `*.obj -text` | **NEW**: Excludes from text normalization (preferred) |
+| `*.obj -text` | **BEST**: Simple - just prevent conversion |
+| *(nothing)* | **CURRENT**: No wildcard rule = Git preserves what's committed |
 
-### Why We Need CRLF
+### Why We Use LF (Not CRLF)
 
-DOS batch files (.BAT) **require** CRLF line endings to work correctly:
-- DOS uses CRLF to mark line breaks
-- LF-only files cause batch scripts to fail
-- `text=auto eol=crlf` ensures .BAT files use CRLF while preserving binaries
+**Decision: All text files use LF (Unix standard)**
+
+- DOSBox and DOSBox-X handle LF in .BAT files correctly
+- Development is primarily on Linux
+- Simpler .gitattributes = less chance of corruption
+- No forced line-ending conversion = safer for everyone
 
 ## For Contributors
 
