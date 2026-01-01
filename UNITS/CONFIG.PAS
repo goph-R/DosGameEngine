@@ -3,6 +3,8 @@
 
 unit Config;
 
+{$F+}  { Enable far calls for virtual methods }
+
 interface
 
 const
@@ -22,12 +24,26 @@ const
   );
 
 type
-  TConfig = record
+  PConfig = ^TConfig;
+
+  TConfig = object
+    { Configuration file path }
+    Path: String;
+
+    { Core engine settings }
     SoundCard: Byte;     { 0=None, 1=AdLib, 2=SoundBlaster }
     SBPort: Word;        { SoundBlaster base (2=$220, 4=$240, 6=$260, 8=$280) }
     SBIRQ: Byte;         { SoundBlaster IRQ (e.g., 5 or 7) }
     SBDMA: Byte;         { SoundBlaster DMA (1, 2, 3, or 4) }
     UseMouse: Byte;      { 0=No, 1=Yes }
+
+    constructor Init(const ConfigIniPath: String);
+    destructor Done; virtual;
+    procedure Load; virtual;
+    procedure Save; virtual;
+    procedure SetDefaults; virtual;
+    procedure ParseKeyValue(const Key, Value: String); virtual;
+    procedure WriteSettings(var F: Text); virtual;
   end;
 
 { Load configuration from file }
@@ -35,28 +51,60 @@ type
 procedure LoadConfig(var Config: TConfig; const ConfigFile: String);
 
 { Save configuration to file }
-procedure SaveConfig(const Config: TConfig; const ConfigFile: String);
+procedure SaveConfig(var Config: TConfig; const ConfigFile: String);
 
 implementation
 
 uses Dos, StrUtil;
 
-{ Load config from INI file }
-procedure LoadConfig(var Config: TConfig; const ConfigFile: String);
+{ TConfig - Object implementation }
+
+constructor TConfig.Init(const ConfigIniPath: String);
+begin
+  Path := ConfigIniPath;
+  SetDefaults;
+end;
+
+destructor TConfig.Done;
+begin
+  { Base implementation - override in derived configs if needed }
+end;
+
+procedure TConfig.SetDefaults;
+begin
+  SoundCard := SoundCard_None;
+  SBPort := 2;  { Base value 2 = port $220 (most common) }
+  SBIRQ := 5;
+  SBDMA := 1;
+  UseMouse := 0;  { Mouse disabled by default }
+end;
+
+procedure TConfig.ParseKeyValue(const Key, Value: String);
+begin
+  if Key = 'SoundCard' then
+    SoundCard := StrToInt(Value)
+  else if Key = 'SBPort' then
+    SBPort := StrToInt(Value)
+  else if Key = 'SBIRQ' then
+    SBIRQ := StrToInt(Value)
+  else if Key = 'SBDMA' then
+    SBDMA := StrToInt(Value)
+  else if Key = 'UseMouse' then
+    UseMouse := StrToInt(Value);
+  { Derived classes can override to handle additional keys }
+end;
+
+procedure TConfig.Load;
 var
   F: Text;
   Line, Key, Value: string;
   EqualPos: Integer;
 begin
-  { Defaults }
-  Config.SoundCard := SoundCard_None;
-  Config.SBPort := 2;  { Base value 2 = port $220 (most common) }
-  Config.SBIRQ := 5;
-  Config.SBDMA := 1;
-  Config.UseMouse := 0;  { Mouse disabled by default }
+  { Set defaults first }
+  SetDefaults;
 
   { Try to load existing config }
-  Assign(F, ConfigFile);
+  Assign(F, Path);
   {$I-}
   Reset(F);
   {$I+}
@@ -78,29 +126,32 @@ begin
         Key := Trim(Copy(Line, 1, EqualPos - 1));
         Value := Trim(Copy(Line, EqualPos + 1, Length(Line)));
 
-        { Parse known keys }
-        if Key = 'SoundCard' then
-          Config.SoundCard := StrToInt(Value)
-        else if Key = 'SBPort' then
-          Config.SBPort := StrToInt(Value)
-        else if Key = 'SBIRQ' then
-          Config.SBIRQ := StrToInt(Value)
-        else if Key = 'SBDMA' then
-          Config.SBDMA := StrToInt(Value)
-        else if Key = 'UseMouse' then
-          Config.UseMouse := StrToInt(Value);
+        { Call virtual method for parsing }
+        ParseKeyValue(Key, Value);
       end;
     end;
     Close(F);
   end;
 end;
 
-{ Save config to INI file }
-procedure SaveConfig(const Config: TConfig; const ConfigFile: String);
+procedure TConfig.WriteSettings(var F: Text);
+begin
+  WriteLn(F, '[Sound]');
+  WriteLn(F, 'SoundCard=', SoundCard);
+  WriteLn(F, 'SBPort=', SBPort);
+  WriteLn(F, 'SBIRQ=', SBIRQ);
+  WriteLn(F, 'SBDMA=', SBDMA);
+  WriteLn(F, '');
+  WriteLn(F, '[Input]');
+  WriteLn(F, 'UseMouse=', UseMouse);
+  { Derived classes can override to write additional settings }
+end;
+
+procedure TConfig.Save;
 var
   F: Text;
 begin
-  Assign(F, ConfigFile);
+  Assign(F, Path);
   {$I-}
   Rewrite(F);
   {$I+}
@@ -108,16 +159,29 @@ begin
   begin
     WriteLn(F, '; DOS Game Engine Configuration');
     WriteLn(F, '');
-    WriteLn(F, '[Sound]');
-    WriteLn(F, 'SoundCard=', Config.SoundCard);
-    WriteLn(F, 'SBPort=', Config.SBPort);
-    WriteLn(F, 'SBIRQ=', Config.SBIRQ);
-    WriteLn(F, 'SBDMA=', Config.SBDMA);
-    WriteLn(F, '');
-    WriteLn(F, '[Input]');
-    WriteLn(F, 'UseMouse=', Config.UseMouse);
+    WriteSettings(F);
     Close(F);
   end;
+end;
+
+{ Backward-compatible standalone procedures }
+
+procedure LoadConfig(var Config: TConfig; const ConfigFile: String);
+begin
+  { For backward compatibility, initialize if needed, then load }
+  Config.Init(ConfigFile);
+  Config.Load;
+end;
+
+procedure SaveConfig(var Config: TConfig; const ConfigFile: String);
+var
+  OldPath: String;
+begin
+  { Save current path, temporarily change it, save, restore }
+  OldPath := Config.Path;
+  Config.Path := ConfigFile;
+  Config.Save;
+  Config.Path := OldPath;
 end;
 
 end.

@@ -3,7 +3,7 @@ unit XiGame;
 interface
 
 uses
-  VGA, VGAUI, VGAFont, HiScore, DGECore, DGEScr, Keyboard, StrUtil, GenTypes;
+  VGA, VGAUI, VGAFont, HiScore, DGECore, DGEScr, Config, Keyboard, StrUtil, GenTypes;
 
 const
   TileSize = 16;
@@ -71,7 +71,7 @@ type
     Difficulty: TGameDifficulty;
 
     { Game-specific initialization and cleanup }
-    constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
+    constructor Init(AConfig: PConfig; const ResXmlPath: String);
     destructor Done; virtual;
     procedure Start; virtual;
 
@@ -96,6 +96,7 @@ type
 
 var
   Game: TXiCloneGame;  { Global game instance }
+  GameConfig: TConfig;  { Global config instance }
 
 implementation
 
@@ -132,12 +133,12 @@ end;
 
 { ========== TXiCloneGame Implementation ========== }
 
-constructor TXiCloneGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
+constructor TXiCloneGame.Init(AConfig: PConfig; const ResXmlPath: String);
 var
   I: Integer;
 begin
   { Call parent constructor }
-  inherited Init(ConfigIniPath, ResXmlPath);
+  inherited Init(AConfig, ResXmlPath);
 
   { Initialize game settings }
   Difficulty := GameDifficulty_Hard;  { Default difficulty }

@@ -9,8 +9,11 @@ var
 begin
   WriteLn('Loading XiClone...');
 
-  { Initialize }
-  Game.Init('CONFIG.INI', 'DATA\RES.XML');
+  { Initialize config }
+  GameConfig.Init('CONFIG.INI');
+
+  { Initialize game }
+  Game.Init(@GameConfig, 'DATA\RES.XML');
   Game.Start;
 
   { Create and register screens }
@@ -23,6 +26,7 @@ begin
 
   { Cleanup }
   Game.Done;
+  GameConfig.Done;
 
   WriteLn('Thanks for playing XiClone!');
 end.

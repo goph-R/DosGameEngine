@@ -39,13 +39,16 @@
 
     var
       Game: TMyGame;
+      GameConfig: TConfig;
 
-    Game.Init('CONFIG.INI', 'DATA\RES.XML');
+    GameConfig.Init('CONFIG.INI');
+    Game.Init(@GameConfig, 'DATA\RES.XML');
     Game.Start;
     Game.AddScreen('menu', MenuPtr);
     Game.SetNextScreen('menu');
     Game.Run;
     Game.Done;
+    GameConfig.Done;
 }
 
 unit DGECore;
@@ -64,8 +67,7 @@ type
   { Main game object }
   TGame = object
     { Configuration & Resources }
-    Config: TConfig;
-    ConfigFilePath: String;
+    Config: PConfig;
     ResFilePath: String;
     ResMan: TResourceManager;
 
@@ -92,7 +94,7 @@ type
     MouseInitialized: Boolean;
     SoundInitialized: Boolean;
 
-    constructor Init(const ConfigIniPath: String; const ResXmlPath: String);
+    constructor Init(AConfig: PConfig; const ResXmlPath: String);
     destructor Done;
     procedure Start; virtual;
     procedure Run; virtual;
@@ -128,13 +130,13 @@ begin
 end;
 {$F-}
 
-constructor TGame.Init(const ConfigIniPath: String; const ResXmlPath: String);
+constructor TGame.Init(AConfig: PConfig; const ResXmlPath: String);
 begin
   { Set current game instance for exit handler }
   CurrentGame := @Self;
 
-  { Store file paths }
-  ConfigFilePath := ConfigIniPath;
+  { Store config pointer and resource path }
+  Config := AConfig;
   ResFilePath := ResXmlPath;
 
   { Initialize state }
@@ -227,7 +229,7 @@ begin
   ExitProc := @CleanupOnExit;
 
   { Load configuration }
-  LoadConfig(Config, ConfigFilePath);
+  Config^.Load;
 
   { Initialize resource manager }
   ResMan.Init(True);  { Lazy loading }
@@ -244,14 +246,14 @@ begin
   InitKeyboard;
 
   { Initialize Sound Blaster if configured }
-  if Config.SoundCard = SoundCard_SoundBlaster then
+  if Config^.SoundCard = SoundCard_SoundBlaster then
   begin
-    ResetDSP(Config.SBPort, Config.SBIRQ, Config.SBDMA, 0);
+    ResetDSP(Config^.SBPort, Config^.SBIRQ, Config^.SBDMA, 0);
     SoundInitialized := True;
   end;
 
   { Initialize mouse if configured }
-  if Config.UseMouse = 1 then
+  if Config^.UseMouse = 1 then
   begin
     InitMouse;
     MouseInitialized := True;
@@ -328,7 +330,7 @@ var
   Music: PHSC_Obj;
 begin
   { Exit if no sound card }
-  if Config.SoundCard = SoundCard_None then
+  if Config^.SoundCard = SoundCard_None then
     Exit;
 
   { Check if the same music is already loaded and playing }
@@ -350,7 +352,7 @@ end;
 procedure TGame.PauseMusic;
 begin
   { Exit if no sound card }
-  if Config.SoundCard = SoundCard_None then
+  if Config^.SoundCard = SoundCard_None then
     Exit;
 
   { TODO: Implement music pause }
@@ -360,7 +362,7 @@ end;
 procedure TGame.StopMusic;
 begin
   { Exit if no sound card }
-  if Config.SoundCard = SoundCard_None then
+  if Config^.SoundCard = SoundCard_None then
     Exit;
 
   { TODO: Implement music stop }
