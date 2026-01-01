@@ -12,16 +12,16 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
   <table>
     <tr>
       <td align="center">
-        <a href="DOCS/SCREENS/TMXTEST.png">
-          <img src="DOCS/SCREENS/TMXTEST-thumb.png" alt="TMX Tilemap Test">
+        <a href="DOCS/IMAGES/TMXTEST.png">
+          <img src="DOCS/IMAGES/TMXTEST-thumb.png" alt="TMX Tilemap Test">
         </a>
         <br>
         <strong>Tilemap Rendering</strong><br>
         <small>TMXTEST.PAS</small>
       </td>
       <td align="center">
-        <a href="DOCS/SCREENS/XICLONE.png">
-          <img src="DOCS/SCREENS/XICLONE-thumb.png" alt="Variable-Width Font Test">
+        <a href="DOCS/IMAGES/XICLONE.png">
+          <img src="DOCS/IMAGES/XICLONE-thumb.png" alt="Variable-Width Font Test">
         </a>
         <br>
         <strong>Example Game</strong><br>
@@ -30,16 +30,16 @@ A retro DOS multimedia engine written in **Turbo Pascal 7.0** (1994-era), featur
     </tr>
     <tr>
       <td align="center">
-        <a href="DOCS/SCREENS/SPRTEST.png">
-          <img src="DOCS/SCREENS/SPRTEST-thumb.png" alt="Sprite Animation Test">
+        <a href="DOCS/IMAGES/SPRTEST.png">
+          <img src="DOCS/IMAGES/SPRTEST-thumb.png" alt="Sprite Animation Test">
         </a>
         <br>
         <strong>Sprite Animation</strong><br>
         <small>SPRTEST.PAS</small>
       </td>
       <td align="center">
-        <a href="DOCS/SCREENS/SETUP.png">
-          <img src="DOCS/SCREENS/SETUP-thumb.png" alt="Setup Utility">
+        <a href="DOCS/IMAGES/SETUP.png">
+          <img src="DOCS/IMAGES/SETUP-thumb.png" alt="Setup Utility">
         </a>
         <br>
         <strong>Setup Utility</strong><br>
