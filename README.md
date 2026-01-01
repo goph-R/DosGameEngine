@@ -114,59 +114,59 @@ XICLONE.EXE
 ## 📚 Documentation
 
 ### Core Graphics
-- **[VGA.PAS](DOCS/CORE/VGA.md)** - Mode 13h graphics driver (320×200, 256 colors)
-- **[PCX.PAS](DOCS/CORE/PCX.md)** - PCX image loader/saver
-- **[BMP.PAS](DOCS/CORE/BMP.md)** - Windows BMP image loader/saver
-- **[VGAPRINT.PAS](DOCS/ADVANCED/VGAPRINT.md)** - Embedded 8×8 bitmap font
-- **[VGAFONT.PAS](DOCS/ADVANCED/VGAFONT.md)** - Variable-width font system
-- **[SPRITE.PAS](DOCS/CORE/SPRITE.md)** - Delta-time sprite animation
-- **[DRECT.PAS](DOCS/ADVANCED/DRECT.md)** - Dirty rectangle optimization
+- **[VGA.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/VGA.md)** - Mode 13h graphics driver (320×200, 256 colors)
+- **[PCX.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/PCX.md)** - PCX image loader/saver
+- **[BMP.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/BMP.md)** - Windows BMP image loader/saver
+- **[VGAPRINT.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/VGAPRINT.md)** - Embedded 8×8 bitmap font
+- **[VGAFONT.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/VGAFONT.md)** - Variable-width font system
+- **[SPRITE.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/SPRITE.md)** - Delta-time sprite animation
+- **[DRECT.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/DRECT.md)** - Dirty rectangle optimization
 
 ### User Interface
-- **[VGAUI.PAS](DOCS/ADVANCED/VGAUI.md)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
-- **[TEXTUI.PAS](DOCS/UTILS/TEXTUI.md)** - Text mode UI system (SETUP utility)
+- **[VGAUI.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/VGAUI.md)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
+- **[TEXTUI.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/TEXTUI.md)** - Text mode UI system (SETUP utility)
 
 ### Audio
-- **[SBDSP.PAS](DOCS/AUDIO/SBDSP.md)** - Sound Blaster DSP driver
-- **[SNDBANK.PAS](DOCS/AUDIO/SNDBANK.md)** - XMS sound bank manager
-- **[PLAYHSC.PAS](DOCS/AUDIO/PLAYHSC.md)** - HSC music player (AdLib/OPL2)
-- **[HSC Format](DOCS/AUDIO/HSC.md)** - HSC file format specification
+- **[SBDSP.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/AUDIO/SBDSP.md)** - Sound Blaster DSP driver
+- **[SNDBANK.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/AUDIO/SNDBANK.md)** - XMS sound bank manager
+- **[PLAYHSC.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/AUDIO/PLAYHSC.md)** - HSC music player (AdLib/OPL2)
+- **[HSC Format](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/AUDIO/HSC.md)** - HSC file format specification
 
 ### Input
-- **[KEYBOARD.PAS](DOCS/INPUT/KEYBOARD.md)** - Hardware keyboard handler (INT 9h)
-- **[MOUSE.PAS](DOCS/INPUT/MOUSE.md)** - Mouse driver (INT 33h)
+- **[KEYBOARD.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/INPUT/KEYBOARD.md)** - Hardware keyboard handler (INT 9h)
+- **[MOUSE.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/INPUT/MOUSE.md)** - Mouse driver (INT 33h)
 
 ### Tilemaps
-- **[TMXLOAD.PAS](DOCS/CORE/TILEMAP.md)** - TMX tilemap loader (Tiled Map Editor)
-- **[TMXDRAW.PAS](DOCS/CORE/TILEMAP.md)** - TMX rendering system
+- **[TMXLOAD.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/TILEMAP.md)** - TMX tilemap loader (Tiled Map Editor)
+- **[TMXDRAW.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/CORE/TILEMAP.md)** - TMX rendering system
 
 ### Memory & Timing
-- **[XMS.PAS](DOCS/UTILS/XMS.md)** - Extended memory manager (HIMEM.SYS)
-- **[RTCTIMER.PAS](DOCS/UTILS/RTCTIMER.md)** - RTC high-resolution timer (IRQ8)
+- **[XMS.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/XMS.md)** - Extended memory manager (HIMEM.SYS)
+- **[RTCTIMER.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/RTCTIMER.md)** - RTC high-resolution timer (IRQ8)
 
 ### Resources
-- **[RESMAN.PAS](DOCS/ADVANCED/RESMAN.md)** - XML-based resource manager
-- **[MINIXML.PAS](DOCS/UTILS/MINIXML.md)** - Lightweight XML parser/writer
-- **[CONFIG.PAS](DOCS/UTILS/CONFIG.md)** - INI configuration system
+- **[RESMAN.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/RESMAN.md)** - XML-based resource manager
+- **[MINIXML.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/MINIXML.md)** - Lightweight XML parser/writer
+- **[CONFIG.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/CONFIG.md)** - INI configuration system
 
 ### Utilities
-- **[GENTYPES.PAS](DOCS/UTILS/GENTYPES.md)** - Generic pointer and array types, alignment constants
-- **[MATHUTIL.PAS](DOCS/UTILS/MATHUTIL.md)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
-- **[STRUTIL.PAS](DOCS/UTILS/STRUTIL.md)** - String conversion utilities
-- **[STRMAP.PAS](DOCS/UTILS/STRMAP.md)** - String hash map (O(1) lookup)
-- **[LINKLIST.PAS](DOCS/UTILS/LINKLIST.md)** - Doubly-linked list
-- **[MD5.PAS](DOCS/ADVANCED/MD5.md)** - MD5 cryptographic hash (RFC 1321)
-- **[HISCORE.PAS](DOCS/ADVANCED/HISCORE.md)** - High score management with tamper protection
-- **[LOGGER.PAS](DOCS/UTILS/LOGGER.md)** - Debug file logger
+- **[GENTYPES.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/GENTYPES.md)** - Generic pointer and array types, alignment constants
+- **[MATHUTIL.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/MATHUTIL.md)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
+- **[STRUTIL.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/STRUTIL.md)** - String conversion utilities
+- **[STRMAP.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/STRMAP.md)** - String hash map (O(1) lookup)
+- **[LINKLIST.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/LINKLIST.md)** - Doubly-linked list
+- **[MD5.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/MD5.md)** - MD5 cryptographic hash (RFC 1321)
+- **[HISCORE.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/HISCORE.md)** - High score management with tamper protection
+- **[LOGGER.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/UTILS/LOGGER.md)** - Debug file logger
 
 ### Game Framework (DGE - DOS Game Engine)
-- **[DGECORE.PAS](DOCS/ADVANCED/DGECORE.md)** - Game framework core (TGame object, subsystem integration)
-- **[DGESCR.PAS](DOCS/ADVANCED/DGECORE.md)** - Screen/state management (TScreen base object)
+- **[DGECORE.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/DGECORE.md)** - Game framework core (TGame object, subsystem integration)
+- **[DGESCR.PAS](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/ADVANCED/DGECORE.md)** - Screen/state management (TScreen base object)
 
 ### Guides
-- **[Build Guide](DOCS/STARTING/BUILD.md)** - Compilation instructions
-- **[Asset Creation](DOCS/STARTING/CREATE.md)** - Creating PCX, VOC, HSC, TMX assets
-- **[Example Program](DOCS/STARTING/EXAMPLE.md)** - Complete game example walkthrough
+- **[Build Guide](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/STARTING/BUILD.md)** - Compilation instructions
+- **[Asset Creation](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/STARTING/CREATE.md)** - Creating PCX, VOC, HSC, TMX assets
+- **[Example Program](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/STARTING/EXAMPLE.md)** - Complete game example walkthrough
 
 ## 📁 Project Structure
 
@@ -196,7 +196,7 @@ Use [Audacity](https://www.audacityteam.org/) → Mix to Mono → Resample 11025
 Use [Adlib Tracker II](https://adlibtracker.net/) or [HSC-tracker](https://demozoo.org/productions/293837/).
 
 **TMX Tilemaps:**
-Use [Tiled](https://www.mapeditor.org/) (see [TILEMAP.md](DOCS/TILEMAP.md) for restrictions).
+Use [Tiled](https://www.mapeditor.org/) (see [TILEMAP.md](https://github.com/DynartInteractive/docs-dos-game-engine/tree/main/TILEMAP.md) for restrictions).
 
 ## 📜 Credits
 
