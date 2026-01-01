@@ -27,7 +27,7 @@ Initial release of the DOS Game Engine - a retro multimedia framework for Turbo 
 - **Sprites** (SPRITE.PAS) - Delta-time animation with forward/pingpong/once playback
 - **Tilemap** - TMX loader (TMXLOAD.PAS) and renderer (TMXDRAW.PAS) for Tiled Map Editor
 - **Resource Manager** (RESMAN.PAS) - Centralized XML-based asset loading with lazy/eager modes
-- **Game Framework** (GAMEUNIT.PAS) - Screen management, delta-time loop, auto-initialization
+- **Game Framework** (DGECORE.PAS, DGESCR.PAS) - Screen management, delta-time loop, auto-initialization
 - **Memory** (XMS.PAS) - Extended memory support via HIMEM.SYS
 - **Utilities** - String map (STRMAP.PAS), linked list (LINKLIST.PAS), XML parser (MINIXML.PAS), string helpers (STRUTIL.PAS), logger (LOGGER.PAS), dirty rectangles (DRECT.PAS), MD5 hashing (MD5.PAS)
 - **Configuration** (CONFIG.PAS) - INI file management for game settings

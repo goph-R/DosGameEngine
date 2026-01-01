@@ -160,9 +160,8 @@ XICLONE.EXE
 - **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
 
 ### Game Framework (DGE - DOS Game Engine)
-- **[DGECORE.PAS](DOCS/GAMEUNIT.md)** - Game framework core (TGame object, subsystem integration)
-- **[DGESCR.PAS](DOCS/GAMEUNIT.md)** - Screen/state management (TScreen base object)
-- **[GAMEUNIT.PAS](DOCS/GAMEUNIT.md)** - Backward compatibility wrapper (deprecated)
+- **[DGECORE.PAS](DOCS/ADVANCED/DGECORE.md)** - Game framework core (TGame object, subsystem integration)
+- **[DGESCR.PAS](DOCS/ADVANCED/DGECORE.md)** - Screen/state management (TScreen base object)
 
 ### Guides
 - **[Build Guide](DOCS/BUILD.md)** - Compilation instructions

@@ -238,11 +238,6 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - **Zero dependencies** - completely standalone screen base object
 - Minimal, focused API for state management
 
-**GAMEUNIT.PAS** - Game framework (DEPRECATED - backward compatibility wrapper)
-- Re-exports TGame from DGECORE and TScreen from DGESCR
-- Maintained for backward compatibility only
-- **New code should use DGECore and DGEScr directly**
-- See DOCS\GAMEUNIT.md for architecture
 
 **DRECT.PAS** - Dirty rectangle system (2025)
 - Optimized rendering for partial screen updates
