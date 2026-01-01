@@ -114,59 +114,59 @@ XICLONE.EXE
 ## 📚 Documentation
 
 ### Core Graphics
-- **[VGA.PAS](DOCS/VGA.md)** - Mode 13h graphics driver (320×200, 256 colors)
-- **[PCX.PAS](DOCS/PCX.md)** - PCX image loader/saver
-- **[BMP.PAS](DOCS/BMP.md)** - Windows BMP image loader/saver
-- **[VGAPRINT.PAS](DOCS/VGAPRINT.md)** - Embedded 8×8 bitmap font
-- **[VGAFONT.PAS](DOCS/VGAFONT.md)** - Variable-width font system
-- **[SPRITE.PAS](DOCS/SPRITE.md)** - Delta-time sprite animation
-- **[DRECT.PAS](DOCS/DRECT.md)** - Dirty rectangle optimization
+- **[VGA.PAS](DOCS/CORE/VGA.md)** - Mode 13h graphics driver (320×200, 256 colors)
+- **[PCX.PAS](DOCS/CORE/PCX.md)** - PCX image loader/saver
+- **[BMP.PAS](DOCS/CORE/BMP.md)** - Windows BMP image loader/saver
+- **[VGAPRINT.PAS](DOCS/ADVANCED/VGAPRINT.md)** - Embedded 8×8 bitmap font
+- **[VGAFONT.PAS](DOCS/ADVANCED/VGAFONT.md)** - Variable-width font system
+- **[SPRITE.PAS](DOCS/CORE/SPRITE.md)** - Delta-time sprite animation
+- **[DRECT.PAS](DOCS/ADVANCED/DRECT.md)** - Dirty rectangle optimization
 
 ### User Interface
-- **[VGAUI.PAS](DOCS/VGAUI.md)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
-- **[TEXTUI.PAS](DOCS/TEXTUI.md)** - Text mode UI system (SETUP utility)
+- **[VGAUI.PAS](DOCS/ADVANCED/VGAUI.md)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
+- **[TEXTUI.PAS](DOCS/UTILS/TEXTUI.md)** - Text mode UI system (SETUP utility)
 
 ### Audio
-- **[SBDSP.PAS](DOCS/SBDSP.md)** - Sound Blaster DSP driver
-- **[SNDBANK.PAS](DOCS/SNDBANK.md)** - XMS sound bank manager
-- **[PLAYHSC.PAS](DOCS/PLAYHSC.md)** - HSC music player (AdLib/OPL2)
-- **[HSC Format](DOCS/HSC.md)** - HSC file format specification
+- **[SBDSP.PAS](DOCS/AUDIO/SBDSP.md)** - Sound Blaster DSP driver
+- **[SNDBANK.PAS](DOCS/AUDIO/SNDBANK.md)** - XMS sound bank manager
+- **[PLAYHSC.PAS](DOCS/AUDIO/PLAYHSC.md)** - HSC music player (AdLib/OPL2)
+- **[HSC Format](DOCS/AUDIO/HSC.md)** - HSC file format specification
 
 ### Input
-- **[KEYBOARD.PAS](DOCS/KEYBOARD.md)** - Hardware keyboard handler (INT 9h)
-- **[MOUSE.PAS](DOCS/MOUSE.md)** - Mouse driver (INT 33h)
+- **[KEYBOARD.PAS](DOCS/INPUT/KEYBOARD.md)** - Hardware keyboard handler (INT 9h)
+- **[MOUSE.PAS](DOCS/INPUT/MOUSE.md)** - Mouse driver (INT 33h)
 
 ### Tilemaps
-- **[TMXLOAD.PAS](DOCS/TILEMAP.md)** - TMX tilemap loader (Tiled Map Editor)
-- **[TMXDRAW.PAS](DOCS/TILEMAP.md)** - TMX rendering system
+- **[TMXLOAD.PAS](DOCS/CORE/TILEMAP.md)** - TMX tilemap loader (Tiled Map Editor)
+- **[TMXDRAW.PAS](DOCS/CORE/TILEMAP.md)** - TMX rendering system
 
 ### Memory & Timing
-- **[XMS.PAS](DOCS/XMS.md)** - Extended memory manager (HIMEM.SYS)
-- **[RTCTIMER.PAS](DOCS/RTCTIMER.md)** - RTC high-resolution timer (IRQ8)
+- **[XMS.PAS](DOCS/UTILS/XMS.md)** - Extended memory manager (HIMEM.SYS)
+- **[RTCTIMER.PAS](DOCS/UTILS/RTCTIMER.md)** - RTC high-resolution timer (IRQ8)
 
 ### Resources
-- **[RESMAN.PAS](DOCS/RESMAN.md)** - XML-based resource manager
-- **[MINIXML.PAS](DOCS/MINIXML.md)** - Lightweight XML parser/writer
-- **[CONFIG.PAS](DOCS/CONFIG.md)** - INI configuration system
+- **[RESMAN.PAS](DOCS/ADVANCED/RESMAN.md)** - XML-based resource manager
+- **[MINIXML.PAS](DOCS/UTILS/MINIXML.md)** - Lightweight XML parser/writer
+- **[CONFIG.PAS](DOCS/UTILS/CONFIG.md)** - INI configuration system
 
 ### Utilities
-- **[GENTYPES.PAS](DOCS/GENTYPES.md)** - Generic pointer and array types, alignment constants
-- **[MATHUTIL.PAS](DOCS/MATHUTIL.md)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
-- **[STRUTIL.PAS](DOCS/STRUTIL.md)** - String conversion utilities
-- **[STRMAP.PAS](DOCS/STRMAP.md)** - String hash map (O(1) lookup)
-- **[LINKLIST.PAS](DOCS/LINKLIST.md)** - Doubly-linked list
-- **[MD5.PAS](DOCS/MD5.md)** - MD5 cryptographic hash (RFC 1321)
-- **[HISCORE.PAS](DOCS/HISCORE.md)** - High score management with tamper protection
-- **[LOGGER.PAS](DOCS/LOGGER.md)** - Debug file logger
+- **[GENTYPES.PAS](DOCS/UTILS/GENTYPES.md)** - Generic pointer and array types, alignment constants
+- **[MATHUTIL.PAS](DOCS/UTILS/MATHUTIL.md)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
+- **[STRUTIL.PAS](DOCS/UTILS/STRUTIL.md)** - String conversion utilities
+- **[STRMAP.PAS](DOCS/UTILS/STRMAP.md)** - String hash map (O(1) lookup)
+- **[LINKLIST.PAS](DOCS/UTILS/LINKLIST.md)** - Doubly-linked list
+- **[MD5.PAS](DOCS/ADVANCED/MD5.md)** - MD5 cryptographic hash (RFC 1321)
+- **[HISCORE.PAS](DOCS/ADVANCED/HISCORE.md)** - High score management with tamper protection
+- **[LOGGER.PAS](DOCS/UTILS/LOGGER.md)** - Debug file logger
 
 ### Game Framework (DGE - DOS Game Engine)
 - **[DGECORE.PAS](DOCS/ADVANCED/DGECORE.md)** - Game framework core (TGame object, subsystem integration)
 - **[DGESCR.PAS](DOCS/ADVANCED/DGECORE.md)** - Screen/state management (TScreen base object)
 
 ### Guides
-- **[Build Guide](DOCS/BUILD.md)** - Compilation instructions
-- **[Asset Creation](DOCS/CREATE.md)** - Creating PCX, VOC, HSC, TMX assets
-- **[Example Program](DOCS/EXAMPLE.md)** - Complete game example walkthrough
+- **[Build Guide](DOCS/STARTING/BUILD.md)** - Compilation instructions
+- **[Asset Creation](DOCS/STARTING/CREATE.md)** - Creating PCX, VOC, HSC, TMX assets
+- **[Example Program](DOCS/STARTING/EXAMPLE.md)** - Complete game example walkthrough
 
 ## 📁 Project Structure
 
