@@ -245,9 +245,9 @@ begin
   SetMenu(MainMenu);
 end;
 
-procedure SelectAdlib;
+procedure SelectAdLib;
 begin
-  SetSoundCard(SoundCard_Adlib);
+  SetSoundCard(SoundCard_AdLib);
   SetMenu(MainMenu);
 end;
 
@@ -323,7 +323,7 @@ begin
   SoundCardMenu.Width := 26;
 
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_None], SelectNone);
-  AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_Adlib], SelectAdlib);
+  AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_AdLib], SelectAdLib);
   AddMenuItem(SoundCardMenu, SoundCardNames[SoundCard_SoundBlaster], SelectSoundBlaster);
 end;
 

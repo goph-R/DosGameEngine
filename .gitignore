@@ -1,8 +1,8 @@
 .claude
 *.$$$
-*.tpu
-*.bak
-*.exe
+*.TPU
+*.BAK
+*.EXE
 TESTS/DATA/RES-OUT.XML
 TESTS/DATA/TEXT-OUT.PCX
 TESTS/DATA/TEXT-OUT.BMP

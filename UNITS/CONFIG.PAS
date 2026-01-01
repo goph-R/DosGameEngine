@@ -12,18 +12,18 @@ const
   TileSize = 16;
 
   SoundCard_None = 0;
-  SoundCard_Adlib = 1;
+  SoundCard_AdLib = 1;
   SoundCard_SoundBlaster = 2;
 
   SoundCardNames: array[0..2] of string = (
     'None',
-    'Adlib',
+    'AdLib',
     'Sound Blaster'
   );
 
 type
   TConfig = record
-    SoundCard: Byte;     { 0=None, 1=Adlib, 2=SoundBlaster }
+    SoundCard: Byte;     { 0=None, 1=AdLib, 2=SoundBlaster }
     SBPort: Word;        { SoundBlaster base (2=$220, 4=$240, 6=$260, 8=$280) }
     SBIRQ: Byte;         { SoundBlaster IRQ (e.g., 5 or 7) }
     SBDMA: Byte;         { SoundBlaster DMA (1, 2, 3, or 4) }

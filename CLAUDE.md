@@ -4,7 +4,7 @@ Guidance for Claude Code when working with this Turbo Pascal DOS multimedia engi
 
 ## Project Overview
 
-Retro DOS multimedia engine (Turbo Pascal 7.0, 1994-era). VGA Mode 13h graphics (320x200 256-color), HSC (Adlib/OPL2) music, demoscene-style programming with direct hardware access.
+Retro DOS multimedia engine (Turbo Pascal 7.0, 1994-era). VGA Mode 13h graphics (320x200 256-color), HSC (AdLib/OPL2) music, demoscene-style programming with direct hardware access.
 
 ## DOS 8.3 Filename Convention
 
@@ -338,7 +338,7 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 
 **PCX**: ZSoft PCX v5 RLE-compressed 256-color (Aseprite/GIMP-compatible, palette 0-255 auto-converted to 0-63)
 **BMP**: Windows BMP uncompressed 256-color (Paint/Photoshop/GIMP-compatible, BGRA palette auto-converted to VGA RGB 0-63)
-**HSC**: Adlib OPL2 tracker (embeddable via BINOBJ.EXE→.OBJ)
+**HSC**: AdLib OPL2 tracker (embeddable via BINOBJ.EXE→.OBJ)
 **VOC**: Creative Voice File (8-bit PCM, 11025/22050 Hz mono)
 
 ## Creating PCX Files
@@ -551,7 +551,7 @@ MD5Final(digest, ctx);
 
 - DOS real mode 16-bit x86, Turbo Pascal 7.0
 - VGA Mode 13h (320x200 256-color)
-- Adlib/OPL2 (HSC), Sound Blaster (VOC, DMA 0-3)
+- AdLib/OPL2 (HSC), Sound Blaster (VOC, DMA 0-3)
 - Memory: 640KB conventional, XMS via HIMEM.SYS ✅
 - Single-threaded, interrupt-driven audio
 - **Performance**: Targets 286 CPUs (8-25 MHz). Avoid full framebuffer copies/renders unless absolutely necessary. Use dirty rectangles (DRECT.PAS) and viewport rendering for optimal performance
