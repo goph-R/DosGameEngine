@@ -114,17 +114,17 @@ XICLONE.EXE
 ## 📚 Documentation
 
 ### Core Graphics
-- **[VGA.PAS](https://docs.dynart.net/dos-game-engine/CORE/VGA.html)** - Mode 13h graphics driver (320×200, 256 colors)
-- **[PCX.PAS](https://docs.dynart.net/dos-game-engine/CORE/PCX.html)** - PCX image loader/saver
-- **[BMP.PAS](https://docs.dynart.net/dos-game-engine/CORE/BMP.html)** - Windows BMP image loader/saver
-- **[VGAPRINT.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/VGAPRINT.html)** - Embedded 8×8 bitmap font
+- **[VGA.PAS](https://docs.dynart.net/dos-game-engine/BASICS/VGA.html)** - Mode 13h graphics driver (320×200, 256 colors)
+- **[PCX.PAS](https://docs.dynart.net/dos-game-engine/BASICS/PCX.html)** - PCX image loader/saver
+- **[BMP.PAS](https://docs.dynart.net/dos-game-engine/BASICS/BMP.html)** - Windows BMP image loader/saver
+- **[VGAPRINT.PAS](https://docs.dynart.net/dos-game-engine/BASICS/VGAPRINT.html)** - Embedded 8×8 bitmap font
 - **[VGAFONT.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/VGAFONT.html)** - Variable-width font system
-- **[SPRITE.PAS](https://docs.dynart.net/dos-game-engine/CORE/SPRITE.html)** - Delta-time sprite animation
+- **[SPRITE.PAS](https://docs.dynart.net/dos-game-engine/BASICS/SPRITE.html)** - Delta-time sprite animation
 - **[DRECT.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/DRECT.html)** - Dirty rectangle optimization
 
 ### User Interface
 - **[VGAUI.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/VGAUI.html)** - VGA widget toolkit (buttons, labels, checkboxes, line edits)
-- **[TEXTUI.PAS](https://docs.dynart.net/dos-game-engine/UTILS/TEXTUI.html)** - Text mode UI system (SETUP utility)
+- **[TEXTUI.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/TEXTUI.html)** - Text mode UI system (SETUP utility)
 
 ### Audio
 - **[SBDSP.PAS](https://docs.dynart.net/dos-game-engine/AUDIO/SBDSP.html)** - Sound Blaster DSP driver
@@ -133,12 +133,12 @@ XICLONE.EXE
 - **[HSC Format](https://docs.dynart.net/dos-game-engine/AUDIO/HSC.html)** - HSC file format specification
 
 ### Input
-- **[KEYBOARD.PAS](https://docs.dynart.net/dos-game-engine/INPUT/KEYBOARD.html)** - Hardware keyboard handler (INT 9h)
-- **[MOUSE.PAS](https://docs.dynart.net/dos-game-engine/INPUT/MOUSE.html)** - Mouse driver (INT 33h)
+- **[KEYBOARD.PAS](https://docs.dynart.net/dos-game-engine/BASICS/KEYBOARD.html)** - Hardware keyboard handler (INT 9h)
+- **[MOUSE.PAS](https://docs.dynart.net/dos-game-engine/BASICS/MOUSE.html)** - Mouse driver (INT 33h)
 
 ### Tilemaps
-- **[TMXLOAD.PAS](https://docs.dynart.net/dos-game-engine/CORE/TILEMAP.html)** - TMX tilemap loader (Tiled Map Editor)
-- **[TMXDRAW.PAS](https://docs.dynart.net/dos-game-engine/CORE/TILEMAP.html)** - TMX rendering system
+- **[TMXLOAD.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/TILEMAP.html)** - TMX tilemap loader (Tiled Map Editor)
+- **[TMXDRAW.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/TILEMAP.html)** - TMX rendering system
 
 ### Memory & Timing
 - **[XMS.PAS](https://docs.dynart.net/dos-game-engine/UTILS/XMS.html)** - Extended memory manager (HIMEM.SYS)
@@ -146,16 +146,17 @@ XICLONE.EXE
 
 ### Resources
 - **[RESMAN.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/RESMAN.html)** - XML-based resource manager
-- **[MINIXML.PAS](https://docs.dynart.net/dos-game-engine/UTILS/MINIXML.html)** - Lightweight XML parser/writer
-- **[CONFIG.PAS](https://docs.dynart.net/dos-game-engine/UTILS/CONFIG.html)** - INI configuration system
+- **[MINIXML.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/MINIXML.html)** - Lightweight XML parser/writer
+- **[CONFIG.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/CONFIG.html)** - INI configuration system
 
 ### Utilities
 - **[GENTYPES.PAS](https://docs.dynart.net/dos-game-engine/UTILS/GENTYPES.html)** - Generic pointer and array types, alignment constants
-- **[MATHUTIL.PAS](https://docs.dynart.net/dos-game-engine/UTILS/MATHUTIL.html)** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
+- **MATHUTIL.PAS**
+- Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
 - **[STRUTIL.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRUTIL.html)** - String conversion utilities
 - **[STRMAP.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRMAP.html)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](https://docs.dynart.net/dos-game-engine/UTILS/LINKLIST.html)** - Doubly-linked list
-- **[MD5.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/MD5.html)** - MD5 cryptographic hash (RFC 1321)
+- **[MD5.PAS](https://docs.dynart.net/dos-game-engine/UTILS/MD5.html)** - MD5 cryptographic hash (RFC 1321)
 - **[HISCORE.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/HISCORE.html)** - High score management with tamper protection
 - **[LOGGER.PAS](https://docs.dynart.net/dos-game-engine/UTILS/LOGGER.html)** - Debug file logger
 
