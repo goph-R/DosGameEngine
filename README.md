@@ -151,8 +151,7 @@ XICLONE.EXE
 
 ### Utilities
 - **[GENTYPES.PAS](https://docs.dynart.net/dos-game-engine/UTILS/GENTYPES.html)** - Generic pointer and array types, alignment constants
-- **MATHUTIL.PAS**
-- Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
+- **MATHUTIL.PAS** - Math utilities (Clamp, Lerp, Min/Max, 16.16 fixed-point)
 - **[STRUTIL.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRUTIL.html)** - String conversion utilities
 - **[STRMAP.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRMAP.html)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](https://docs.dynart.net/dos-game-engine/UTILS/LINKLIST.html)** - Doubly-linked list
