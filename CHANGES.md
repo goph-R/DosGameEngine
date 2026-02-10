@@ -5,6 +5,19 @@ All notable changes to the DOS Game Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-10
+
+First stable release - verified on real DOS hardware.
+
+### Changed
+- Replaced MD5 with CRC32 (ISO 3309) for high score tamper protection - resolves hash computation failures on real hardware with 64-bit CPUs
+- CRC32 output is compatible with PHP `crc32()` for server-side verification
+
+### Removed
+- MD5 unit (MD5.PAS) and all related test/debug files
+
+---
+
 ## [0.9.0] - 2025-01-23
 
 Initial release of the DOS Game Engine - a retro multimedia framework for Turbo Pascal 7.0.
