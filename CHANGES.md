@@ -42,7 +42,7 @@ Initial release of the DOS Game Engine - a retro multimedia framework for Turbo 
 - **Resource Manager** (RESMAN.PAS) - Centralized XML-based asset loading with lazy/eager modes
 - **Game Framework** (DGECORE.PAS, DGESCR.PAS) - Screen management, delta-time loop, auto-initialization
 - **Memory** (XMS.PAS) - Extended memory support via HIMEM.SYS
-- **Utilities** - String map (STRMAP.PAS), linked list (LINKLIST.PAS), XML parser (MINIXML.PAS), string helpers (STRUTIL.PAS), logger (LOGGER.PAS), dirty rectangles (DRECT.PAS), CRC32 hashing (CRC32.PAS)
+- **Utilities** - String map (STRMAP.PAS), linked list (LINKLIST.PAS), XML parser (MINIXML.PAS), string helpers (STRUTIL.PAS), logger (LOGGER.PAS), dirty rectangles (DRECT.PAS), MD5 hashing (MD5.PAS)
 - **Configuration** (CONFIG.PAS) - INI file management for game settings
 - **Text UI** (TEXTUI.PAS) - Text mode menus and dialogs
 - **XiClone Game** - Complete Columns/Tetris-style puzzle game demonstrating all engine features
