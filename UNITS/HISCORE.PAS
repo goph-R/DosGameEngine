@@ -1,6 +1,6 @@
 { HISCORE.PAS - High Score Management with Tamper Protection
 
-  Manages top 10 high scores with MD5 hash verification to prevent cheating.
+  Manages top 10 high scores with CRC32 hash verification to prevent cheating.
   Uses XML storage with salted hash of all names and scores.
 
   Usage:
@@ -16,7 +16,7 @@ unit HiScore;
 interface
 
 uses
-  MD5, MiniXML, StrUtil;
+  CRC32, MiniXML, StrUtil;
 
 const
   MaxHighScores = 10;
@@ -43,7 +43,7 @@ function SaveHighScore(const FileName: String; const Name: String; Score: LongIn
 { Check if a score qualifies for top 10 }
 function IsHighScore(const HS: THighScore; Score: LongInt): Boolean;
 
-{ Compute MD5 hash of all scores (for verification) }
+{ Compute CRC32 hash of all scores (for verification) }
 function ComputeHighScoreHash(const HS: THighScore): String;
 
 implementation
@@ -64,32 +64,31 @@ end;
 function ComputeHighScoreHash(const HS: THighScore): String;
 var
   i: Integer;
-  Ctx: TMD5Context;
-  Digest: TMD5Digest;
+  CRC: TCRC32;
   ScoreStr: String;
 begin
   { Use incremental hashing to avoid 255-char String limit }
-  MD5Init(Ctx);
+  CRC32Init(CRC);
 
   { Hash salt }
   if Length(HS.Salt) > 0 then
-    MD5Update(Ctx, @HS.Salt[1], Length(HS.Salt));
+    CRC32Update(CRC, @HS.Salt[1], Length(HS.Salt));
 
   { Hash each name and score }
   for i := 0 to HS.Count - 1 do
   begin
     { Hash name }
     if Length(HS.Names[i]) > 0 then
-      MD5Update(Ctx, @HS.Names[i][1], Length(HS.Names[i]));
+      CRC32Update(CRC, @HS.Names[i][1], Length(HS.Names[i]));
 
     { Hash score as string }
     ScoreStr := IntToStr(HS.Scores[i]);
-    MD5Update(Ctx, @ScoreStr[1], Length(ScoreStr));
+    CRC32Update(CRC, @ScoreStr[1], Length(ScoreStr));
   end;
 
   { Finalize and convert to hex string }
-  MD5Final(Digest, Ctx);
-  ComputeHighScoreHash := MD5DigestToHex(Digest);
+  CRC32Final(CRC);
+  ComputeHighScoreHash := CRC32ToHex(CRC);
 end;
 
 function LoadHighScore(const FileName: String; var HS: THighScore): Boolean;

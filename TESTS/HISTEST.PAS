@@ -1,7 +1,7 @@
 program HisTest;
 
 { High Score System Test - HISTEST.PAS
-  Tests the HiScore unit with MD5 tamper protection }
+  Tests the HiScore unit with CRC32 tamper protection }
 
 uses
   HiScore, MiniXML;
@@ -301,7 +301,7 @@ end;
 begin
   WriteLn('========================================');
   WriteLn(' High Score System Test Suite');
-  WriteLn(' Testing MD5 Tamper Protection');
+  WriteLn(' Testing CRC32 Tamper Protection');
   WriteLn('========================================');
   WriteLn;
 

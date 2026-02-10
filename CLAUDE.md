@@ -325,14 +325,14 @@ cd ..\TESTS && tpc -U..\UNITS VGATEST.PAS
 - **WARNING**: Do NOT use in render loops - file I/O causes stack overflow at 60 FPS
 - Safe for startup/shutdown logging only
 
-**MD5.PAS** - MD5 cryptographic hash (1992, RFC 1321)
-- Types: TMD5Digest (array[0..15] of Byte), TMD5Context
-- Core: MD5Init(ctx), MD5Update(ctx,buf,len), MD5Final(digest,ctx)
-- Convenience: MD5String(s), MD5File(path,digest), MD5DigestToHex(digest), MD5DigestEqual(a,b)
-- 128-bit hash, returns 32-char hex string
-- Use cases: Asset verification, save game checksums, file integrity
-- Performance: Instant for strings, ~0.5-1s for full-screen images on 286
-- Era-appropriate (1992), period-accurate for retro engine
+**CRC32.PAS** - CRC-32 hash (ISO 3309, PHP crc32() compatible)
+- Types: TCRC32 (LongInt)
+- Core: CRC32Init(crc), CRC32Update(crc,buf,len), CRC32Final(crc)
+- Convenience: CRC32String(s), CRC32File(path,crc), CRC32ToHex(crc)
+- 32-bit hash, returns 8-char hex string
+- Use cases: Save game checksums, highscore tamper protection, file integrity
+- Table computed at unit init (1KB lookup table, polynomial $EDB88320)
+- Compatible with PHP 8 crc32(), ZIP, PNG, gzip
 
 ## File Formats
 
@@ -507,21 +507,21 @@ FlushDirtyRects(BackBuffer); { Copy only changed regions to screen }
 ClearDirtyRects; { Prepare for next frame }
 ```
 
-**MD5 Hashing**:
+**CRC32 Hashing**:
 ```pascal
 { Quick string hash }
-hash := MD5String('hello world');
-WriteLn('Hash: ', hash);
+hash := CRC32String('hello world');
+WriteLn('Hash: ', hash);  { 0d4a1185 - matches PHP crc32() }
 
 { File integrity check }
-if MD5File('DATA\FONT.PCX', digest) then
-  WriteLn('Hash: ', MD5DigestToHex(digest));
+if CRC32File('DATA\FONT.PCX', CRC) then
+  WriteLn('Hash: ', CRC32ToHex(CRC));
 
 { Incremental hashing }
-MD5Init(ctx);
-MD5Update(ctx, @buffer1, len1);
-MD5Update(ctx, @buffer2, len2);
-MD5Final(digest, ctx);
+CRC32Init(CRC);
+CRC32Update(CRC, @buffer1, len1);
+CRC32Update(CRC, @buffer2, len2);
+CRC32Final(CRC);
 ```
 
 ## Common Pitfalls

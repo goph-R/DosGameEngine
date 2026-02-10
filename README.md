@@ -102,7 +102,7 @@ XICLONE.EXE
 - INI configuration system
 - String hash map (O(1) lookup)
 - Linked list utilities
-- MD5 cryptographic hash (RFC 1321, asset verification)
+- CRC32 hash (ISO 3309, PHP compatible)
 - High score system with tamper protection
 
 ### 🛠 Tools
@@ -155,7 +155,7 @@ XICLONE.EXE
 - **[STRUTIL.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRUTIL.html)** - String conversion utilities
 - **[STRMAP.PAS](https://docs.dynart.net/dos-game-engine/UTILS/STRMAP.html)** - String hash map (O(1) lookup)
 - **[LINKLIST.PAS](https://docs.dynart.net/dos-game-engine/UTILS/LINKLIST.html)** - Doubly-linked list
-- **[MD5.PAS](https://docs.dynart.net/dos-game-engine/UTILS/MD5.html)** - MD5 cryptographic hash (RFC 1321)
+- **[CRC32.PAS](https://docs.dynart.net/dos-game-engine/UTILS/CRC32.html)** - CRC-32 hash (ISO 3309, PHP compatible)
 - **[HISCORE.PAS](https://docs.dynart.net/dos-game-engine/ADVANCED/HISCORE.html)** - High score management with tamper protection
 - **[LOGGER.PAS](https://docs.dynart.net/dos-game-engine/UTILS/LOGGER.html)** - Debug file logger
 
